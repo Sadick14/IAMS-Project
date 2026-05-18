@@ -131,7 +131,7 @@ const mockLogbookEntries: LogbookEntry[] = [
   },
 ];
 
-const STORAGE_KEY = "iams_demo_store_state";
+const STORAGE_KEY = "iams_demo_store_state_v2";
 
 function getInitialState(): StoreState {
   if (typeof window !== "undefined") {
@@ -145,20 +145,20 @@ function getInitialState(): StoreState {
     }
   }
   return {
-    applications: [...initialApps],
-    companies: [...initialCompanies],
+    applications: [],
+    companies: [...initialCompanies], // Kept to avoid tedious data entry for companies
     branches: [...initialBranches],
-    notifications: [...initialNotifications],
-    auditLogs: [...initialAuditLogs],
-    terms: [...initialTerms],
-    logbookEntries: [...mockLogbookEntries],
-    gradingConfigs: [...initialConfigs],
-    industrialAssessments: [...initialIndustrial],
-    siteVisitations: [...initialVisits],
-    reportScores: [...initialReports],
-    presentationScores: [...initialPresentations],
-    compiledGrades: [...initialCompiled],
-    weeklyRubrics: [...initialWeeklyRubrics],
+    notifications: [],
+    auditLogs: [],
+    terms: [], // Empty so CLO can create one
+    logbookEntries: [],
+    gradingConfigs: [...initialConfigs], // Kept to maintain department grading structures
+    industrialAssessments: [],
+    siteVisitations: [],
+    reportScores: [],
+    presentationScores: [],
+    compiledGrades: [],
+    weeklyRubrics: [],
     assignmentLocks: [],
   };
 }

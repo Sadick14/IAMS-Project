@@ -16,7 +16,7 @@ export interface AttendanceRecord {
   verifiedAt?: string;
 }
 
-const ATTENDANCE_STORAGE_KEY = "iams_attendance_records";
+const ATTENDANCE_STORAGE_KEY = "iams_attendance_records_v2";
 
 function getInitialRecords(): AttendanceRecord[] {
   if (typeof window !== "undefined") {
@@ -27,15 +27,7 @@ function getInitialRecords(): AttendanceRecord[] {
       console.error("Failed to load local attendance records:", e);
     }
   }
-  return [
-    { id: "att-1", studentId: "CS/2023/001", studentName: "John Doe", department: "Computer Science", date: "2026-04-18", checkInTime: "08:15", checkOutTime: "17:00", checkInType: "gps", location: "Lat: 6.6111, Lng: 0.4704 (Ghana Telecom, Ho)", verificationStatus: "Verified" },
-    { id: "att-2", studentId: "CS/2023/001", studentName: "John Doe", department: "Computer Science", date: "2026-04-17", checkInTime: "08:22", checkOutTime: "17:00", checkInType: "gps", location: "Lat: 6.6111, Lng: 0.4704 (Ghana Telecom, Ho)", verificationStatus: "Verified" },
-    { id: "att-3", studentId: "CS/2023/001", studentName: "John Doe", department: "Computer Science", date: "2026-04-16", checkInTime: "08:45", checkOutTime: "17:00", checkInType: "manual", location: "Working from branch office, Kumasi", verificationStatus: "Pending Verification" },
-    { id: "att-4", studentId: "BA/2023/012", studentName: "Kofi Asare", department: "Business Administration", date: "2026-04-15", checkInTime: "09:10", checkOutTime: "17:00", checkInType: "gps", location: "Lat: 5.6037, Lng: -0.1870 (Accra)", verificationStatus: "Verified" },
-    { id: "att-5", studentId: "EE/2023/031", studentName: "Nana Adjei", department: "Electrical Engineering", date: "2026-04-10", checkInTime: "08:30", checkOutTime: "17:00", checkInType: "manual", location: "VRA Akosombo site", verificationStatus: "Rejected", verifiedBy: "Eng. Boateng", verifiedAt: "2026-04-10T17:00:00" },
-    { id: "att-6", studentId: "AF/2023/007", studentName: "Efua Mensah", department: "Accounting & Finance", date: "2026-04-17", checkInTime: "08:05", checkOutTime: "17:00", checkInType: "gps", location: "Lat: 5.6145, Lng: -0.1752 (Stanbic Bank, Airport City)", verificationStatus: "Verified" },
-    { id: "att-7", studentId: "AF/2023/007", studentName: "Efua Mensah", department: "Accounting & Finance", date: "2026-04-16", checkInTime: "08:20", checkOutTime: "17:00", checkInType: "gps", location: "Lat: 5.6145, Lng: -0.1752 (Stanbic Bank, Airport City)", verificationStatus: "Verified" },
-  ];
+  return []; // Start fully clean for real testing!
 }
 
 // Mock attendance data
