@@ -16,7 +16,7 @@ export interface AttendanceRecord {
   verifiedAt?: string;
 }
 
-const ATTENDANCE_STORAGE_KEY = "iams_attendance_records_v2";
+const ATTENDANCE_STORAGE_KEY = "iams_attendance_records_v3";
 
 function getInitialRecords(): AttendanceRecord[] {
   if (typeof window !== "undefined") {

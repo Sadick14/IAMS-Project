@@ -199,70 +199,21 @@ export const programs: string[] = Object.values(programsByDepartment).flat();
 
 export const terms: Term[] = [];
 
-export const companies: Company[] = [
-  {
-    id: "c1", name: "Ghana Telecom Ltd", address: "Independence Ave, Accra", contactPerson: "Mr. Mensah", contactEmail: "mensah@ghtel.com", contactPhone: "+233201234567", industry: "Telecommunications", status: "Approved", addedBy: "John Doe", department: "Computer Science", dateAdded: "2026-03-02",
-    branchCount: 0
-  },
-  {
-    id: "c2", name: "Volta River Authority", address: "28th Feb Road, Accra", contactPerson: "Eng. Boateng", contactEmail: "boateng@vra.gov.gh", contactPhone: "+233209876543", industry: "Energy", status: "Approved", addedBy: "Jane Smith", department: "Electrical Engineering", dateAdded: "2026-03-03",
-    branchCount: 0
-  },
-  {
-    id: "c3", name: "TechHub Ghana", address: "Osu, Accra", contactPerson: "Ms. Adjei", contactEmail: "adjei@techhub.gh", contactPhone: "+233241112233", industry: "Technology", status: "Pending", addedBy: "Kwesi Mensah", department: "Computer Science", dateAdded: "2026-03-10",
-    branchCount: 0
-  },
-  {
-    id: "c4", name: "Ashanti Construction Co.", address: "Kumasi CBD", contactPerson: "Mr. Owusu", contactEmail: "owusu@ashconst.com", contactPhone: "+233272223344", industry: "Construction", status: "Pending", addedBy: "Ama Darko", department: "Civil Engineering", dateAdded: "2026-03-11",
-    branchCount: 0
-  },
-  {
-    id: "c5", name: "GoldFields Mining", address: "Tarkwa", contactPerson: "Dr. Antwi", contactEmail: "antwi@goldfields.com", contactPhone: "+233303334455", industry: "Mining", status: "Approved", addedBy: "Yaw Frimpong", department: "Mechanical Engineering", dateAdded: "2026-02-28",
-    branchCount: 0
-  },
-  {
-    id: "c6", name: "Stanbic Bank Ghana", address: "Airport City, Accra", contactPerson: "Mrs. Osei", contactEmail: "osei@stanbic.gh", contactPhone: "+233244556677", industry: "Banking", status: "Rejected", addedBy: "Akua Manu", department: "Accounting & Finance", dateAdded: "2026-03-05", rejectionReason: "Company does not meet department requirements",
-    branchCount: 0
-  },
-];
+export const companies: Company[] = [];
 
 // One "Main Branch" auto-seeded per company so existing applications can link.
 // Additional branches added below for a couple companies to exercise the multi-branch UX.
-export const branches: Branch[] = [
-  { id: "b-c1-main", companyId: "c1", name: "Head Office", region: "Greater Accra Region", location: "Accra", address: "Independence Ave, Accra", telephone: "+233201234567", status: "Approved", addedBy: "John Doe", dateAdded: "2026-03-02" },
-  { id: "b-c1-kumasi", companyId: "c1", name: "Kumasi Branch", region: "Ashanti Region", location: "Kumasi", address: "Adum, Kumasi", telephone: "+233207778899", status: "Approved", addedBy: "Mrs. Esi Mensah", dateAdded: "2026-03-04" },
-  { id: "b-c2-main", companyId: "c2", name: "Akosombo Plant", region: "Eastern Region", location: "Akosombo", address: "Akosombo Generating Station", telephone: "+233209876543", status: "Approved", addedBy: "Jane Smith", dateAdded: "2026-03-03" },
-  { id: "b-c2-accra", companyId: "c2", name: "Accra Office", region: "Greater Accra Region", location: "Accra", address: "28th Feb Road, Accra", telephone: "+233209876500", status: "Approved", addedBy: "Mrs. Esi Mensah", dateAdded: "2026-03-03" },
-  { id: "b-c3-main", companyId: "c3", name: "Osu HQ", region: "Greater Accra Region", location: "Accra", address: "Osu, Accra", telephone: "+233241112233", status: "Pending", addedBy: "Kwesi Mensah", dateAdded: "2026-03-10" },
-  { id: "b-c4-main", companyId: "c4", name: "Kumasi Site", region: "Ashanti Region", location: "Kumasi", address: "Kumasi CBD", telephone: "+233272223344", status: "Pending", addedBy: "Ama Darko", dateAdded: "2026-03-11" },
-  { id: "b-c5-main", companyId: "c5", name: "Tarkwa Mine", region: "Western Region", location: "Tarkwa", address: "Tarkwa Mine Site", telephone: "+233303334455", status: "Approved", addedBy: "Yaw Frimpong", dateAdded: "2026-02-28" },
-  { id: "b-c6-main", companyId: "c6", name: "Airport City Branch", region: "Greater Accra Region", location: "Accra", address: "Airport City, Accra", telephone: "+233244556677", status: "Rejected", addedBy: "Akua Manu", dateAdded: "2026-03-05", rejectionReason: "Parent company rejected" },
-];
+export const branches: Branch[] = [];
 
 export const applications: Application[] = [];
 
-export const supervisors: Supervisor[] = [
-  { id: "s1", name: "Dr. Agyeman", email: "agyeman@htu.edu.gh", department: "Computer Science", currentLoad: 0, maxLoad: 8 },
-  { id: "s7", name: "Dr. Owusu", email: "owusu@htu.edu.gh", department: "Computer Science", currentLoad: 0, maxLoad: 6 },
-  { id: "s2", name: "Prof. Danso", email: "danso@htu.edu.gh", department: "Electrical Engineering", currentLoad: 0, maxLoad: 8 },
-  { id: "s3", name: "Dr. Mensah", email: "mensah@htu.edu.gh", department: "Business Administration", currentLoad: 0, maxLoad: 6 },
-  { id: "s4", name: "Mr. Appiah", email: "appiah@htu.edu.gh", department: "Accounting & Finance", currentLoad: 0, maxLoad: 7 },
-  { id: "s5", name: "Dr. Ofori", email: "ofori@htu.edu.gh", department: "Mechanical Engineering", currentLoad: 0, maxLoad: 6 },
-  { id: "s6", name: "Eng. Tetteh", email: "tetteh@htu.edu.gh", department: "Civil Engineering", currentLoad: 0, maxLoad: 5 },
-];
+export const supervisors: Supervisor[] = [];
 
 export const notifications: Notification[] = [];
 
 export const auditLogs: AuditLog[] = [];
 
-export const staffList = [
-  { id: "st1", name: "Mrs. Esi Mensah", email: "e.mensah@htu.edu.gh", department: "Computer Science", isLiaison: true },
-  { id: "st2", name: "Dr. Kofi Amankwah", email: "k.amankwah@htu.edu.gh", department: "Electrical Engineering", isLiaison: true },
-  { id: "st3", name: "Prof. Adjoa Serwaa", email: "a.serwaa@htu.edu.gh", department: "Mechanical Engineering", isLiaison: false },
-  { id: "st4", name: "Mr. Yaw Donkor", email: "y.donkor@htu.edu.gh", department: "Civil Engineering", isLiaison: true },
-  { id: "st5", name: "Dr. Akua Badu", email: "a.badu@htu.edu.gh", department: "Business Administration", isLiaison: false },
-  { id: "st6", name: "Mrs. Nana Addo", email: "n.addo@htu.edu.gh", department: "Accounting & Finance", isLiaison: true },
-];
+export const staffList = [];
 
 // ── Grading: per-department configurations seeded for active term (t1) ──
 // Mix of statuses so HOD has something pending, others already locked.
@@ -292,46 +243,7 @@ function ratings(values: number[]): Record<string, CriterionRating> {
   return out;
 }
 
-export const departmentGradingConfigs: DepartmentGradingConfig[] = [
-  // Computer Science — Structure C, fully active (HOD-approved)
-  {
-    id: "gc-cs", departmentId: "Computer Science", termId: TERM_ID,
-    structure: "C", structureWeights: { w1: 40, w2: 30, w3: 15, w4: 15 }, sectionWeights: { ...DEFAULT_SECTION_WEIGHTS },
-    status: "active",
-    createdBy: "Mrs. Esi Mensah", createdAt: seedTimestamp,
-    updatedBy: "Mrs. Esi Mensah", updatedAt: seedTimestamp,
-    submittedForApprovalBy: "Mrs. Esi Mensah", submittedForApprovalAt: seedTimestamp,
-    approvedBy: "Prof. Charles Owusu", approvedAt: "2026-03-02T10:00:00", lockedAt: "2026-03-02T10:00:00",
-  },
-  // Electrical Engineering — Structure A (Report only), active
-  {
-    id: "gc-ee", departmentId: "Electrical Engineering", termId: TERM_ID,
-    structure: "A", structureWeights: { w1: 40, w2: 30, w3: 30 }, sectionWeights: { a: 30, b: 25, c: 25, d: 20 },
-    status: "active",
-    createdBy: "Dr. Kofi Amankwah", createdAt: seedTimestamp,
-    updatedBy: "Dr. Kofi Amankwah", updatedAt: seedTimestamp,
-    submittedForApprovalBy: "Dr. Kofi Amankwah", submittedForApprovalAt: seedTimestamp,
-    approvedBy: "Prof. Adwoa Mensah", approvedAt: "2026-03-02T11:00:00", lockedAt: "2026-03-02T11:00:00",
-  },
-  // Mechanical Engineering — Structure B (Presentation only), pending HOD approval
-  {
-    id: "gc-me", departmentId: "Mechanical Engineering", termId: TERM_ID,
-    structure: "B", structureWeights: { w1: 40, w2: 30, w3: 30 }, sectionWeights: { ...DEFAULT_SECTION_WEIGHTS },
-    status: "pending_approval",
-    createdBy: "Prof. Adjoa Serwaa", createdAt: seedTimestamp,
-    updatedBy: "Prof. Adjoa Serwaa", updatedAt: seedTimestamp,
-    submittedForApprovalBy: "Prof. Adjoa Serwaa", submittedForApprovalAt: "2026-03-08T14:00:00",
-  },
-  // Civil Engineering — draft (not yet submitted)
-  {
-    id: "gc-ce", departmentId: "Civil Engineering", termId: TERM_ID,
-    structure: "C", structureWeights: { w1: 40, w2: 30, w3: 20, w4: 10 }, sectionWeights: { ...DEFAULT_SECTION_WEIGHTS },
-    status: "draft",
-    createdBy: "Mr. Yaw Donkor", createdAt: seedTimestamp,
-    updatedBy: "Mr. Yaw Donkor", updatedAt: "2026-03-09T10:00:00",
-  },
-  // Business Administration & Accounting & Finance — no config yet → falls back to default
-];
+export const departmentGradingConfigs: DepartmentGradingConfig[] = [];
 
 export const industrialAssessments: IndustrialSupervisorAssessment[] = [];
 

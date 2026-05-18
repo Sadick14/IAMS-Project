@@ -62,74 +62,7 @@ export interface StoreState {
 }
 
 // Initialize logbook entries with mock data
-const mockLogbookEntries: LogbookEntry[] = [
-  {
-    id: "lb1",
-    studentId: "BA/2023/012",
-    date: "2026-04-17",
-    activities: "Worked on network configuration for the new branch office. Assisted senior engineer with firewall setup.",
-    skills: "Network configuration, Cisco IOS, Firewall management",
-    challenges: "Complex subnet requirements needed extra research",
-    approvalStatus: "Approved",
-    approvedBy: "Mr. Mensah",
-    approvedAt: "2026-04-17T18:00:00",
-    createdAt: "2026-04-17T17:00:00",
-  },
-  {
-    id: "lb2",
-    studentId: "BA/2023/012",
-    date: "2026-04-16",
-    activities: "Attended team standup. Reviewed documentation for VPN setup. Started writing test scripts.",
-    skills: "VPN protocols, Python scripting, Technical documentation",
-    challenges: "None",
-    approvalStatus: "Approved",
-    approvedBy: "Mr. Mensah",
-    approvedAt: "2026-04-16T18:30:00",
-    createdAt: "2026-04-16T17:30:00",
-  },
-  {
-    id: "lb3",
-    studentId: "BA/2023/012",
-    date: "2026-04-15",
-    activities: "Shadowed IT support team. Resolved 3 helpdesk tickets independently.",
-    skills: "Troubleshooting, Customer service, Windows Server",
-    challenges: "One ticket required hardware replacement — had to escalate",
-    approvalStatus: "Pending",
-    createdAt: "2026-04-15T16:45:00",
-  },
-  {
-    id: "lb4",
-    studentId: "BA/2023/012",
-    date: "2026-04-18",
-    activities: "Configured VLAN segmentation on Cisco switches. Documented network topology for branch office.",
-    skills: "VLAN configuration, Network documentation, Cisco switches",
-    challenges: "Switch firmware needed upgrading before VLAN support was available",
-    approvalStatus: "Pending",
-    createdAt: "2026-04-18T17:15:00",
-  },
-  {
-    id: "lb5",
-    studentId: "BA/2023/012",
-    date: "2026-04-17",
-    activities: "Assisted with quarterly financial report preparation. Entered data into accounting software.",
-    skills: "Financial reporting, QuickBooks, Data entry",
-    challenges: "Reconciling discrepancies in petty cash records",
-    approvalStatus: "Pending",
-    createdAt: "2026-04-17T16:30:00",
-  },
-  {
-    id: "lb6",
-    studentId: "BA/2023/012",
-    date: "2026-04-16",
-    activities: "Attended client meeting with senior accountant. Took minutes and drafted follow-up email.",
-    skills: "Client communication, Meeting management, Email drafting",
-    challenges: "None",
-    approvalStatus: "Approved",
-    approvedBy: "Mr. Mensah",
-    approvedAt: "2026-04-16T17:00:00",
-    createdAt: "2026-04-16T15:45:00",
-  },
-];
+const mockLogbookEntries: LogbookEntry[] = [];
 
 const STORAGE_KEY = "iams_demo_store_state_v2";
 
@@ -174,8 +107,8 @@ export function upsertWeeklyRubric(entry: WeeklyRubricEntry) {
     ...state,
     weeklyRubrics: exists
       ? state.weeklyRubrics.map((x) =>
-          x.applicationId === entry.applicationId && x.weekNumber === entry.weekNumber ? entry : x
-        )
+        x.applicationId === entry.applicationId && x.weekNumber === entry.weekNumber ? entry : x
+      )
       : [...state.weeklyRubrics, entry],
   };
   notify();
@@ -274,42 +207,7 @@ export function simulateStudentStage(stage: "fresh" | "pending" | "active" | "co
       dateApplied: "2026-03-03",
       supervisorAssigned: "Dr. Abena Osei",
     };
-    const mockLogs: LogbookEntry[] = [
-      {
-        id: "lb-demo-1",
-        studentId: studentId,
-        date: "2026-04-15",
-        activities: "Attended company orientation. Met industrial mentor Mr. Mensah and configured development workspace.",
-        skills: "Workspace configuration, Onboarding",
-        challenges: "None",
-        approvalStatus: "Approved",
-        approvedBy: "Mr. Mensah",
-        approvedAt: "2026-04-15T17:00:00",
-        createdAt: "2026-04-15T16:00:00",
-      },
-      {
-        id: "lb-demo-2",
-        studentId: studentId,
-        date: "2026-04-16",
-        activities: "Assisted database administrators with SQL backup queries. Handled security audit logs.",
-        skills: "SQL databases, Security audits",
-        challenges: "Backup storage was full; resolved by migrating old logs.",
-        approvalStatus: "Approved",
-        approvedBy: "Mr. Mensah",
-        approvedAt: "2026-04-16T17:00:00",
-        createdAt: "2026-04-16T16:00:00",
-      },
-      {
-        id: "lb-demo-3",
-        studentId: studentId,
-        date: "2026-04-17",
-        activities: "Wrote python automation script to scrape network diagnostic metrics.",
-        skills: "Python scripting, Automation",
-        challenges: "API endpoints required authentication headers.",
-        approvalStatus: "Pending",
-        createdAt: "2026-04-17T16:00:00",
-      },
-    ];
+    const mockLogs: LogbookEntry[] = [];
     state = {
       ...state,
       applications: [...filteredApps, newApp],
@@ -321,33 +219,10 @@ export function simulateStudentStage(stage: "fresh" | "pending" | "active" | "co
     };
   } else if (stage === "completed") {
     const newApp: Application = {
-      id: "a-demo-john",
-      studentName: "John Doe",
-      studentId: studentId,
-      department: "Computer Science",
-      level: "L300",
-      companyId: "c1",
-      companyName: "Ghana Telecom Ltd",
-      companyStatus: "Approved",
-      branchId: "b-c1-main",
-      branchName: "Head Office",
-      status: "Completed",
-      dateApplied: "2026-03-03",
-      supervisorAssigned: "Dr. Abena Osei",
+      i
     };
     const mockLogs: LogbookEntry[] = [
-      {
-        id: "lb-demo-1",
-        studentId: studentId,
-        date: "2026-04-15",
-        activities: "Attended company orientation. Met industrial mentor Mr. Mensah.",
-        skills: "Workspace configuration",
-        challenges: "None",
-        approvalStatus: "Approved",
-        approvedBy: "Mr. Mensah",
-        approvedAt: "2026-04-15T17:00:00",
-        createdAt: "2026-04-15T16:00:00",
-      },
+
     ];
     const mockAssessment: IndustrialSupervisorAssessment = {
       id: "ind-demo-john",
