@@ -31,65 +31,7 @@ interface SiteVisit {
   studentEngagement?: number;
 }
 
-const initialVisits: SiteVisit[] = [
-  {
-    id: "v1",
-    studentId: "CS/2023/001",
-    studentName: "John Doe",
-    companyName: "Ghana Telecom Ltd",
-    companyAddress: "Independence Ave, Accra",
-    date: "2026-04-22",
-    time: "10:00",
-    status: "Scheduled",
-    contactPerson: "Mr. Mensah",
-    contactPhone: "+233201234567",
-    notes: "First visit — introduce yourself and assess student workspace.",
-  },
-  {
-    id: "v2",
-    studentId: "BA/2023/012",
-    studentName: "Kofi Asare",
-    companyName: "Ghana Telecom Ltd",
-    companyAddress: "Independence Ave, Accra",
-    date: "2026-04-22",
-    time: "14:00",
-    status: "Scheduled",
-    contactPerson: "Mr. Mensah",
-    contactPhone: "+233201234567",
-  },
-  {
-    id: "v3",
-    studentId: "CS/2023/001",
-    studentName: "John Doe",
-    companyName: "Ghana Telecom Ltd",
-    companyAddress: "Independence Ave, Accra",
-    date: "2026-04-10",
-    time: "09:30",
-    status: "Completed",
-    contactPerson: "Mr. Mensah",
-    contactPhone: "+233201234567",
-    observations: "Student is well-integrated. Workstation is properly equipped. Company mentor actively engaged with student.",
-    studentEngagement: 4,
-    companyFeedback: "Very satisfied with student's performance. Proactive and punctual.",
-    recommendations: "Continue current trajectory. Student should start preparing final report outline.",
-  },
-  {
-    id: "v4",
-    studentId: "EE/2023/031",
-    studentName: "Nana Adjei",
-    companyName: "Volta River Authority",
-    companyAddress: "28th Feb Road, Accra",
-    date: "2026-04-05",
-    time: "11:00",
-    status: "Completed",
-    contactPerson: "Eng. Boateng",
-    contactPhone: "+233209876543",
-    observations: "Student was not present at workstation during visit. Supervisor said student left early.",
-    studentEngagement: 2,
-    companyFeedback: "Student attendance has been inconsistent. Needs improvement.",
-    recommendations: "Follow up with student about attendance policy. Consider issuing a warning.",
-  },
-];
+const initialVisits: SiteVisit[] = [];
 
 type FilterStatus = "All" | "Scheduled" | "Completed" | "Cancelled";
 
