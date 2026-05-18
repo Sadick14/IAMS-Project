@@ -68,11 +68,10 @@ export function StudentLifecycleSimulator() {
         <button
           onClick={() => handleStageTransition("fresh")}
           disabled={isResetting}
-          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer ${
-            currentStatus === "Fresh"
+          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer ${currentStatus === "Fresh"
               ? "bg-primary text-primary-foreground border-primary shadow-sm"
               : "bg-background/80 hover:bg-card border-border text-foreground hover:border-primary/30"
-          }`}
+            }`}
           style={{ fontSize: "0.78rem" }}
         >
           {isResetting && currentStatus === "Fresh" ? (
@@ -86,11 +85,10 @@ export function StudentLifecycleSimulator() {
         <button
           onClick={() => handleStageTransition("pending")}
           disabled={isResetting}
-          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer ${
-            currentStatus === "Pending"
+          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer ${currentStatus === "Pending"
               ? "bg-primary text-primary-foreground border-primary shadow-sm"
               : "bg-background/80 hover:bg-card border-border text-foreground hover:border-primary/30"
-          }`}
+            }`}
           style={{ fontSize: "0.78rem" }}
         >
           {isResetting && currentStatus === "Pending" ? (
@@ -104,11 +102,10 @@ export function StudentLifecycleSimulator() {
         <button
           onClick={() => handleStageTransition("active")}
           disabled={isResetting}
-          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer ${
-            currentStatus === "Active"
+          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer ${currentStatus === "Active"
               ? "bg-primary text-primary-foreground border-primary shadow-sm"
               : "bg-background/80 hover:bg-card border-border text-foreground hover:border-primary/30"
-          }`}
+            }`}
           style={{ fontSize: "0.78rem" }}
         >
           {isResetting && currentStatus === "Active" ? (
@@ -122,11 +119,10 @@ export function StudentLifecycleSimulator() {
         <button
           onClick={() => handleStageTransition("completed")}
           disabled={isResetting}
-          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer ${
-            currentStatus === "Completed"
+          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-medium transition-all duration-200 cursor-pointer ${currentStatus === "Completed"
               ? "bg-primary text-primary-foreground border-primary shadow-sm"
               : "bg-background/80 hover:bg-card border-border text-foreground hover:border-primary/30"
-          }`}
+            }`}
           style={{ fontSize: "0.78rem" }}
         >
           {isResetting && currentStatus === "Completed" ? (

@@ -13,7 +13,6 @@ import { getNotifications } from "../services/notification-service";
 import { getOverdueWeeklyRubrics } from "../services/grading-service";
 import { CheckInModal } from "./check-in-modal";
 import { hasCheckedInToday, subscribeAttendance } from "../services/attendance-service";
-import { StudentLifecycleSimulator } from "./student-lifecycle-simulator";
 
 interface NavItem {
   to: string;
@@ -131,7 +130,10 @@ export function DashboardLayout() {
         setCheckedInToday(hasCheckedInToday(user.studentId || ""));
       };
       updateCheckInStatus();
-      return subscribeAttendance(updateCheckInStatus);
+      const unsubscribe = subscribeAttendance(updateCheckInStatus);
+      return () => {
+        unsubscribe();
+      };
     }
   }, [user]);
 
@@ -168,7 +170,7 @@ export function DashboardLayout() {
       user.role === "supervisor"
         // Touch the slices we care about so the count refreshes when entries are added/applications change.
         ? (store.weeklyRubrics.length, store.applications.length,
-            getOverdueWeeklyRubrics({ companyName: "Ghana Telecom Ltd" }).length)
+          getOverdueWeeklyRubrics({ companyName: "Ghana Telecom Ltd" }).length)
         : 0,
   };
 
@@ -249,10 +251,9 @@ export function DashboardLayout() {
                   end={item.to === `/${user.role}`}
                   onClick={handleNavClick}
                   className={({ isActive }) =>
-                    `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 ${
-                      isActive
-                        ? "bg-[#E3EBFF] dark:bg-primary/20 text-primary font-medium"
-                        : "text-sidebar-foreground hover:bg-[#E3EBFF]/50 dark:hover:bg-white/5 hover:text-foreground"
+                    `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 ${isActive
+                      ? "bg-[#E3EBFF] dark:bg-primary/20 text-primary font-medium"
+                      : "text-sidebar-foreground hover:bg-[#E3EBFF]/50 dark:hover:bg-white/5 hover:text-foreground"
                     }`
                   }
                 >
@@ -312,11 +313,10 @@ export function DashboardLayout() {
           {user.role === "student" && (
             <button
               onClick={() => setCheckInModalOpen(true)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                checkedInToday
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${checkedInToday
                   ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20"
                   : "bg-primary text-primary-foreground hover:opacity-90"
-              }`}
+                }`}
               style={{ fontSize: "0.85rem", fontWeight: 500 }}
             >
               <CheckCircle2 className="w-4 h-4" />
@@ -486,8 +486,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-          {user.role === "student" && <StudentLifecycleSimulator />}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>

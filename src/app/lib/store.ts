@@ -131,24 +131,40 @@ const mockLogbookEntries: LogbookEntry[] = [
   },
 ];
 
+const STORAGE_KEY = "iams_demo_store_state";
+
+function getInitialState(): StoreState {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error("Failed to load local store state:", e);
+    }
+  }
+  return {
+    applications: [...initialApps],
+    companies: [...initialCompanies],
+    branches: [...initialBranches],
+    notifications: [...initialNotifications],
+    auditLogs: [...initialAuditLogs],
+    terms: [...initialTerms],
+    logbookEntries: [...mockLogbookEntries],
+    gradingConfigs: [...initialConfigs],
+    industrialAssessments: [...initialIndustrial],
+    siteVisitations: [...initialVisits],
+    reportScores: [...initialReports],
+    presentationScores: [...initialPresentations],
+    compiledGrades: [...initialCompiled],
+    weeklyRubrics: [...initialWeeklyRubrics],
+    assignmentLocks: [],
+  };
+}
+
 // Global mutable store
-let state: StoreState = {
-  applications: [...initialApps],
-  companies: [...initialCompanies],
-  branches: [...initialBranches],
-  notifications: [...initialNotifications],
-  auditLogs: [...initialAuditLogs],
-  terms: [...initialTerms],
-  logbookEntries: [...mockLogbookEntries],
-  gradingConfigs: [...initialConfigs],
-  industrialAssessments: [...initialIndustrial],
-  siteVisitations: [...initialVisits],
-  reportScores: [...initialReports],
-  presentationScores: [...initialPresentations],
-  compiledGrades: [...initialCompiled],
-  weeklyRubrics: [...initialWeeklyRubrics],
-  assignmentLocks: [],
-};
+let state: StoreState = getInitialState();
 
 export function upsertWeeklyRubric(entry: WeeklyRubricEntry) {
   const exists = state.weeklyRubrics.some(
@@ -186,6 +202,13 @@ export function subscribe(listener: Listener) {
 }
 
 function notify() {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error("Failed to save local store state:", e);
+    }
+  }
   listeners.forEach((l) => l());
 }
 
