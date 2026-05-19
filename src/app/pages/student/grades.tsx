@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useAppContext } from "../../lib/context";
 import { Award, Clock, AlertCircle, Users, BookMarked, ClipboardCheck } from "lucide-react";
 import { Card } from "../../components/ui/card";
@@ -13,7 +14,19 @@ import {
 export function StudentGradesPage() {
   const { user, store } = useAppContext();
   const _ = store.compiledGrades.length;
-  const myApp = store.applications.find((a) => a.studentId === user?.studentId);
+  const myApp = useMemo(() => {
+    const mine = store.applications.filter((a) => a.studentId === user?.studentId);
+    if (mine.length === 0) return undefined;
+    const sorted = [...mine].sort((a, b) => b.dateApplied.localeCompare(a.dateApplied));
+    return sorted.find((a) => {
+      const term = a.termId
+        ? store.terms.find((t) => t.id === a.termId)
+        : store.terms.find(
+            (t) => a.dateApplied >= t.applicationStart && a.dateApplied <= t.applicationEnd
+          );
+      return term ? term.status !== "Archived" : true;
+    });
+  }, [store.applications, store.terms, user?.studentId]);
 
   if (!myApp) {
     return (
@@ -135,7 +148,7 @@ export function StudentGradesPage() {
                     ))}
                     <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between font-semibold text-sm">
                       <span className="text-[#1a1a2e]">Total Rubric Score</span>
-                      <span className="text-[#0B5ED7]">{Object.values(visit.ratings).reduce((a,b)=>a+b, 0)} / 30</span>
+                      <span className="text-[#0B5ED7]">{Object.values(visit.ratings).reduce<number>((a,b)=>a+b, 0)} / 30</span>
                     </div>
                   </div>
                 )}

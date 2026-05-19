@@ -181,6 +181,7 @@ export function simulateStudentStage(stage: "fresh" | "pending" | "active" | "co
       branchName: "Head Office",
       status: "Pending",
       dateApplied: new Date().toISOString().split("T")[0],
+      termId: undefined
     };
     state = {
       ...state,
@@ -206,6 +207,7 @@ export function simulateStudentStage(stage: "fresh" | "pending" | "active" | "co
       status: "Active",
       dateApplied: "2026-03-03",
       supervisorAssigned: "Dr. Abena Osei",
+      termId: undefined
     };
     const mockLogs: LogbookEntry[] = [];
     state = {
@@ -219,7 +221,22 @@ export function simulateStudentStage(stage: "fresh" | "pending" | "active" | "co
     };
   } else if (stage === "completed") {
     const newApp: Application = {
-      i
+      id: "a-demo-john",
+      studentName: "John Doe",
+      studentId: studentId,
+      department: "Computer Science",
+      level: "L300",
+      companyId: "c1",
+      companyName: "Ghana Telecom Ltd",
+      companyStatus: "Approved",
+      branchId: "b-c1-main",
+      branchName: "Head Office",
+      status: "Completed",
+      dateApplied: "2026-03-03",
+      supervisorAssigned: "Dr. Abena Osei",
+      grade: "A",
+      gradeStatus: "Submitted",
+      termId: undefined
     };
     const mockLogs: LogbookEntry[] = [
 
@@ -246,7 +263,8 @@ export function simulateStudentStage(stage: "fresh" | "pending" | "active" | "co
       submittedBy: "Dr. Abena Osei",
       ratings: {
         V1: 3, V2: 3, V3: 3, V4: 3, V5: 3, V6: 3, V7: 3, V8: 2, V9: 3, V10: 2
-      }
+      },
+      studentId: undefined
     };
     const mockReport: ReportScore = {
       id: "rep-demo-john",
@@ -357,9 +375,27 @@ export function addTerm(term: Term) {
 }
 
 export function updateTerm(id: string, updates: Partial<Term>) {
+  const term = state.terms.find((t) => t.id === id);
+  let updatedApplications = state.applications;
+
+  if (term && updates.status === "Archived") {
+    updatedApplications = state.applications.map((a) => {
+      // Allow for both date-based and termId-based matching
+      const isMatch = a.termId === term.id || (
+        a.dateApplied >= term.applicationStart &&
+        a.dateApplied <= term.applicationEnd
+      );
+      if (isMatch && a.status !== "Completed" && a.status !== "Rejected") {
+        return { ...a, status: "Completed" as const };
+      }
+      return a;
+    });
+  }
+
   state = {
     ...state,
     terms: state.terms.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+    applications: updatedApplications,
   };
   notify();
 }

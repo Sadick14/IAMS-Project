@@ -59,6 +59,7 @@ const studentNav: NavItem[] = [
   { to: "/student/logbook", icon: BookMarked, label: "Daily Logbook" },
   { to: "/student/documents", icon: Upload, label: "Documents" },
   { to: "/student/evaluation", icon: ClipboardCheck, label: "My Score & Evaluation" },
+  { to: "/student/history", icon: Award, label: "Internship History" },
   { to: "/student/issues", icon: AlertTriangle, label: "Report Issue" },
   { to: "/student/communications", icon: MessageSquarePlus, label: "Communications" },
 ];
@@ -218,11 +219,11 @@ export function DashboardLayout() {
         >
           {/* Logo */}
           <div className={`flex items-center ${sidebarOpen || isMobile ? "gap-3 px-5" : "justify-center px-0"} py-5 transition-all duration-300`}>
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
               <GraduationCap className="w-5 h-5 text-primary-foreground" />
             </div>
             {(sidebarOpen || isMobile) && (
-              <span className="text-foreground truncate" style={{ fontSize: "1.05rem", fontWeight: 600, letterSpacing: "-0.01em" }}>Donezo</span>
+              <span className="text-foreground truncate" style={{ fontSize: "1.05rem", fontWeight: 600, letterSpacing: "-0.01em" }}>HTU IAMS</span>
             )}
             {isMobile && sidebarOpen && (
               <button onClick={() => setSidebarOpen(false)} className="ml-auto p-1.5 rounded-lg hover:bg-white/80 dark:hover:bg-white/10 text-muted-foreground transition-colors duration-200">

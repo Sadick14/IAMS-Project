@@ -74,6 +74,7 @@ export interface Branch {
 }
 
 export interface Application {
+  termId: any;
   id: string;
   studentName: string;
   studentId: string;

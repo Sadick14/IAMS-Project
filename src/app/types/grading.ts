@@ -90,6 +90,7 @@ export const VISITATION_CRITERIA: { key: VisitationCriterionKey; label: string }
 ];
 
 export interface SiteVisitationScore {
+  studentId: string | undefined;
   id: string;
   applicationId: string;
   ratings: Record<VisitationCriterionKey, VisitationCriterionRating>;

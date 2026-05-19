@@ -293,6 +293,7 @@ export function StudentApplicationsPage() {
 
         // Now submit the application using the resolved ids
         const newApp = {
+          termId: form.termId,
           studentName: user?.name || "",
           studentId: user?.studentId || "",
           department: user?.department || "",
