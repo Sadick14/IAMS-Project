@@ -57,10 +57,11 @@ import { getState, addApplication, updateApplication, addCompany, updateCompany,
 import type { Application, Company, Notification } from "./mock-data";
 import { authenticateByEmail, authenticateByToken } from "../services/auth-service";
 import { approveApplication, rejectApplication, bulkApproveApplications, assignSupervisor } from "../services/application-service";
-import { approveCompany, rejectCompany, overrideCompanyDecision } from "../services/company-service";
+import { approveCompany, rejectCompany, overrideCompanyDecision, createBranch, createCompanyWithBranch } from "../services/company-service";
 import { submitLogbookEntry, approveLogbookEntry, requestLogbookRevision } from "../services/logbook-service";
 import { submitCheckIn, verifyCheckIn, getAttendanceRecords } from "../services/attendance-service";
 import { approveGrade, requestGradeRevision } from "../services/grade-service";
+import { submitWeeklyRubric, submitIndustrialAssessment } from "../services/grading-service";
 import { createIssue, addIssueNote, updateIssueStatus, escalateIssue, getIssues } from "../services/issue-service";
 import { sendMessage, createThread, getThreadsForUser, getMessagesInThread, markThreadRead } from "../services/messaging-service";
 import { sendNotification, sendAnnouncement, readNotification, markAllRead, getNotifications } from "../services/notification-service";
@@ -139,6 +140,25 @@ export const apiClient = {
     return { success: result.success, data: null, message: result.message };
   },
 
+  async createApplication(appData: Omit<Application, "id" | "dateApplied">): Promise<ApiResponse<Application>> {
+    await delay();
+    const newApp: Application = {
+      id: `a-${Date.now()}`,
+      dateApplied: new Date().toISOString().split("T")[0],
+      ...appData,
+    };
+    addApplication(newApp);
+    addNotification({
+      id: `n-${Date.now()}`,
+      type: "application",
+      title: "New Application Submitted",
+      message: `${newApp.studentName} (${newApp.studentId}) has submitted an attachment application for ${newApp.companyName} — ${newApp.branchName}.`,
+      read: false,
+      timestamp: new Date().toISOString(),
+    });
+    return { success: true, data: newApp, message: "Application submitted successfully." };
+  },
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // COMPANIES
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -164,6 +184,49 @@ export const apiClient = {
       dateAdded: new Date().toISOString().split("T")[0],
     });
     return { success: true, data: null, message: "Company added successfully." };
+  },
+
+  async createBranch(params: {
+    companyId: string;
+    name: string;
+    region: string;
+    location: string;
+    address: string;
+    telephone: string;
+    addedBy: string;
+    autoApprove?: boolean;
+  }): Promise<ApiResponse<any>> {
+    await delay();
+    const res = createBranch({ ...params, autoApprove: params.autoApprove ?? false });
+    if (!res.success) return { success: false, data: null, message: res.message };
+    return { success: true, data: res.data, message: res.message };
+  },
+
+  async createCompanyWithBranch(
+    companyParams: {
+      name: string;
+      contactPerson: string;
+      contactEmail: string;
+      addedBy: string;
+      autoApprove?: boolean;
+    },
+    branchParams: {
+      name: string;
+      region: string;
+      location: string;
+      address: string;
+      telephone: string;
+      addedBy: string;
+      autoApprove?: boolean;
+    }
+  ): Promise<ApiResponse<any>> {
+    await delay();
+    const res = createCompanyWithBranch(
+      { ...companyParams, autoApprove: companyParams.autoApprove ?? false },
+      { ...branchParams, autoApprove: branchParams.autoApprove ?? false }
+    );
+    if (!res.success) return { success: false, data: null, message: res.message };
+    return { success: true, data: res.data, message: res.message };
   },
 
   async approveCompany(id: string, approvedBy: string): Promise<ApiResponse<null>> {
@@ -272,6 +335,18 @@ export const apiClient = {
   async requestGradeRevision(applicationId: string, requestedBy: string, reason: string): Promise<ApiResponse<null>> {
     await delay();
     const result = requestGradeRevision(applicationId, requestedBy, reason);
+    return { success: result.success, data: null, message: result.message };
+  },
+
+  async submitWeeklyRubric(applicationId: string, weekNumber: number, ratings: Record<string, number>, notes: string, actor: any): Promise<ApiResponse<null>> {
+    await delay();
+    const result = submitWeeklyRubric(applicationId, weekNumber, ratings, notes, actor);
+    return { success: result.success, data: null, message: result.message };
+  },
+
+  async submitIndustrialAssessment(applicationId: string, ratings: Record<string, number>, comments: string, actor: any): Promise<ApiResponse<null>> {
+    await delay();
+    const result = submitIndustrialAssessment(applicationId, ratings, comments, actor);
     return { success: result.success, data: null, message: result.message };
   },
 

@@ -59,6 +59,7 @@ const studentNav: NavItem[] = [
   { to: "/student/logbook", icon: BookMarked, label: "Daily Logbook" },
   { to: "/student/documents", icon: Upload, label: "Documents" },
   { to: "/student/evaluation", icon: ClipboardCheck, label: "My Score & Evaluation" },
+  { to: "/student/history", icon: Award, label: "Internship History" },
   { to: "/student/issues", icon: AlertTriangle, label: "Report Issue" },
   { to: "/student/communications", icon: MessageSquarePlus, label: "Communications" },
 ];
@@ -130,7 +131,10 @@ export function DashboardLayout() {
         setCheckedInToday(hasCheckedInToday(user.studentId || ""));
       };
       updateCheckInStatus();
-      return subscribeAttendance(updateCheckInStatus);
+      const unsubscribe = subscribeAttendance(updateCheckInStatus);
+      return () => {
+        unsubscribe();
+      };
     }
   }, [user]);
 
@@ -167,7 +171,7 @@ export function DashboardLayout() {
       user.role === "supervisor"
         // Touch the slices we care about so the count refreshes when entries are added/applications change.
         ? (store.weeklyRubrics.length, store.applications.length,
-            getOverdueWeeklyRubrics({ companyName: "Ghana Telecom Ltd" }).length)
+          getOverdueWeeklyRubrics({ companyName: "Ghana Telecom Ltd" }).length)
         : 0,
   };
 
@@ -215,11 +219,11 @@ export function DashboardLayout() {
         >
           {/* Logo */}
           <div className={`flex items-center ${sidebarOpen || isMobile ? "gap-3 px-5" : "justify-center px-0"} py-5 transition-all duration-300`}>
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
               <GraduationCap className="w-5 h-5 text-primary-foreground" />
             </div>
             {(sidebarOpen || isMobile) && (
-              <span className="text-foreground truncate" style={{ fontSize: "1.05rem", fontWeight: 600, letterSpacing: "-0.01em" }}>Donezo</span>
+              <span className="text-foreground truncate" style={{ fontSize: "1.05rem", fontWeight: 600, letterSpacing: "-0.01em" }}>HTU IAMS</span>
             )}
             {isMobile && sidebarOpen && (
               <button onClick={() => setSidebarOpen(false)} className="ml-auto p-1.5 rounded-lg hover:bg-white/80 dark:hover:bg-white/10 text-muted-foreground transition-colors duration-200">
@@ -248,10 +252,9 @@ export function DashboardLayout() {
                   end={item.to === `/${user.role}`}
                   onClick={handleNavClick}
                   className={({ isActive }) =>
-                    `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 ${
-                      isActive
-                        ? "bg-[#E3EBFF] dark:bg-primary/20 text-primary font-medium"
-                        : "text-sidebar-foreground hover:bg-[#E3EBFF]/50 dark:hover:bg-white/5 hover:text-foreground"
+                    `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 ${isActive
+                      ? "bg-[#E3EBFF] dark:bg-primary/20 text-primary font-medium"
+                      : "text-sidebar-foreground hover:bg-[#E3EBFF]/50 dark:hover:bg-white/5 hover:text-foreground"
                     }`
                   }
                 >
@@ -311,11 +314,10 @@ export function DashboardLayout() {
           {user.role === "student" && (
             <button
               onClick={() => setCheckInModalOpen(true)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                checkedInToday
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${checkedInToday
                   ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20"
                   : "bg-primary text-primary-foreground hover:opacity-90"
-              }`}
+                }`}
               style={{ fontSize: "0.85rem", fontWeight: 500 }}
             >
               <CheckCircle2 className="w-4 h-4" />

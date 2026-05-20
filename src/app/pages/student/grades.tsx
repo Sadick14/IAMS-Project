@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { useAppContext } from "../../lib/context";
+import { getLatestApplicationForStudent } from "../../lib/store";
 import { Award, Clock, AlertCircle, Users, BookMarked, ClipboardCheck } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { GradeBreakdownCard } from "../../components/grading/grade-breakdown-card";
@@ -13,7 +15,7 @@ import {
 export function StudentGradesPage() {
   const { user, store } = useAppContext();
   const _ = store.compiledGrades.length;
-  const myApp = store.applications.find((a) => a.studentId === user?.studentId);
+  const myApp = useMemo(() => getLatestApplicationForStudent(user?.studentId || ""), [store.applications, user?.studentId]);
 
   if (!myApp) {
     return (
@@ -135,7 +137,7 @@ export function StudentGradesPage() {
                     ))}
                     <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between font-semibold text-sm">
                       <span className="text-[#1a1a2e]">Total Rubric Score</span>
-                      <span className="text-[#0B5ED7]">{Object.values(visit.ratings).reduce((a,b)=>a+b, 0)} / 30</span>
+                      <span className="text-[#0B5ED7]">{Object.values(visit.ratings).reduce<number>((a,b)=>a+b, 0)} / 30</span>
                     </div>
                   </div>
                 )}

@@ -64,10 +64,7 @@ export function AcademicDashboard() {
   });
 
   // Mock upcoming visits
-  const upcomingVisits = [
-    { id: "v1", company: "Ghana Telecom Ltd", student: "John Doe", date: "2026-04-22", time: "10:00 AM", status: "Scheduled" },
-    { id: "v2", company: "GoldFields Mining", student: "Yaw Frimpong", date: "2026-04-25", time: "2:00 PM", status: "Pending Confirmation" },
-  ];
+  const upcomingVisits: any[] = [];
 
   return (
     <div className="space-y-6">

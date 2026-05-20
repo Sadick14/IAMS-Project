@@ -37,6 +37,7 @@ import { LogbookPage } from "./pages/student/logbook";
 import { DocumentsPage } from "./pages/student/documents";
 import { StudentApplicationsPage } from "./pages/student/applications";
 import { StudentGradesPage } from "./pages/student/grades";
+import { StudentHistoryPage } from "./pages/student/history";
 
 // Supervisor Pages
 import { SupervisorDashboard } from "./pages/supervisor/dashboard";
@@ -130,6 +131,7 @@ export const router = createBrowserRouter([
       { path: "students", Component: CLOStudents },
       { path: "grades", Component: CLOGrades },
       { path: "reports", Component: CLOReports },
+      { path: "attendance", element: <AttendancePage viewRole="clo" /> },
       { path: "audit", element: <AuditLogsPage /> },
       { path: "templates", Component: CLOTemplates },
       { path: "settings", Component: CLOSettings },
@@ -156,6 +158,7 @@ export const router = createBrowserRouter([
       { path: "final-grading", element: <DLOFinalGradingPage /> },
       { path: "grades", Component: DLOGrades },
       { path: "reports", Component: DLOReports },
+      { path: "attendance", element: <AttendancePage viewRole="dlo" /> },
       { path: "settings", Component: DLOSettings },
       { path: "issues", Component: DLOIssues },
       { path: "communications", Component: DLOCommunications },
@@ -177,6 +180,7 @@ export const router = createBrowserRouter([
       { path: "documents", element: <DocumentsPage /> },
       { path: "evaluation", element: <StudentGradesPage /> },
       { path: "grades", element: <Navigate to="/student/evaluation" replace /> },
+      { path: "history", element: <StudentHistoryPage /> },
       { path: "issues", Component: StudentIssues },
       { path: "communications", Component: StudentCommunications },
     ],
@@ -215,6 +219,8 @@ export const router = createBrowserRouter([
       { path: "students", Component: AcademicStudents },
       { path: "evaluate", element: <AcademicEvaluatePage /> },
       { path: "visits", element: <AcademicVisitsPage /> },
+      { path: "attendance", element: <AttendancePage viewRole="academic" /> },
+      { path: "grades", element: <GradesPage viewRole="academic" /> },
       { path: "communications", Component: AcademicCommunications },
     ],
   },

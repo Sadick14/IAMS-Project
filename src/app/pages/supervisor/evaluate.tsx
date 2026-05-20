@@ -5,18 +5,18 @@ import { Card } from "../../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 import { Badge } from "../../components/ui/badge";
-import { CheckCircle2, Clock } from "lucide-react";
+import { CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { IndustrialAssessmentForm } from "../../components/grading/industrial-assessment-form";
 import { WeeklyRubricForm } from "../../components/grading/weekly-rubric-form";
 import { useAppContext } from "../../lib/context";
+import { apiClient } from "../../lib/api-client";
+import { useToastAction } from "../../lib/hooks";
 import {
   getActiveConfig,
   getIndustrialAssessment,
-  submitIndustrialAssessment,
   getWeeksForApplication,
   getCurrentWeekNumber,
   getWeeklyRubric,
-  submitWeeklyRubric,
 } from "../../services/grading-service";
 import type { GradingActor } from "../../types/grading";
 
@@ -25,6 +25,8 @@ type TabKey = "weekly" | "final";
 export function EvaluatePage() {
   const { user, store } = useAppContext();
   const _ = store.industrialAssessments.length + store.weeklyRubrics.length;
+
+  const { execute: runEvaluationAction, loading: isSubmitting } = useToastAction();
 
   const [params, setParams] = useSearchParams();
 
@@ -108,7 +110,16 @@ export function EvaluatePage() {
       </Card>
 
       {app && (
-        <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
+        <div className="relative">
+          {isSubmitting && (
+            <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] z-50 flex items-center justify-center rounded-xl">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <p className="text-sm font-medium text-foreground">Saving assessment...</p>
+              </div>
+            </div>
+          )}
+          <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
           <TabsList>
             <TabsTrigger value="weekly">
               Weekly Rubric
@@ -174,9 +185,13 @@ export function EvaluatePage() {
                   weekEnd={week.weekEnd}
                   initialRatings={existingWeekly?.ratings}
                   initialNotes={existingWeekly?.notes}
-                  onSubmit={(ratings, notes) => {
-                    const res = submitWeeklyRubric(app.id, week.weekNumber, ratings, notes, actor);
-                    res.success ? toast.success(res.message) : toast.error(res.message);
+                  onSubmit={async (ratings, notes) => {
+                    await runEvaluationAction(async () => {
+                      return apiClient.submitWeeklyRubric(app.id, week.weekNumber, ratings, notes, actor);
+                    }, {
+                      successMessage: "Weekly rubric submitted successfully!",
+                      errorMessage: "Failed to submit weekly rubric."
+                    });
                   }}
                 />
               </Card>
@@ -202,9 +217,13 @@ export function EvaluatePage() {
                   sectionWeights={config.sectionWeights}
                   initialRatings={existingFinal?.ratings}
                   initialComments={existingFinal?.comments}
-                  onSubmit={(ratings, comments) => {
-                    const res = submitIndustrialAssessment(app.id, ratings, comments, actor);
-                    res.success ? toast.success(res.message) : toast.error(res.message);
+                  onSubmit={async (ratings, comments) => {
+                    await runEvaluationAction(async () => {
+                      return apiClient.submitIndustrialAssessment(app.id, ratings, comments, actor);
+                    }, {
+                      successMessage: "Final assessment submitted successfully!",
+                      errorMessage: "Failed to submit final assessment."
+                    });
                   }}
                 />
               </Card>
@@ -215,6 +234,7 @@ export function EvaluatePage() {
             )}
           </TabsContent>
         </Tabs>
+        </div>
       )}
     </div>
   );

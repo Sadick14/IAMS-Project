@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAppContext } from "../../lib/context";
+import { getLatestApplicationForStudent } from "../../lib/store";
 import {
   Upload, FileText, Download, CheckCircle2, Clock, X, Eye,
   File, AlertTriangle, Link2, Send
@@ -14,7 +15,7 @@ interface UploadedDoc {
 
 export function DocumentsPage() {
   const { user, store } = useAppContext();
-  const myApp = store.applications.find((a) => a.studentId === user?.studentId);
+  const myApp = getLatestApplicationForStudent(user?.studentId || "");
 
   // Mock uploaded files state
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDoc>>({});

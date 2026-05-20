@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useAppContext } from "../../lib/context";
 import { authenticateByEmail, authenticateByToken, isHTUEmail, getRoutePrefix } from "../../services/auth-service";
+import { ensureDemoStudentApplication } from "../../lib/store";
 import { GraduationCap, LogIn, Key, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { preloadDashboard } from "../../lib/preload";
@@ -32,8 +33,8 @@ export function LoginPage() {
       setError("Account not found. Contact the Central Liaison Office for access.");
       return;
     }
-
     setUser(user);
+    if (user.role === "student" && user.studentId) ensureDemoStudentApplication(user.studentId);
     preloadDashboard(user.role);
     toast.success(`Welcome, ${user.name}!`);
     navigate(getRoutePrefix(user.role), { replace: true });
@@ -52,8 +53,8 @@ export function LoginPage() {
       setError("Invalid or expired token. Contact the student or DLO to resend.");
       return;
     }
-
     setUser(user);
+    if (user.role === "student" && user.studentId) ensureDemoStudentApplication(user.studentId);
     preloadDashboard(user.role);
     toast.success(`Welcome, ${user.name}!`);
     navigate(getRoutePrefix(user.role), { replace: true });
@@ -65,9 +66,7 @@ export function LoginPage() {
     { label: "DLO (Dept. Liaison)", email: "e.mensah@htu.edu.gh", role: "dlo" as const },
     { label: "Academic Supervisor", email: "a.osei@htu.edu.gh", role: "academic" as const },
     { label: "HOD", email: "y.mensah@htu.edu.gh", role: "hod" as const },
-    { label: "Student (Fresh)", email: "john.doe@st.htu.edu.gh", role: "student" as const },
-    { label: "Student (Active)", email: "kofi.asare@st.htu.edu.gh", role: "student" as const },
-    { label: "Student (Completed)", email: "jane.smith@st.htu.edu.gh", role: "student" as const },
+    { label: "Student Demo", email: "john.doe@st.htu.edu.gh", role: "student" as const },
     { label: "Industry Supervisor", token: "sup-tok-abc123", role: "supervisor" as const },
   ];
 
@@ -76,6 +75,7 @@ export function LoginPage() {
       const user = authenticateByToken(demo.token);
       if (user) {
         setUser(user);
+        if (user.role === "student" && user.studentId) ensureDemoStudentApplication(user.studentId);
         preloadDashboard(user.role);
         toast.success(`Welcome, ${user.name}!`);
         navigate(getRoutePrefix(user.role), { replace: true });
@@ -84,6 +84,7 @@ export function LoginPage() {
       const user = authenticateByEmail(demo.email);
       if (user) {
         setUser(user);
+        if (user.role === "student" && user.studentId) ensureDemoStudentApplication(user.studentId);
         preloadDashboard(user.role);
         toast.success(`Welcome, ${user.name}!`);
         navigate(getRoutePrefix(user.role), { replace: true });

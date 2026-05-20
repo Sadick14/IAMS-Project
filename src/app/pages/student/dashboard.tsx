@@ -1,4 +1,5 @@
 import { useAppContext } from "../../lib/context";
+import { getLatestApplicationForStudent } from "../../lib/store";
 import { StatusBadge } from "../../components/status-badge";
 import { StatCard } from "../../components/stat-card";
 import { getStudentLogbook } from "../../services/logbook-service";
@@ -9,7 +10,7 @@ export function StudentDashboard() {
   const { user, store } = useAppContext();
   const navigate = useNavigate();
 
-  const myApp = store.applications.find((a) => a.studentId === user?.studentId);
+  const myApp = getLatestApplicationForStudent(user?.studentId || "");
   const logEntries = getStudentLogbook(user?.studentId || "");
   const lastEntry = logEntries[0];
 
@@ -85,7 +86,7 @@ export function StudentDashboard() {
           </p>
         </button>
         <button
-          onClick={() => navigate("/student/grades")}
+          onClick={() => navigate("/student/evaluation")}
           className="bg-card border border-border rounded-2xl p-6 text-left hover:shadow-[0_2px_12px_rgba(11,94,215,0.08)] hover:border-primary/30 transition-all"
         >
           <Award className="w-8 h-8 text-primary mb-3" />

@@ -41,24 +41,6 @@ const userAccounts: AuthUser[] = [
     department: "Computer Science",
     studentId: "CS/2023/001",
   },
-  // Demo student in Active state — for showcasing the in-progress tracker.
-  {
-    id: "u3a",
-    name: "Kofi Asare",
-    email: "kofi.asare@st.htu.edu.gh",
-    role: "student",
-    department: "Business Administration",
-    studentId: "BA/2023/012",
-  },
-  // Demo student in Completed state — for showcasing the post-internship view.
-  {
-    id: "u3b",
-    name: "Jane Smith",
-    email: "jane.smith@st.htu.edu.gh",
-    role: "student",
-    department: "Electrical Engineering",
-    studentId: "EE/2023/015",
-  },
   {
     id: "u4",
     name: "Mr. Mensah",
@@ -185,11 +167,11 @@ export function getAllowedRoutes(role: ExtendedRole): string[] {
         "/clo/students",
         "/clo/grades",
         "/clo/reports",
+        "/clo/attendance",
         "/clo/audit",
         "/clo/templates",
         "/clo/settings",
         "/clo/issues",
-        "/clo/attendance",
         "/clo/communications",
       ];
     case "dlo":
@@ -199,21 +181,23 @@ export function getAllowedRoutes(role: ExtendedRole): string[] {
         "/dlo/companies",
         "/dlo/students",
         "/dlo/supervisors",
+        "/dlo/assignments",
+        "/dlo/final-grading",
         "/dlo/grades",
         "/dlo/reports",
+        "/dlo/attendance",
         "/dlo/settings",
         "/dlo/issues",
-        "/dlo/attendance",
         "/dlo/communications",
       ];
     case "student":
-      return ["/student", "/student/applications", "/student/logbook", "/student/documents", "/student/grades", "/student/issues", "/student/communications"];
+      return ["/student", "/student/applications", "/student/logbook", "/student/documents", "/student/evaluation", "/student/grades", "/student/history", "/student/issues", "/student/communications"];
     case "supervisor":
       return ["/supervisor", "/supervisor/evaluate", "/supervisor/logbooks", "/supervisor/attendance", "/supervisor/communications"];
     case "academic":
       return ["/academic", "/academic/students", "/academic/evaluate", "/academic/grades", "/academic/visits", "/academic/attendance", "/academic/communications"];
     case "hod":
-      return ["/hod", "/hod/reports", "/hod/students", "/hod/approvals", "/hod/communications"];
+      return ["/hod", "/hod/reports", "/hod/students", "/hod/approvals", "/hod/settings", "/hod/communications"];
     default:
       return [];
   }

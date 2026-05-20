@@ -62,93 +62,42 @@ export interface StoreState {
 }
 
 // Initialize logbook entries with mock data
-const mockLogbookEntries: LogbookEntry[] = [
-  {
-    id: "lb1",
-    studentId: "BA/2023/012",
-    date: "2026-04-17",
-    activities: "Worked on network configuration for the new branch office. Assisted senior engineer with firewall setup.",
-    skills: "Network configuration, Cisco IOS, Firewall management",
-    challenges: "Complex subnet requirements needed extra research",
-    approvalStatus: "Approved",
-    approvedBy: "Mr. Mensah",
-    approvedAt: "2026-04-17T18:00:00",
-    createdAt: "2026-04-17T17:00:00",
-  },
-  {
-    id: "lb2",
-    studentId: "BA/2023/012",
-    date: "2026-04-16",
-    activities: "Attended team standup. Reviewed documentation for VPN setup. Started writing test scripts.",
-    skills: "VPN protocols, Python scripting, Technical documentation",
-    challenges: "None",
-    approvalStatus: "Approved",
-    approvedBy: "Mr. Mensah",
-    approvedAt: "2026-04-16T18:30:00",
-    createdAt: "2026-04-16T17:30:00",
-  },
-  {
-    id: "lb3",
-    studentId: "BA/2023/012",
-    date: "2026-04-15",
-    activities: "Shadowed IT support team. Resolved 3 helpdesk tickets independently.",
-    skills: "Troubleshooting, Customer service, Windows Server",
-    challenges: "One ticket required hardware replacement — had to escalate",
-    approvalStatus: "Pending",
-    createdAt: "2026-04-15T16:45:00",
-  },
-  {
-    id: "lb4",
-    studentId: "BA/2023/012",
-    date: "2026-04-18",
-    activities: "Configured VLAN segmentation on Cisco switches. Documented network topology for branch office.",
-    skills: "VLAN configuration, Network documentation, Cisco switches",
-    challenges: "Switch firmware needed upgrading before VLAN support was available",
-    approvalStatus: "Pending",
-    createdAt: "2026-04-18T17:15:00",
-  },
-  {
-    id: "lb5",
-    studentId: "BA/2023/012",
-    date: "2026-04-17",
-    activities: "Assisted with quarterly financial report preparation. Entered data into accounting software.",
-    skills: "Financial reporting, QuickBooks, Data entry",
-    challenges: "Reconciling discrepancies in petty cash records",
-    approvalStatus: "Pending",
-    createdAt: "2026-04-17T16:30:00",
-  },
-  {
-    id: "lb6",
-    studentId: "BA/2023/012",
-    date: "2026-04-16",
-    activities: "Attended client meeting with senior accountant. Took minutes and drafted follow-up email.",
-    skills: "Client communication, Meeting management, Email drafting",
-    challenges: "None",
-    approvalStatus: "Approved",
-    approvedBy: "Mr. Mensah",
-    approvedAt: "2026-04-16T17:00:00",
-    createdAt: "2026-04-16T15:45:00",
-  },
-];
+const mockLogbookEntries: LogbookEntry[] = [];
+
+const STORAGE_KEY = "iams_demo_store_state_v2";
+
+function getInitialState(): StoreState {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error("Failed to load local store state:", e);
+    }
+  }
+  return {
+    applications: [],
+    companies: [...initialCompanies], // Kept to avoid tedious data entry for companies
+    branches: [...initialBranches],
+    notifications: [],
+    auditLogs: [],
+    terms: [], // Empty so CLO can create one
+    logbookEntries: [],
+    gradingConfigs: [...initialConfigs], // Kept to maintain department grading structures
+    industrialAssessments: [],
+    siteVisitations: [],
+    reportScores: [],
+    presentationScores: [],
+    compiledGrades: [],
+    weeklyRubrics: [],
+    assignmentLocks: [],
+  };
+}
 
 // Global mutable store
-let state: StoreState = {
-  applications: [...initialApps],
-  companies: [...initialCompanies],
-  branches: [...initialBranches],
-  notifications: [...initialNotifications],
-  auditLogs: [...initialAuditLogs],
-  terms: [...initialTerms],
-  logbookEntries: [...mockLogbookEntries],
-  gradingConfigs: [...initialConfigs],
-  industrialAssessments: [...initialIndustrial],
-  siteVisitations: [...initialVisits],
-  reportScores: [...initialReports],
-  presentationScores: [...initialPresentations],
-  compiledGrades: [...initialCompiled],
-  weeklyRubrics: [...initialWeeklyRubrics],
-  assignmentLocks: [],
-};
+let state: StoreState = getInitialState();
 
 export function upsertWeeklyRubric(entry: WeeklyRubricEntry) {
   const exists = state.weeklyRubrics.some(
@@ -158,8 +107,8 @@ export function upsertWeeklyRubric(entry: WeeklyRubricEntry) {
     ...state,
     weeklyRubrics: exists
       ? state.weeklyRubrics.map((x) =>
-          x.applicationId === entry.applicationId && x.weekNumber === entry.weekNumber ? entry : x
-        )
+        x.applicationId === entry.applicationId && x.weekNumber === entry.weekNumber ? entry : x
+      )
       : [...state.weeklyRubrics, entry],
   };
   notify();
@@ -186,11 +135,186 @@ export function subscribe(listener: Listener) {
 }
 
 function notify() {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error("Failed to save local store state:", e);
+    }
+  }
   listeners.forEach((l) => l());
 }
 
 export function getState(): StoreState {
   return state;
+}
+
+// Helpers for student-specific queries and demo seeding
+export function getLatestApplicationForStudent(studentId: string) {
+  return [...state.applications].reverse().find((a) => a.studentId === studentId);
+}
+
+export function getStudentApplicationHistory(studentId: string) {
+  return state.applications
+    .filter((a) => a.studentId === studentId)
+    .slice()
+    .sort((x, y) => (x.dateApplied || "") < (y.dateApplied || "") ? -1 : 1);
+}
+
+export function ensureDemoStudentApplication(studentId: string) {
+  const exists = state.applications.some((a) => a.studentId === studentId);
+  if (!exists) simulateStudentStage("pending", studentId);
+}
+
+export function simulateStudentStage(stage: "fresh" | "pending" | "active" | "completed", studentId: string) {
+  const prevAppIds = state.applications.filter(a => a.studentId === studentId).map(a => a.id);
+
+  if (stage === "fresh") {
+    const filteredApps = state.applications.filter(a => a.studentId !== studentId);
+    const filteredLogs = state.logbookEntries.filter(l => l.studentId !== studentId);
+    const filteredVisits = state.siteVisitations.filter(v => !prevAppIds.includes(v.applicationId));
+    const filteredAssessments = state.industrialAssessments.filter(x => !prevAppIds.includes(x.applicationId));
+    const filteredReports = state.reportScores.filter(r => !prevAppIds.includes(r.applicationId));
+    const filteredCompiled = state.compiledGrades.filter(g => !prevAppIds.includes(g.applicationId));
+
+    state = {
+      ...state,
+      applications: filteredApps,
+      logbookEntries: filteredLogs,
+      siteVisitations: filteredVisits,
+      industrialAssessments: filteredAssessments,
+      reportScores: filteredReports,
+      compiledGrades: filteredCompiled,
+    };
+    notify();
+    return;
+  }
+
+  // create a unique application id so prior internships are preserved
+  const appId = `a-demo-${studentId.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}-${Date.now()}`;
+  const dateApplied = new Date().toISOString().split("T")[0];
+
+  if (stage === "pending") {
+    const newApp: Application = {
+      id: appId,
+      studentName: "John Doe",
+      studentId: studentId,
+      department: "Computer Science",
+      level: "L300",
+      companyId: "c1",
+      companyName: "Ghana Telecom Ltd",
+      companyStatus: "Approved",
+      branchId: "b-c1-main",
+      branchName: "Head Office",
+      status: "Pending",
+      dateApplied,
+      termId: undefined
+    };
+    state = { ...state, applications: [...state.applications, newApp] };
+    notify();
+    return;
+  }
+
+  if (stage === "active") {
+    const newApp: Application = {
+      id: appId,
+      studentName: "John Doe",
+      studentId: studentId,
+      department: "Computer Science",
+      level: "L300",
+      companyId: "c1",
+      companyName: "Ghana Telecom Ltd",
+      companyStatus: "Approved",
+      branchId: "b-c1-main",
+      branchName: "Head Office",
+      status: "Active",
+      dateApplied,
+      supervisorAssigned: "Dr. Abena Osei",
+      termId: undefined
+    };
+    // currently we don't seed detailed logbook rows here — keep it simple
+    state = {
+      ...state,
+      applications: [...state.applications, newApp],
+    };
+    notify();
+    return;
+  }
+
+  if (stage === "completed") {
+    const newApp: Application = {
+      id: appId,
+      studentName: "John Doe",
+      studentId: studentId,
+      department: "Computer Science",
+      level: "L300",
+      companyId: "c1",
+      companyName: "Ghana Telecom Ltd",
+      companyStatus: "Approved",
+      branchId: "b-c1-main",
+      branchName: "Head Office",
+      status: "Completed",
+      dateApplied,
+      supervisorAssigned: "Dr. Abena Osei",
+      grade: "A",
+      gradeStatus: "Submitted",
+      termId: undefined
+    };
+
+    const mockAssessment: IndustrialSupervisorAssessment = {
+      id: `ind-${appId}`,
+      applicationId: appId,
+      ratings: {
+        A1: 5, A2: 5, A3: 4, A4: 5,
+        B1: 5, B2: 5, B3: 4, B4: 5, B5: 4, B6: 5, B7: 5, B8: 5,
+        C1: 5, C2: 5, C3: 4, C4: 4, C5: 5,
+        D1: 5, D2: 5, D3: 4
+      },
+      comments: "John is outstanding! Incredible coding speed and technical knowledge.",
+      submittedBy: "Mr. Mensah",
+      submittedAt: new Date().toISOString()
+    };
+
+    const mockVisit: SiteVisitationScore = {
+      id: `sv-${appId}`,
+      applicationId: appId,
+      score: 28,
+      comments: "Highly disciplined and well-integrated into the local branch office.",
+      visitedAt: new Date().toISOString(),
+      submittedBy: "Dr. Abena Osei",
+      ratings: { V1: 3, V2: 3, V3: 3, V4: 3, V5: 3, V6: 3, V7: 3, V8: 2, V9: 3, V10: 2 },
+      studentId: studentId
+    };
+
+    const mockReport: ReportScore = {
+      id: `rep-${appId}`,
+      applicationId: appId,
+      score: 92,
+      comments: "Thorough internship report. Clear software architecture diagrams.",
+      submittedBy: "Dr. Abena Osei",
+      submittedAt: new Date().toISOString()
+    };
+
+    const mockCompiled: CompiledGrade = {
+      applicationId: appId,
+      components: { industrial: 94, departmental: 93, report: 92, presentation: 90 },
+      configSnapshot: state.gradingConfigs[0],
+      finalPercent: 93,
+      status: "Approved",
+      updatedAt: new Date().toISOString()
+    };
+
+    state = {
+      ...state,
+      applications: [...state.applications, newApp],
+      siteVisitations: [...state.siteVisitations, mockVisit],
+      industrialAssessments: [...state.industrialAssessments, mockAssessment],
+      reportScores: [...state.reportScores, mockReport],
+      compiledGrades: [...state.compiledGrades, mockCompiled],
+    };
+    notify();
+    return;
+  }
 }
 
 // --- Mutations ---
@@ -266,9 +390,27 @@ export function addTerm(term: Term) {
 }
 
 export function updateTerm(id: string, updates: Partial<Term>) {
+  const term = state.terms.find((t) => t.id === id);
+  let updatedApplications = state.applications;
+
+  if (term && updates.status === "Archived") {
+    updatedApplications = state.applications.map((a) => {
+      // Allow for both date-based and termId-based matching
+      const isMatch = a.termId === term.id || (
+        a.dateApplied >= term.applicationStart &&
+        a.dateApplied <= term.applicationEnd
+      );
+      if (isMatch && a.status !== "Completed" && a.status !== "Rejected") {
+        return { ...a, status: "Completed" as const };
+      }
+      return a;
+    });
+  }
+
   state = {
     ...state,
     terms: state.terms.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+    applications: updatedApplications,
   };
   notify();
 }
