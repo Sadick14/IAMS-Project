@@ -86,7 +86,15 @@ function buildApiUrl(path: string, query?: Record<string, unknown>): string {
 }
 
 export function getApiUrl(path: string, query?: Record<string, unknown>): string {
-  return buildApiUrl(path, query);
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const qs = buildQueryString(query);
+  const base = API_BASE_URL || (typeof window !== "undefined" ? window.location.origin : "");
+  try {
+    return new URL(`${normalizedPath}${qs}`, base).toString();
+  } catch {
+    // Fallback to the simple concatenation (shouldn't normally happen)
+    return `${base}${normalizedPath}${qs}`;
+  }
 }
 
 function extractCollection<T>(response: ApiResponse<unknown>, collectionKey: string): T[] {
