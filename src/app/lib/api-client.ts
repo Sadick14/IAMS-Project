@@ -51,7 +51,7 @@ export function clearApiAuthToken(): void {
 
 const API_BASE_URL =
   (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL
-    ?.trim().replace(/\/+$/, "") || "https://iams-backend.up.railway.app/api/v1";
+    ?.trim().replace(/\/+$/, "") || "https://iams-backend.up.railway.app";
 
 function buildQueryString(params?: Record<string, unknown>): string {
   if (!params) return "";
