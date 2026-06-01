@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { StatCard } from "../../components/stat-card";
 import { StatusBadge } from "../../components/status-badge";
 import { useAppContext } from "../../lib/context";
-import { checkInactiveStudents } from "../../services/logbook-service";
 import { apiClient } from "../../lib/api-client";
-import type { ApplicationResponse, CompanyResponse } from "../../types/api";
 import {
   Building2, FileText, GraduationCap, Clock, AlertTriangle, UserPlus,
   ArrowRight, TrendingUp, CheckCircle2, BarChart3
@@ -15,132 +13,116 @@ import {
 } from "recharts";
 import { useNavigate } from "react-router";
 
-const COLORS = ["#0B5ED7", "#10B981", "#F59E0B", "#8B5CF6", "#14B8A6"];
+// Helpers to read nested backend fields
+function getStudentName(app: any): string { return app.student?.user?.name ?? app.studentName ?? "—"; }
+function getStudentNum(app: any): string  { return app.student?.student_id ?? app.studentId ?? "—"; }
+function getCompanyName(app: any): string { return app.company?.name ?? app.companyName ?? "—"; }
 
 export function DLODashboard() {
-  const { user, store } = useAppContext();
+  const { user } = useAppContext();
   const navigate = useNavigate();
-  const dept = user?.department || "Computer Science";
+  const dept = user?.department || "";
 
-  const [applications, setApplications] = useState<ApplicationResponse[]>([]);
-  const [allCompanies, setAllCompanies] = useState<CompanyResponse[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [dashboardCounts, setDashboardCounts] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [pendingAssignments, setPendingAssignments] = useState<any[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([apiClient.getApplications(), apiClient.getCompanies()]).then(([appsRes, cosRes]) => {
+
+    const load = async () => {
+      const [appsRes, dashRes, notifRes, assignRes] = await Promise.all([
+        apiClient.getApplications(),
+        apiClient.getDashboard("dlo"),
+        apiClient.getNotifications({ per_page: 4 }),
+        apiClient.getSupervisorAssignmentsPending({ per_page: 6 }),
+      ]);
       if (cancelled) return;
-      if (appsRes.success) setApplications(appsRes.data);
-      if (cosRes.success) setAllCompanies(cosRes.data);
-    });
+      if (appsRes.success)    setApplications(appsRes.data);
+      if (dashRes.success)    setDashboardCounts(dashRes.data);
+      if (notifRes.success)   setNotifications(notifRes.data);
+      if (assignRes.success)  setPendingAssignments(assignRes.data);
+    };
+
+    void load();
     return () => { cancelled = true; };
   }, []);
 
-  const deptApps = applications.filter((a) => a.department === dept);
-  const pendingApps = deptApps.filter((a) => a.status === "Pending").length;
-  const activeStudents = deptApps.filter((a) => a.status === "Active").length;
-  const completedStudents = deptApps.filter((a) => a.status === "Completed").length;
-  const pendingCompanies = allCompanies.filter((c) => c.status === "Pending" && c.department === dept).length;
-  const needSupervisor = deptApps.filter((a) => a.status === "Company Accepted").length;
-  const activityData = checkInactiveStudents();
+  // Counts from backend dashboard endpoint (pre-computed, dept-scoped)
+  const activeStudents    = dashboardCounts?.internship_counts?.active    ?? 0;
+  const completedStudents = dashboardCounts?.internship_counts?.completed ?? 0;
+  const pendingApps       = dashboardCounts?.pending_applications         ?? 0;
+  const needSupervisor    = dashboardCounts?.unassigned_internships       ?? 0;
+  const pendingGrades     = dashboardCounts?.pending_grade_approvals      ?? 0;
+  const pendingCompanies  = applications.filter((c: any) => (c.approval_status ?? c.status) === "pending").length;
 
-  const placementRate = deptApps.length > 0
-    ? Math.round(((activeStudents + completedStudents) / deptApps.length) * 100)
+  const totalInternships = activeStudents + completedStudents + (dashboardCounts?.internship_counts?.pending ?? 0);
+  const placementRate = totalInternships > 0
+    ? Math.round(((activeStudents + completedStudents) / totalInternships) * 100)
     : 0;
 
-  // Placement funnel
+  // Charts — built from real application statuses (backend values)
   const funnelData = [
-    { name: "Applied", stage: "Applied", count: deptApps.length },
-    { name: "Approved", stage: "Approved", count: deptApps.filter((a) => ["Approved", "Company Accepted", "Active", "Completed"].includes(a.status)).length },
-    { name: "Co. Accepted", stage: "Co. Accepted", count: deptApps.filter((a) => ["Company Accepted", "Active", "Completed"].includes(a.status)).length },
-    { name: "Active", stage: "Active", count: activeStudents },
-    { name: "Completed", stage: "Completed", count: completedStudents },
+    { stage: "Applied",   count: applications.length },
+    { stage: "Approved",  count: applications.filter((a) => ["approved"].includes(a.status)).length },
+    { stage: "Active",    count: activeStudents },
+    { stage: "Completed", count: completedStudents },
   ];
 
-  // Status distribution for pie chart
   const statusData = [
-    { id: "active", name: "Active", value: activeStudents, color: "#3B82F6" },
-    { id: "pending", name: "Pending", value: pendingApps, color: "#F59E0B" },
+    { id: "active",    name: "Active",    value: activeStudents,    color: "#3B82F6" },
+    { id: "pending",   name: "Pending",   value: pendingApps,       color: "#F59E0B" },
     { id: "completed", name: "Completed", value: completedStudents, color: "#8B5CF6" },
-    { id: "co-accepted", name: "Co. Accepted", value: needSupervisor, color: "#14B8A6" },
-    { id: "approved", name: "Approved", value: deptApps.filter((a) => a.status === "Approved").length, color: "#10B981" },
+    { id: "approved",  name: "Approved",  value: applications.filter((a) => a.status === "approved").length, color: "#10B981" },
   ].filter((d) => d.value > 0);
-
-  const flaggedStudents = activityData.filter((s) => s.status === "red");
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1>Department Dashboard</h1>
-          <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>{dept} · Departmental Liaison Overview</p>
+          <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
+            {dept ? `${dept} · ` : ""}Departmental Liaison Overview
+          </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => navigate("/dlo/applications")}
-            className="px-3 md:px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2"
-            style={{ fontSize: "0.85rem" }}
-          >
-            <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Review Applications</span>
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/dlo/applications")}
+          className="px-3 md:px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2"
+          style={{ fontSize: "0.85rem" }}
+        >
+          <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Review Applications</span>
+        </button>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard title="Dept Applications" value={deptApps.length} subtitle="Current term" icon={<FileText className="w-4 h-4" />} highlight />
-        <StatCard title="Active Students" value={activeStudents} subtitle="At companies" icon={<GraduationCap className="w-4 h-4" />} />
-        <StatCard title="Pending Review" value={pendingApps} subtitle="Awaiting your approval" icon={<Clock className="w-4 h-4" />} />
-        <StatCard title="Placement Rate" value={`${placementRate}%`} subtitle="Active + completed" icon={<TrendingUp className="w-4 h-4" />} />
-        <StatCard title="Companies Pending" value={pendingCompanies} subtitle="Need your approval" icon={<Building2 className="w-4 h-4" />} />
+        <StatCard title="Dept Applications" value={applications.length} subtitle="Current term" icon={<FileText className="w-4 h-4" />} highlight />
+        <StatCard title="Active Students"   value={activeStudents}      subtitle="At companies" icon={<GraduationCap className="w-4 h-4" />} />
+        <StatCard title="Pending Review"    value={pendingApps}         subtitle="Awaiting approval" icon={<Clock className="w-4 h-4" />} />
+        <StatCard title="Placement Rate"    value={`${placementRate}%`} subtitle="Active + completed" icon={<TrendingUp className="w-4 h-4" />} />
+        <StatCard title="Pending Grades"    value={pendingGrades}       subtitle="Need approval" icon={<BarChart3 className="w-4 h-4" />} />
       </div>
 
       {/* Alert Banners */}
-      {(needSupervisor > 0 || flaggedStudents.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {needSupervisor > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                <UserPlus className="w-5 h-5 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <p style={{ fontSize: "0.85rem" }} className="text-amber-800">
-                  {needSupervisor} student(s) need academic supervisor assignment
-                </p>
-                <p style={{ fontSize: "0.75rem" }} className="text-amber-600">
-                  Company acceptance received — assign in Supervisors page
-                </p>
-              </div>
-              <button
-                onClick={() => navigate("/dlo/supervisors")}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:opacity-90 flex items-center gap-1 shrink-0"
-                style={{ fontSize: "0.8rem" }}
-              >
-                Assign <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-          {flaggedStudents.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <p style={{ fontSize: "0.85rem" }} className="text-red-800">
-                  {flaggedStudents.length} student(s) flagged — inactive 3+ days
-                </p>
-                <p style={{ fontSize: "0.75rem" }} className="text-red-600">
-                  {flaggedStudents.map((s) => s.studentName).join(", ")}
-                </p>
-              </div>
-              <button
-                onClick={() => navigate("/dlo/students")}
-                className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:opacity-90 flex items-center gap-1 shrink-0"
-                style={{ fontSize: "0.8rem" }}
-              >
-                View <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+      {needSupervisor > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+            <UserPlus className="w-5 h-5 text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <p style={{ fontSize: "0.85rem" }} className="text-amber-800">
+              {needSupervisor} internship(s) have no academic supervisor assigned
+            </p>
+            <p style={{ fontSize: "0.75rem" }} className="text-amber-600">Assign in the Supervisors page</p>
+          </div>
+          <button
+            onClick={() => navigate("/dlo/supervisors")}
+            className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:opacity-90 flex items-center gap-1 shrink-0"
+            style={{ fontSize: "0.8rem" }}
+          >
+            Assign <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -148,15 +130,15 @@ export function DLODashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Placement Funnel */}
         <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-primary" /> Placement Funnel</h3>
-          </div>
-          <div className="h-56">
+          <h3 className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-5 h-5 text-primary" /> Placement Funnel
+          </h3>
+          <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={funnelData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="stage" tick={{ fontSize: 11 }} width={85} />
+                <YAxis type="category" dataKey="stage" tick={{ fontSize: 11 }} width={80} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#0B5ED7" radius={[0, 6, 6, 0]} isAnimationActive={false} />
               </BarChart>
@@ -167,7 +149,7 @@ export function DLODashboard() {
         {/* Status Pie */}
         <div className="bg-card border border-border rounded-xl p-5">
           <h3 className="mb-4">Status Distribution</h3>
-          <div className="h-56 flex items-center justify-center">
+          <div className="h-52 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={statusData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" nameKey="name" isAnimationActive={false}>
@@ -186,10 +168,10 @@ export function DLODashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Review Applications", count: pendingApps, icon: FileText, path: "/dlo/applications", color: "text-blue-600 bg-blue-50" },
-          { label: "Approve Companies", count: pendingCompanies, icon: Building2, path: "/dlo/companies", color: "text-emerald-600 bg-emerald-50" },
-          { label: "Assign Supervisors", count: needSupervisor, icon: UserPlus, path: "/dlo/supervisors", color: "text-violet-600 bg-violet-50" },
-          { label: "View Reports", count: null, icon: TrendingUp, path: "/dlo/reports", color: "text-orange-600 bg-orange-50" },
+          { label: "Review Applications", count: pendingApps,   icon: FileText,    path: "/dlo/applications", color: "text-blue-600 bg-blue-50" },
+          { label: "Approve Companies",   count: pendingCompanies, icon: Building2, path: "/dlo/companies",    color: "text-emerald-600 bg-emerald-50" },
+          { label: "Assign Supervisors",  count: needSupervisor, icon: UserPlus,   path: "/dlo/supervisors",  color: "text-violet-600 bg-violet-50" },
+          { label: "View Reports",        count: null,           icon: TrendingUp,  path: "/dlo/reports",      color: "text-orange-600 bg-orange-50" },
         ].map((action) => (
           <button
             key={action.label}
@@ -218,59 +200,66 @@ export function DLODashboard() {
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-2.5" style={{ fontSize: "0.75rem" }}>Student</th>
-                  <th className="text-left px-4 py-2.5" style={{ fontSize: "0.75rem" }}>Company</th>
-                  <th className="text-left px-4 py-2.5" style={{ fontSize: "0.75rem" }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deptApps.slice(0, 5).map((app) => (
-                  <tr key={app.id} className="border-b border-border last:border-0 hover:bg-muted/20">
-                    <td className="px-4 py-3" style={{ fontSize: "0.85rem" }}>
-                      <div>
-                        <p>{app.studentName}</p>
-                        <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>{app.studentId}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3" style={{ fontSize: "0.85rem" }}>{app.companyName}</td>
-                    <td className="px-4 py-3"><StatusBadge status={app.status} /></td>
+            {applications.length === 0 ? (
+              <p className="px-4 py-6 text-muted-foreground text-center" style={{ fontSize: "0.85rem" }}>No applications yet.</p>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-4 py-2.5" style={{ fontSize: "0.75rem" }}>Student</th>
+                    <th className="text-left px-4 py-2.5" style={{ fontSize: "0.75rem" }}>Company</th>
+                    <th className="text-left px-4 py-2.5" style={{ fontSize: "0.75rem" }}>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {applications.slice(0, 5).map((app) => (
+                    <tr key={app.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                      <td className="px-4 py-3" style={{ fontSize: "0.85rem" }}>
+                        <div>
+                          <p>{getStudentName(app)}</p>
+                          <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>{getStudentNum(app)}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3" style={{ fontSize: "0.85rem" }}>{getCompanyName(app)}</td>
+                      <td className="px-4 py-3"><StatusBadge status={app.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
-        {/* Student Activity */}
+        {/* Pending Supervisor Assignments */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="p-4 border-b border-border flex items-center justify-between">
-            <h3>Student Activity Monitor</h3>
-            <button onClick={() => navigate("/dlo/students")} className="text-primary hover:underline" style={{ fontSize: "0.8rem" }}>
-              View all
+            <h3>Awaiting Supervisor Assignment</h3>
+            <button onClick={() => navigate("/dlo/supervisors")} className="text-primary hover:underline" style={{ fontSize: "0.8rem" }}>
+              Assign all
             </button>
           </div>
           <div className="p-3 space-y-2">
-            {activityData.map((s, i) => (
-              <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/30">
-                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${s.status === "green" ? "bg-emerald-500" : s.status === "yellow" ? "bg-amber-500" : "bg-red-500"}`} />
-                <div className="flex-1 min-w-0">
-                  <p style={{ fontSize: "0.85rem" }} className="truncate">{s.studentName}</p>
-                  <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground">Last log: {s.daysSinceLog}d ago</p>
-                </div>
-                {s.status === "red" && <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />}
-                {s.status === "green" && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+            {pendingAssignments.length === 0 ? (
+              <div className="flex items-center gap-3 p-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                <p style={{ fontSize: "0.85rem" }} className="text-muted-foreground">All internships have supervisors assigned.</p>
               </div>
-            ))}
-          </div>
-          <div className="p-3 border-t border-border">
-            <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Active
-              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block ml-2" /> Warning
-              <span className="w-2 h-2 rounded-full bg-red-500 inline-block ml-2" /> Flagged (3+ days)
-            </p>
+            ) : (
+              pendingAssignments.map((i: any, idx: number) => (
+                <div key={i.id ?? idx} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/30">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p style={{ fontSize: "0.85rem" }} className="truncate">
+                      {i.student?.user?.name ?? i.studentName ?? "—"}
+                    </p>
+                    <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground truncate">
+                      {i.company?.name ?? i.companyName ?? "—"}
+                    </p>
+                  </div>
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -284,15 +273,18 @@ export function DLODashboard() {
           </button>
         </div>
         <div className="divide-y divide-border">
-          {store.notifications.slice(0, 4).map((n) => (
-            <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${!n.read ? "bg-secondary/30" : ""}`}>
-              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!n.read ? "bg-primary" : "bg-transparent"}`} />
+          {notifications.length === 0 && (
+            <p className="px-4 py-4 text-muted-foreground" style={{ fontSize: "0.8rem" }}>No notifications.</p>
+          )}
+          {notifications.map((n) => (
+            <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${!n.is_read ? "bg-secondary/30" : ""}`}>
+              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!n.is_read ? "bg-primary" : "bg-transparent"}`} />
               <div className="flex-1">
                 <p style={{ fontSize: "0.85rem" }}>{n.title}</p>
-                <p style={{ fontSize: "0.75rem" }} className="text-muted-foreground">{n.message}</p>
+                <p style={{ fontSize: "0.75rem" }} className="text-muted-foreground">{n.message ?? n.body}</p>
               </div>
               <span className="ml-auto text-muted-foreground shrink-0" style={{ fontSize: "0.7rem" }}>
-                {new Date(n.timestamp).toLocaleDateString()}
+                {new Date(n.created_at ?? n.timestamp).toLocaleDateString()}
               </span>
             </div>
           ))}
