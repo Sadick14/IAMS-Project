@@ -534,7 +534,7 @@ export const apiClient = {
   async approveLogbook(id: string, comment?: string): Promise<ApiResponse<null>> {
     return requestApi<null>(
       replacePathParams(API_ENDPOINTS.LOGBOOK_APPROVE, { id }),
-      { method: "POST", body: JSON.stringify({ comment }) }
+      { method: "PATCH", body: JSON.stringify({ action: "approve", comment }) }
     );
   },
 
@@ -611,7 +611,7 @@ export const apiClient = {
   async approveGrade(applicationId: string): Promise<ApiResponse<null>> {
     return requestApi<null>(
       replacePathParams(API_ENDPOINTS.GRADE_APPROVE, { id: applicationId }),
-      { method: "POST" }
+      { method: "PATCH" }
     );
   },
 
