@@ -3,7 +3,7 @@ import { StatusBadge } from "../../components/status-badge";
 import { useAppContext } from "../../lib/context";
 import { departments } from "../../lib/mock-data";
 import { checkInactiveStudents, flagInactiveStudent } from "../../services/logbook-service";
-import { getMissedCheckIns, getAttendanceRecords } from "../../services/attendance-service";
+import { getMissedCheckIns } from "../../services/attendance-service";
 import { apiClient } from "../../lib/api-client";
 import {
   getCompiledGrade, getReportScore, getPresentationScore, getIndustrialAssessment, getSiteVisitation,
@@ -12,7 +12,7 @@ import {
 import type { GradingActor } from "../../types/grading";
 import {
   Search, AlertTriangle, MessageSquare, Send, Download, X,
-  Eye, BookMarked, MapPin, Clock, CheckCircle2, Navigation, FileText, ClipboardList, Award,
+  Eye, BookMarked, MapPin, Clock, CheckCircle2, FileText, ClipboardList, Award,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ExtendedRole } from "../../services/auth-service";
@@ -43,7 +43,7 @@ function normalizeInternship(i: any) {
 }
 
 export function StudentsPage({ viewRole }: Props) {
-  const { user, store } = useAppContext();
+  const { user } = useAppContext();
   const [search, setSearch] = useState("");
   const [termFilter, setTermFilter] = useState("All");
   const [deptFilter, setDeptFilter] = useState("All");
@@ -51,22 +51,22 @@ export function StudentsPage({ viewRole }: Props) {
   const [awaitingScores, setAwaitingScores] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"overview" | "scoring">("overview");
-  const [remoteStudents, setRemoteStudents] = useState<any[] | null>(null);
+  const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
+  const [detailLogEntries, setDetailLogEntries] = useState<any[]>([]);
+  const [detailAttendanceRecords, setDetailAttendanceRecords] = useState<any[]>([]);
   const canScore = viewRole === "dlo" || viewRole === "clo";
 
   const department = (viewRole === "dlo" || viewRole === "hod" || viewRole === "academic") ? user?.department : undefined;
   const activityData = checkInactiveStudents();
 
-  // Fetch active/completed internships from the backend
+  // Fetch internships from API
   const fetchStudents = useCallback(async () => {
     const res = await apiClient.getInternships({ status: "active,completed,pending" });
-    if (res.success) setRemoteStudents(res.data.map(normalizeInternship));
+    if (res.success) setEnrolledStudents(res.data.map(normalizeInternship));
   }, []);
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
 
-  // Fall back to local store if remote fetch hasn't loaded yet
-  const enrolledStudents = remoteStudents ?? store.applications.filter((a) => ["Approved", "Company Accepted", "Active", "Completed", "active", "completed"].includes(a.status));
   const allMissedCheckins = getMissedCheckIns(department);
 
   const filtered = enrolledStudents.filter((a: any) => {
@@ -112,11 +112,17 @@ export function StudentsPage({ viewRole }: Props) {
   const detail = selectedStudent ? enrolledStudents.find((a: any) => a.id === selectedStudent) : null;
   const detailActivity = detail ? getActivity(detail.studentName) : null;
 
-  // Logbook entries for selected student
-  const detailLogEntries = detail ? store.logbookEntries.filter((e) => e.studentId === detail.studentId) : [];
-  
-  // Attendance records for selected student
-  const detailAttendance = detail ? getAttendanceRecords({}).filter(r => r.studentId === detail.studentId) : [];
+  // Fetch logbook entries and attendance when a student is selected
+  useEffect(() => {
+    if (!selectedStudent) { setDetailLogEntries([]); setDetailAttendanceRecords([]); return; }
+    const internshipId = selectedStudent;
+    apiClient.getInternshipLogbooks(internshipId).then((r) => { if (r.success) setDetailLogEntries(r.data); });
+    apiClient.getInternshipAttendance(internshipId).then((r) => {
+      if (r.success) setDetailAttendanceRecords(Array.isArray(r.data) ? r.data : r.data?.attendance ?? []);
+    });
+  }, [selectedStudent]);
+
+  const detailAttendance = detailAttendanceRecords;
   const missedDays = detail ? getStudentMissedDays(detail.studentId) : 0;
 
   return (
@@ -390,7 +396,7 @@ export function StudentsPage({ viewRole }: Props) {
 
                 <div className="flex items-center gap-3 pb-3 border-b border-border">
                   <div className="w-11 h-11 rounded-full bg-primary flex items-center justify-center text-primary-foreground" style={{ fontSize: "0.8rem" }}>
-                    {detail.studentName.split(" ").map((w) => w[0]).join("")}
+                    {detail.studentName.split(" ").map((w: string) => w[0]).join("")}
                   </div>
                   <div>
                     <p style={{ fontSize: "0.9rem" }}>{detail.studentName}</p>
@@ -466,10 +472,10 @@ export function StudentsPage({ viewRole }: Props) {
                       {detailLogEntries.slice(0, 3).map((entry) => (
                         <div key={entry.id} className="p-2.5 bg-secondary/30 rounded-lg">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>{entry.date}</span>
-                            <StatusBadge status={entry.approvalStatus} />
+                            <span className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>{entry.entry_date ?? entry.date}</span>
+                            <StatusBadge status={entry.status ?? entry.approvalStatus} />
                           </div>
-                          <p style={{ fontSize: "0.8rem" }} className="line-clamp-2">{entry.activities}</p>
+                          <p style={{ fontSize: "0.8rem" }} className="line-clamp-2">{entry.activities_description ?? entry.activities}</p>
                         </div>
                       ))}
                     </div>
@@ -497,20 +503,20 @@ export function StudentsPage({ viewRole }: Props) {
                         <div key={att.id} className="p-2.5 bg-secondary/30 rounded-lg flex items-center justify-between">
                           <div>
                             <p style={{ fontSize: "0.8rem", fontWeight: 500 }} className="flex items-center gap-1.5">
-                              {att.date}
+                              {att.attendance_date ?? att.date}
                               <span className="text-muted-foreground" style={{ fontSize: "0.7rem", fontWeight: 400 }}>
-                                <Clock className="w-3 h-3 inline" /> {att.checkInTime}
+                                <Clock className="w-3 h-3 inline" /> {att.check_in_time ?? att.checkInTime}
                               </span>
                             </p>
                             <p className="text-muted-foreground truncate max-w-[180px]" style={{ fontSize: "0.75rem" }}>
-                              {att.checkInType === "gps" ? <Navigation className="w-2.5 h-2.5 inline mr-1" /> : <FileText className="w-2.5 h-2.5 inline mr-1" />}
-                              {att.location}
+                              <FileText className="w-2.5 h-2.5 inline mr-1" />
+                              {att.notes ?? att.location ?? att.status}
                             </p>
                           </div>
                           <div className="shrink-0">
-                             {att.verificationStatus === "Verified" ? (
+                             {att.status === "present" || att.status === "late" ? (
                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                             ) : att.verificationStatus === "Rejected" ? (
+                             ) : att.status === "absent" ? (
                                <AlertTriangle className="w-4 h-4 text-red-500" />
                              ) : (
                                <Clock className="w-4 h-4 text-amber-500" />

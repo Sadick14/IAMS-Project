@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { StatCard } from "../../components/stat-card";
 import { StatusBadge } from "../../components/status-badge";
-import { useAppContext } from "../../lib/context";
 import { departments } from "../../lib/mock-data";
 import { checkInactiveStudents } from "../../services/logbook-service";
 import { exportToCSV } from "../../lib/csv-export";
@@ -47,52 +46,43 @@ function isActiveTerm(status?: string): boolean {
 }
 
 export function CLODashboard() {
-  const { store } = useAppContext();
   const navigate = useNavigate();
-  const [remoteData, setRemoteData] = useState<CloDashboardSnapshot | null>(null);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [dashboardCounts, setDashboardCounts] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadDashboardData = async () => {
-      const [applicationsResult, companiesResult, termsResult, dashResult] = await Promise.all([
+    const load = async () => {
+      const [appsRes, companiesRes, dashRes, notifRes] = await Promise.all([
         apiClient.getApplications(),
         apiClient.getCompanies(),
-        apiClient.getTerms(),
         apiClient.getDashboard("clo"),
+        apiClient.getNotifications({ per_page: 4 }),
       ]);
-
       if (cancelled) return;
-
-      if (applicationsResult.success && companiesResult.success && termsResult.success) {
-        setRemoteData({
-          applications: applicationsResult.data,
-          companies: companiesResult.data,
-          terms: termsResult.data,
-        });
-      }
-      if (dashResult.success) setDashboardCounts(dashResult.data);
+      if (appsRes.success) setApplications(appsRes.data);
+      if (companiesRes.success) setCompanies(companiesRes.data);
+      if (dashRes.success) setDashboardCounts(dashRes.data);
+      if (notifRes.success) setNotifications(notifRes.data);
+      setLoading(false);
     };
 
-    void loadDashboardData();
-
+    void load();
     return () => { cancelled = true; };
   }, []);
 
-  const applications = remoteData?.applications ?? store.applications;
-  const companies = remoteData?.companies ?? store.companies;
-  const terms = remoteData?.terms ?? store.terms;
+  const activeTerm = dashboardCounts?.active_term;
 
-  const activeTerm = dashboardCounts?.active_term ?? terms.find((t) => isActiveTerm(t.status));
-
-  // Use pre-computed backend counts when available; fall back to local computation
-  const activeStudents   = dashboardCounts?.internship_counts?.active   ?? applications.filter((a) => a.status === "active").length;
-  const completedStudents = dashboardCounts?.internship_counts?.completed ?? applications.filter((a) => a.status === "completed").length;
-  const pendingApps      = dashboardCounts?.system_counts?.pending_applications ?? applications.filter((a) => a.status === "submitted" || a.status === "under_review").length;
-  const approvedCompanies = dashboardCounts?.system_counts?.total_companies ?? companies.filter((c) => (c.approval_status ?? c.status) === "approved").length;
-  const pendingCompanies = companies.filter((c) => (c.approval_status ?? c.status) === "pending").length;
-  const needSupervisor   = applications.filter((a) => !a.academic_supervisor_id && a.status === "approved").length;
+  const activeStudents    = dashboardCounts?.internship_counts?.active ?? 0;
+  const completedStudents = dashboardCounts?.internship_counts?.completed ?? 0;
+  const pendingApps       = dashboardCounts?.system_counts?.pending_applications ?? 0;
+  const approvedCompanies = dashboardCounts?.system_counts?.total_companies ?? 0;
+  const pendingCompanies  = companies.filter((c) => (c.approval_status ?? c.status) === "pending").length;
+  const needSupervisor    = applications.filter((a) => !a.academic_supervisor_id && a.status === "approved").length;
 
   const deptData = departments
     .map((d) => ({
@@ -384,15 +374,18 @@ export function CLODashboard() {
           </button>
         </div>
         <div className="divide-y divide-border">
-          {store.notifications.slice(0, 4).map((n) => (
-            <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${!n.read ? "bg-secondary/30" : ""}`}>
-              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!n.read ? "bg-primary" : "bg-transparent"}`} />
+          {notifications.length === 0 && (
+            <p className="px-4 py-4 text-muted-foreground" style={{ fontSize: "0.8rem" }}>No notifications.</p>
+          )}
+          {notifications.map((n) => (
+            <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${!n.is_read ? "bg-secondary/30" : ""}`}>
+              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!n.is_read ? "bg-primary" : "bg-transparent"}`} />
               <div className="flex-1">
                 <p style={{ fontSize: "0.85rem" }}>{n.title}</p>
-                <p style={{ fontSize: "0.75rem" }} className="text-muted-foreground">{n.message}</p>
+                <p style={{ fontSize: "0.75rem" }} className="text-muted-foreground">{n.message ?? n.body}</p>
               </div>
               <span className="ml-auto text-muted-foreground shrink-0" style={{ fontSize: "0.7rem" }}>
-                {new Date(n.timestamp).toLocaleDateString()}
+                {new Date(n.created_at ?? n.timestamp).toLocaleDateString()}
               </span>
             </div>
           ))}
