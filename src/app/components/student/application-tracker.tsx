@@ -1,9 +1,9 @@
-import { FileText, Eye, Sparkles, CheckCircle2, Clock, X, Calendar, Info, Shield } from "lucide-react";
+import { FileText, Sparkles, CheckCircle2, Clock, X } from "lucide-react";
 import { StatusBadge } from "../status-badge";
 
 interface ApplicationTrackerProps {
   myApp: any;
-  store: any;
+  terms?: any[];
   onViewWindows: () => void;
 }
 
@@ -71,7 +71,7 @@ function getStatusHistory(app: {
   return history;
 }
 
-export function ApplicationTracker({ myApp, store, onViewWindows }: ApplicationTrackerProps) {
+export function ApplicationTracker({ myApp, terms, onViewWindows }: ApplicationTrackerProps) {
   if (!myApp) {
     return (
       <div className="bg-card border border-border rounded-xl p-12 text-center space-y-4">
@@ -95,12 +95,11 @@ export function ApplicationTracker({ myApp, store, onViewWindows }: ApplicationT
   const statusHistory = getStatusHistory(myApp);
 
   // Find corresponding term for application
-  const matchedTerm = store.terms.find(
-    (t: any) =>
-      myApp.dateApplied >= t.applicationStart &&
-      myApp.dateApplied <= t.applicationEnd &&
-      (t.departments.includes(myApp.department) || t.departments.length === 0)
-  );
+  // Match term using backend field names (start_date, end_date, application_deadline)
+  const matchedTerm = (terms ?? []).find((t: any) => {
+    const appDate = myApp.created_at ?? myApp.dateApplied ?? "";
+    return appDate >= (t.start_date ?? "") && appDate <= (t.end_date ?? "");
+  });
 
   return (
     <div className="space-y-5">

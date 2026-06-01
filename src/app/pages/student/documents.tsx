@@ -45,10 +45,10 @@ export function DocumentsPage() {
     fileName: "",
   });
 
-  const isApproved = myApp && ["Approved", "Company Accepted", "Active", "Completed"].includes(myApp.status);
-  const isActive = myApp?.status === "Active";
-  const isCompleted = myApp?.status === "Completed";
-  const needsAcceptance = myApp?.status === "Approved";
+  const isApproved = myApp && ["approved", "active", "completed"].includes(myApp.status);
+  const isActive = myApp?.status === "active";
+  const isCompleted = myApp?.status === "completed";
+  const needsAcceptance = myApp?.status === "approved";
 
   const documents = [
     {
@@ -134,13 +134,18 @@ export function DocumentsPage() {
     toast.success("Final report submitted successfully! Your academic supervisor will review it.");
   };
 
-  const handleSendMagicLink = () => {
+  const handleSendMagicLink = async () => {
     if (!supervisorName.trim() || !supervisorEmail.trim()) {
       toast.error("Please provide supervisor name and email.");
       return;
     }
-    setMagicLinkSent(true);
-    toast.success(`Magic link sent to ${supervisorEmail}. Your supervisor can now access the system.`);
+    const res = await apiClient.requestMagicLink(supervisorEmail);
+    if (res.success) {
+      setMagicLinkSent(true);
+      toast.success(`Magic link sent to ${supervisorEmail}. Your supervisor can now access the system.`);
+    } else {
+      toast.error(res.message ?? "Failed to send magic link.");
+    }
   };
 
   const statusBadge = (status: string) => {

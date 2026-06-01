@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
@@ -75,17 +75,25 @@ const defaultForm: FormData = {
 };
 
 export function StudentApplicationsPage() {
-  const { user, store } = useAppContext();
+  const { user } = useAppContext();
   const [myApp, setMyApp] = useState<any | null>(null);
+  const [terms, setTerms] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
 
   useEffect(() => {
-    apiClient.getApplications().then((res) => {
-      if (res.success && res.data.length > 0) {
-        const sorted = [...res.data].sort((a, b) =>
+    Promise.all([
+      apiClient.getApplications(),
+      apiClient.getTerms(),
+      apiClient.getCompanies(),
+    ]).then(([appsRes, termsRes, companiesRes]) => {
+      if (appsRes.success && appsRes.data.length > 0) {
+        const sorted = [...appsRes.data].sort((a, b) =>
           (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1
         );
         setMyApp(sorted[0]);
       }
+      if (termsRes.success) setTerms(termsRes.data);
+      if (companiesRes.success) setCompanies(companiesRes.data);
     });
   }, []);
 
@@ -96,65 +104,35 @@ export function StudentApplicationsPage() {
 
   const { execute: submitAction, loading: isSubmitting } = useToastAction();
 
-  // STU-01: Open internship windows
-  const availableTerms = store.terms.filter(
-    (t) => t.status === "Active" || t.status === "Upcoming"
+  // STU-01: Open internship windows — backend status values are lowercase
+  const availableTerms = terms.filter(
+    (t) => t.status === "active" || t.status === "upcoming"
   );
 
-  const selectedTerm = store.terms.find((t) => t.id === form.termId);
-  const selectedCompany = store.companies.find((c) => c.id === form.selectedCompanyId);
-  const selectedBranch = store.branches.find((b) => b.id === form.selectedBranchId);
+  const selectedTerm    = terms.find((t) => t.id === form.termId);
+  const selectedCompany = companies.find((c) => String(c.id) === form.selectedCompanyId);
+  const selectedBranch  = form.selectedBranchId ? { id: form.selectedBranchId, name: form.newBranchName } : null;
 
   const updateForm = (updates: Partial<FormData>) => setForm((prev) => ({ ...prev, ...updates }));
 
-  // STU-02: Eligibility check
+  // STU-02: Eligibility check against backend term fields
   const checkEligibility = (termId: string): boolean => {
-    const term = store.terms.find((t) => t.id === termId);
+    const term = terms.find((t) => String(t.id) === termId);
     if (!term) return false;
 
-    // Check level eligibility
-    const studentLevel =
-      user?.studentId?.startsWith("CS") ||
-      user?.studentId?.startsWith("EE") ||
-      user?.studentId?.startsWith("ME") ||
-      user?.studentId?.startsWith("CE") ||
-      user?.studentId?.startsWith("BA") ||
-      user?.studentId?.startsWith("AF")
-        ? "L300"
-        : "L200";
-
-    if (!term.eligibleLevels.includes(studentLevel)) {
-      setEligibilityError(
-        `You are currently at ${studentLevel} but this term requires ${term.eligibleLevels.join(
-          ", "
-        )}. You are not eligible for this internship window.`
-      );
-      return false;
-    }
-
-    // Check department eligibility
-    if (user?.department && !term.departments.includes(user.department)) {
-      setEligibilityError(
-        `Your department (${
-          user.department
-        }) is not eligible for this term. Eligible departments: ${term.departments.join(", ")}.`
-      );
-      return false;
-    }
-
-    // Check application window
+    // Check application deadline
     const today = new Date().toISOString().split("T")[0];
-    if (today < term.applicationStart) {
-      setEligibilityError(`The application window has not opened yet. It opens on ${term.applicationStart}.`);
+    if (term.application_deadline && today > term.application_deadline) {
+      setEligibilityError(`The application deadline has passed (${term.application_deadline}).`);
       return false;
     }
-    if (today > term.applicationEnd) {
-      setEligibilityError(`The application window has closed. It ended on ${term.applicationEnd}.`);
+    if (term.start_date && today < term.start_date) {
+      setEligibilityError(`The application window has not opened yet. It opens on ${term.start_date}.`);
       return false;
     }
 
     // Check for existing active application
-    if (myApp && !["completed", "rejected", "Completed", "Rejected"].includes(myApp.status)) {
+    if (myApp && !["completed", "rejected"].includes(myApp.status ?? "")) {
       setEligibilityError(
         "You already have an active application. You cannot submit another one until your current application is resolved."
       );
@@ -179,26 +157,19 @@ export function StudentApplicationsPage() {
           if (!form.selectedCompanyId) return false;
           if (form.branchChoice === "existing") return !!form.selectedBranchId;
           if (form.branchChoice === "new") {
-            const hasDuplicateBranch = form.selectedCompanyId && form.newBranchName.trim()
-              ? store.branches.some((b: any) =>
-                  String(b.companyId ?? b.company_id) === form.selectedCompanyId &&
-                  b.name?.toLowerCase() === form.newBranchName.trim().toLowerCase()
-                )
-              : false;
             return !!(
               form.newBranchName &&
               form.newBranchRegion &&
               form.newBranchLocation &&
               form.newBranchAddress &&
-              form.newBranchTelephone &&
-              !hasDuplicateBranch
+              form.newBranchTelephone
             );
           }
           return false;
         }
         if (form.companyChoice === "new") {
           const hasDuplicateCompany = form.newCompanyName.trim()
-            ? store.companies.some((c: any) => c.name?.toLowerCase() === form.newCompanyName.trim().toLowerCase())
+            ? companies.some((c: any) => c.name?.toLowerCase() === form.newCompanyName.trim().toLowerCase())
             : false;
           return !!(
             form.newCompanyName &&
@@ -235,21 +206,17 @@ export function StudentApplicationsPage() {
         const actor = user?.name || "Student";
 
         if (form.companyChoice === "existing") {
-          const company = store.companies.find((c) => c.id === form.selectedCompanyId);
+          const company = companies.find((c: any) => String(c.id) === form.selectedCompanyId);
           if (!company) {
             return { success: false, data: null, message: "Selected company not found." };
           }
-          companyId = company.id;
+          companyId = String(company.id);
           companyName = company.name;
-          companyStatus = company.status === "Approved" ? "Approved" : "Pending";
+          companyStatus = (company.approval_status ?? company.status) === "approved" ? "Approved" : "Pending";
 
           if (form.branchChoice === "existing") {
-            const branch = store.branches.find((b) => b.id === form.selectedBranchId);
-            if (!branch) {
-              return { success: false, data: null, message: "Selected branch not found." };
-            }
-            branchId = branch.id;
-            branchName = branch.name;
+            branchId = form.selectedBranchId;
+            branchName = form.newBranchName || company.name;
           } else {
             // Create new branch under existing company asynchronously
             const branchRes = await apiClient.createBranch({
@@ -445,7 +412,7 @@ export function StudentApplicationsPage() {
               <CompanyBranchSelector
                 form={form}
                 updateForm={updateForm}
-                store={store}
+                companies={companies}
               />
             )}
 
@@ -507,7 +474,7 @@ export function StudentApplicationsPage() {
       {view === "tracker" && (
         <ApplicationTracker
           myApp={myApp}
-          store={store}
+          terms={terms}
           onViewWindows={() => setView("windows")}
         />
       )}

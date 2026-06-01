@@ -33,60 +33,44 @@ interface FormData {
 interface CompanyBranchSelectorProps {
   form: FormData;
   updateForm: (updates: Partial<FormData>) => void;
-  store: any;
+  companies: any[];
 }
 
 export function CompanyBranchSelector({
   form,
   updateForm,
-  store,
+  companies,
 }: CompanyBranchSelectorProps) {
   const [companySearch, setCompanySearch] = useState("");
 
-  const selectedCompany = store.companies.find((c: any) => c.id === form.selectedCompanyId);
+  const selectedCompany = companies.find((c: any) => String(c.id) === form.selectedCompanyId);
 
   const searchCompanies = (query: string, limit: number) => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return (store.companies as any[])
+    return (companies as any[])
       .filter((c: any) => c.name?.toLowerCase().includes(q))
       .slice(0, limit)
       .map((c: any) => ({ company: c }));
   };
 
   const findCompanyByName = (name: string) =>
-    (store.companies as any[]).find((c: any) => c.name?.toLowerCase() === name.trim().toLowerCase());
-
-  const getBranchesForCompany = (companyId: string) =>
-    (store.branches as any[]).filter((b: any) => String(b.companyId ?? b.company_id) === String(companyId));
-
-  const findBranchByName = (companyId: string, name: string) =>
-    getBranchesForCompany(companyId).find((b: any) => b.name?.toLowerCase() === name.trim().toLowerCase());
+    (companies as any[]).find((c: any) => c.name?.toLowerCase() === name.trim().toLowerCase());
 
   // Live search results
-  const matches = useMemo(() => searchCompanies(companySearch, 8), [companySearch, store.companies]);
+  const matches = useMemo(() => searchCompanies(companySearch, 8), [companySearch, companies]);
   const exactDup = useMemo(
     () => (companySearch.trim() ? findCompanyByName(companySearch) : undefined),
-    [companySearch, store.companies]
+    [companySearch, companies]
   );
-  const branchesForSelected = useMemo(
-    () => (form.selectedCompanyId ? getBranchesForCompany(form.selectedCompanyId) : []),
-    [form.selectedCompanyId, store.branches]
-  );
-
+  // Backend API has no branch concept — branches list is always empty
+  const branchesForSelected: any[] = [];
   // Live duplicate check on new-company name
   const newCompanyDup = useMemo(
     () => (form.newCompanyName.trim() ? findCompanyByName(form.newCompanyName) : undefined),
-    [form.newCompanyName, store.companies]
+    [form.newCompanyName, companies]
   );
-  // Duplicate branch within selected company
-  const newBranchDup = useMemo(
-    () =>
-      form.selectedCompanyId && form.newBranchName.trim()
-        ? findBranchByName(form.selectedCompanyId, form.newBranchName)
-        : undefined,
-    [form.selectedCompanyId, form.newBranchName, store.branches]
-  );
+  const newBranchDup = undefined;
   return (
     <div className="space-y-5">
       <div>
