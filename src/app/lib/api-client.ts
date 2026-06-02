@@ -415,28 +415,27 @@ export const apiClient = {
   },
 
   async getCompanyBranches(companyId: string): Promise<ApiResponse<BranchResponse[]>> {
-    // TODO: replace with real endpoint when backend is ready
-    // return requestApi<BranchResponse[]>(
-    //   replacePathParams("/api/v1/companies/:id/branches", { id: companyId }),
-    //   { method: "GET" }
-    // );
-    return { success: true, data: [], message: "Branches loaded" };
+    const response = await requestApi<unknown>(
+      replacePathParams("/api/v1/companies/:id/branches", { id: companyId }),
+      { method: "GET" }
+    );
+    return {
+      success: response.success,
+      data: response.success ? extractCollection<BranchResponse>(response, "branches") : [],
+      message: response.message,
+    };
   },
 
   async createCompanyBranch(companyId: string, data: CreateBranchRequest): Promise<ApiResponse<BranchResponse>> {
-    // TODO: replace with real endpoint when backend is ready
-    // return requestApi<BranchResponse>(
-    //   replacePathParams("/api/v1/companies/:id/branches", { id: companyId }),
-    //   { method: "POST", body: JSON.stringify(data) }
-    // );
-    const branch: BranchResponse = {
-      id: `local-${Date.now()}`,
-      company_id: companyId,
-      ...data,
-      status: "active",
-      created_at: new Date().toISOString(),
+    const response = await requestApi<{ branch: BranchResponse }>(
+      replacePathParams("/api/v1/companies/:id/branches", { id: companyId }),
+      { method: "POST", body: JSON.stringify(data) }
+    );
+    return {
+      success: response.success,
+      data: (response.data as any)?.branch ?? (response.data as any),
+      message: response.message,
     };
-    return { success: true, data: branch, message: "Branch added" };
   },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
