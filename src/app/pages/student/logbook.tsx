@@ -59,14 +59,15 @@ export function LogbookPage() {
 
   const handleNewEntry = () => {
     if (!isLogbookActive) return; // Silent return, message shown in UI
+    if (!internshipId) return;
     if (!checkedInToday) { setCheckInModalOpen(true); return; }
     setShowForm(true);
   };
 
   const handleSubmit = async () => {
     if (!isLogbookActive) return;
-    if (!checkedInToday) { setCheckInModalOpen(true); return; }
     if (!internshipId) return;
+    if (!checkedInToday) { setCheckInModalOpen(true); return; }
 
     await submitLogEntry(async () => {
       const res = await apiClient.submitLogbook({

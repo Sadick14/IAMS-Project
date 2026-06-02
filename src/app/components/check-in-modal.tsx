@@ -31,6 +31,10 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
+  // Check if internship is active for check-in
+  const isInternshipActive = internshipStatus === "active" || internshipStatus === "approved";
+  const canCheckIn = !!internshipId && isInternshipActive;
+
   // Reverse geocode coordinates to get address
   const reverseGeocodeLocation = async (latitude: number, longitude: number) => {
     setIsReverseGeocoding(true);
@@ -159,11 +163,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
   };
 
   const handleCheckIn = async () => {
-    if (!internshipId) {
-      toast.error("No active internship found. Cannot check in.");
-      return;
-    }
-    if (internshipStatus !== "active" && internshipStatus !== "approved") {
+    if (!canCheckIn) {
       toast.error("Check-in is only available during an active internship period.");
       return;
     }
@@ -216,7 +216,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
           </p>
 
           {/* Internship Status Warning */}
-          {internshipStatus && internshipStatus !== "active" && internshipStatus !== "approved" && (
+          {!canCheckIn && (
             <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-3 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
               <div>
@@ -224,7 +224,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
                   Check-in Not Available
                 </p>
                 <p className="text-red-600 dark:text-red-400 text-sm mt-0.5">
-                  Check-in is only available during an active internship period. Your current internship status is: <span className="font-semibold capitalize">{internshipStatus}</span>
+                  Check-in is only available during an active internship period. {internshipStatus && <>Your current internship status is: <span className="font-semibold capitalize">{internshipStatus}</span></>}
                 </p>
               </div>
             </div>
@@ -232,15 +232,13 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
 
           {/* Check-in type */}
           <div className="grid grid-cols-2 gap-3">
-            {(["gps", "manual"] as const).map((type) => {
-              const isInactive = internshipStatus && internshipStatus !== "active" && internshipStatus !== "approved";
-              return (
+            {(["gps", "manual"] as const).map((type) => (
               <button
                 key={type}
                 onClick={() => setCheckInType(type)}
-                disabled={isInactive}
+                disabled={!canCheckIn}
                 className={`flex items-center gap-2 p-3 rounded-xl border transition-colors ${
-                  isInactive
+                  !canCheckIn
                     ? "border-border/50 text-muted-foreground/50 cursor-not-allowed opacity-60"
                     : checkInType === type ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"
                 }`}
@@ -249,15 +247,14 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
                 {type === "gps" ? <MapPin className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
                 {type === "gps" ? "GPS Check-in" : "Manual Entry"}
               </button>
-              );
-            })}
+            ))}
           </div>
 
           {checkInType === "gps" ? (
             <div className="space-y-3">
               <button
                 onClick={handleGetLocation}
-                disabled={isGettingLocation || (internshipStatus && internshipStatus !== "active" && internshipStatus !== "approved")}
+                disabled={isGettingLocation || !canCheckIn}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-60 font-medium"
                 style={{ fontSize: "0.85rem" }}
               >
@@ -422,7 +419,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
             </button>
             <button
               onClick={handleCheckIn}
-              disabled={isSubmitting || !locationDetails || (internshipStatus && internshipStatus !== "active" && internshipStatus !== "approved")}
+              disabled={isSubmitting || !locationDetails || !canCheckIn}
               className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
               style={{ fontSize: "0.85rem" }}
             >
