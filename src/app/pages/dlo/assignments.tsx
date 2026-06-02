@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { SkeletonTableRows } from "../../components/skeleton";
+import { useAppContext } from "../../lib/context";
 import {
   Zap, RefreshCw, Search, X, Users, AlertTriangle, CheckCircle2, ChevronDown,
 } from "lucide-react";
@@ -23,6 +24,9 @@ interface SupervisorRow {
 }
 
 export function DLOAssignmentsPage() {
+  const { user } = useAppContext();
+  const department = user?.department || "";
+
   const [pending, setPending] = useState<PendingRow[]>([]);
   const [supervisors, setSupervisors] = useState<SupervisorRow[]>([]);
   const [activeTermId, setActiveTermId] = useState<number | null>(null);
@@ -35,8 +39,8 @@ export function DLOAssignmentsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [pendingRes, supsRes, termRes] = await Promise.all([
-      apiClient.getSupervisorAssignmentsPending({ per_page: 100 }),
-      apiClient.getAvailableSupervisors(),
+      apiClient.getSupervisorAssignmentsPending({ per_page: 100, department }),
+      apiClient.getAvailableSupervisors({ department }),
       apiClient.getActiveTerm(),
     ]);
     if (pendingRes.success) {
@@ -58,7 +62,7 @@ export function DLOAssignmentsPage() {
     }
     if (termRes.success) setActiveTermId(termRes.data?.term?.id ?? termRes.data?.id ?? null);
     setLoading(false);
-  }, []);
+  }, [department]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -83,7 +87,7 @@ export function DLOAssignmentsPage() {
   const handleAutoAssign = async () => {
     if (!activeTermId) { toast.error("No active term found for auto-assignment."); return; }
     setAutoRunning(true);
-    const res = await apiClient.autoAssignSupervisors({ term_id: activeTermId });
+    const res = await apiClient.autoAssignSupervisors({ term_id: activeTermId, department_id: department });
     setAutoRunning(false);
     if (res.success) {
       toast.success(res.message ?? "Auto-assignment complete.");

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { SkeletonTable } from "../../components/skeleton";
 import { StatusBadge } from "../../components/status-badge";
+import { useAppContext } from "../../lib/context";
 import { AlertTriangle, GraduationCap, RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
@@ -16,6 +17,9 @@ interface Row {
 }
 
 export function DLOFinalGradingPage() {
+  const { user } = useAppContext();
+  const department = user?.department || "";
+
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [compiling, setCompiling] = useState<string | null>(null);
@@ -23,8 +27,8 @@ export function DLOFinalGradingPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [internRes, gradesRes] = await Promise.all([
-      apiClient.getInternships({ status: "active,completed", per_page: 100 }),
-      apiClient.getGrades({ per_page: 100 }),
+      apiClient.getInternships({ status: "active,completed", per_page: 100, department }),
+      apiClient.getGrades({ per_page: 100, department }),
     ]);
 
     const gradeByInternship = new Map<string, any>();
@@ -49,7 +53,7 @@ export function DLOFinalGradingPage() {
       }));
     }
     setLoading(false);
-  }, []);
+  }, [department]);
 
   useEffect(() => { load(); }, [load]);
 

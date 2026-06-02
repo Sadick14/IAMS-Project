@@ -36,10 +36,10 @@ export function SupervisorsPage() {
 
   const fetchSupervisors = useCallback(async () => {
     setLoading(true);
-    const res = await apiClient.getAvailableSupervisors();
+    const res = await apiClient.getAvailableSupervisors({ department });
     if (res.success) setSupervisors(res.data.map(normalizeSupervisor));
     setLoading(false);
-  }, []);
+  }, [department]);
 
   useEffect(() => { fetchSupervisors(); }, [fetchSupervisors]);
 

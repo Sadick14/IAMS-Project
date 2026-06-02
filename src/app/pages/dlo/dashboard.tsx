@@ -33,10 +33,10 @@ export function DLODashboard() {
 
     const load = async () => {
       const [appsRes, dashRes, notifRes, assignRes] = await Promise.all([
-        apiClient.getApplications(),
+        apiClient.getApplications({ department: dept }),
         apiClient.getDashboard("dlo"),
         apiClient.getNotifications({ per_page: 4 }),
-        apiClient.getSupervisorAssignmentsPending({ per_page: 6 }),
+        apiClient.getSupervisorAssignmentsPending({ per_page: 6, department: dept }),
       ]);
       if (cancelled) return;
       if (appsRes.success)    setApplications(appsRes.data);
@@ -47,7 +47,7 @@ export function DLODashboard() {
 
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [dept]);
 
   // Counts from backend dashboard endpoint (pre-computed, dept-scoped)
   const activeStudents    = dashboardCounts?.internship_counts?.active    ?? 0;

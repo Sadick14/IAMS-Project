@@ -104,6 +104,7 @@ export interface ApplicationFilters extends PaginationParams {
   // API status values: draft | submitted | under_review | approved | rejected
   status?: string;
   academic_term_id?: number;
+  department?: string;
   per_page?: number;
 }
 
@@ -306,6 +307,7 @@ export interface RevisionLogbookRequest {
 
 export interface LogbookFilters extends PaginationParams {
   studentId?: string;
+  department?: string;
   approvalStatus?: "Pending" | "Approved" | "Revision Requested";
   dateFrom?: string;
   dateTo?: string;
