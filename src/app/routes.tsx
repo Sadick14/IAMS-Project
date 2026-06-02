@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { DashboardLayout } from "./components/dashboard-layout";
 import { AuthGuard } from "./components/auth-guard";
+import { StudentProfileGuard } from "./components/student-profile-guard";
 
 // Auth
 import { LoginPage } from "./pages/auth/login";
@@ -178,7 +179,9 @@ export const router = createBrowserRouter([
     path: "/student",
     element: (
       <StudentGuard>
-        <DashboardLayout />
+        <StudentProfileGuard>
+          <DashboardLayout />
+        </StudentProfileGuard>
       </StudentGuard>
     ),
     children: [

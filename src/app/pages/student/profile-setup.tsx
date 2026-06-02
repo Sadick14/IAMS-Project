@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
+import { useNavigate } from "react-router";
 import { User, Book, Briefcase, Award, FileText, Save, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function StudentProfileSetup() {
   const { user } = useAppContext();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"personal" | "academic" | "internship" | "skills">("personal");
+  const [isFirstTime, setIsFirstTime] = useState(true);
 
   // Personal Information
   const [fullName, setFullName] = useState(user?.name || "");
@@ -77,6 +80,31 @@ export function StudentProfileSetup() {
   };
 
   const handleSaveProfile = async () => {
+    // Validate required fields
+    if (!fullName.trim() || !phone.trim() || !emergencyContact.trim() || !emergencyPhone.trim()) {
+      toast.error("Please fill in all personal information fields");
+      setActiveTab("personal");
+      return;
+    }
+
+    if (!studentId.trim() || !department || !level) {
+      toast.error("Please fill in all academic information fields");
+      setActiveTab("academic");
+      return;
+    }
+
+    if (!preferredStartDate || !preferredIndustries.trim()) {
+      toast.error("Please fill in internship preferences");
+      setActiveTab("internship");
+      return;
+    }
+
+    if (!technicalSkills.trim() || !softSkills.trim()) {
+      toast.error("Please fill in technical and soft skills");
+      setActiveTab("skills");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const updateData = {
@@ -84,6 +112,9 @@ export function StudentProfileSetup() {
         phone,
         emergency_contact: emergencyContact,
         emergency_phone: emergencyPhone,
+        student_id: studentId,
+        department,
+        level,
         cgpa: parseFloat(cgpa) || null,
         technical_skills: technicalSkills,
         soft_skills: softSkills,
@@ -99,11 +130,20 @@ export function StudentProfileSetup() {
         salary_expectations: salaryExpectations,
         major_subjects: majorSubjects,
         current_courses: currentCourses,
+        profile_complete: true,
       };
 
       const res = await apiClient.updateUser(user?.id || "", updateData);
       if (res.success) {
-        toast.success("Profile saved successfully!");
+        // Mark profile as complete in localStorage
+        localStorage.setItem(`student_profile_complete_${user?.id}`, "true");
+
+        toast.success("Profile completed successfully! Redirecting to dashboard...");
+
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          navigate("/student", { replace: true });
+        }, 1500);
       } else {
         toast.error("Failed to save profile");
       }
@@ -124,9 +164,16 @@ export function StudentProfileSetup() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div>
+      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-6">
         <h1 className="text-3xl font-bold">Complete Your Internship Profile</h1>
-        <p className="text-muted-foreground mt-1">Set up your complete profile to help us match you with the right internship opportunity</p>
+        <p className="text-muted-foreground mt-2">
+          Before you can apply for internships, we need you to complete your profile. This helps us match you with the best opportunities based on your skills, interests, and preferences.
+        </p>
+        <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg border border-blue-300 dark:border-blue-700">
+          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+            ℹ️ This is a required step to activate your account. Your information will be used to recommend suitable internships and help supervisors understand your background.
+          </p>
+        </div>
       </div>
 
       {/* Completion Progress */}
@@ -542,9 +589,11 @@ export function StudentProfileSetup() {
       </div>
 
       {/* Required Fields Note */}
-      <p className="text-muted-foreground text-xs text-center mt-4">
-        * Required fields. Complete all sections to unlock better internship matching recommendations.
-      </p>
+      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
+        <p className="text-amber-900 dark:text-amber-100 text-sm font-medium">
+          * All required fields must be completed to activate your account and access internship applications
+        </p>
+      </div>
     </div>
   );
 }
