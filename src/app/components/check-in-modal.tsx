@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, X, CheckCircle2, Clock } from "lucide-react";
+import { MapPin, X, CheckCircle2, Clock, ExternalLink, AlertCircle } from "lucide-react";
 import { apiClient } from "../lib/api-client";
 import { toast } from "sonner";
 
@@ -124,10 +124,50 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId }: Check
                   ? <><Clock className="w-4 h-4 animate-spin" /> Getting location…</>
                   : <><MapPin className="w-4 h-4" /> Capture GPS Location</>}
               </button>
-              {locationDetails && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <p className="text-emerald-700" style={{ fontSize: "0.8rem" }}>{locationDetails}</p>
+
+              {locationDetails && lat && lng && (
+                <div className="space-y-3">
+                  {/* Location Success */}
+                  <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-emerald-700 dark:text-emerald-300 font-medium" style={{ fontSize: "0.85rem" }}>Location captured</p>
+                      <p className="text-emerald-600 dark:text-emerald-400 mt-1" style={{ fontSize: "0.75rem" }}>{locationDetails}</p>
+                    </div>
+                  </div>
+
+                  {/* Map Preview */}
+                  <div className="border border-border rounded-xl overflow-hidden bg-muted/30">
+                    <div className="aspect-video bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-950/20 dark:to-blue-950/10 flex items-center justify-center relative overflow-hidden">
+                      <iframe
+                        title="Location Map"
+                        width="100%"
+                        height="100%"
+                        style={{ border: "none" }}
+                        src={`https://maps.google.com/maps?q=${lat},${lng}&z=17&output=embed`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* View in Maps Button */}
+                  <a
+                    href={`https://maps.google.com/?q=${lat},${lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 font-medium text-sm"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    View in Google Maps
+                  </a>
+                </div>
+              )}
+
+              {!locationDetails && (
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <p className="text-blue-700 dark:text-blue-300 text-sm">
+                    Click "Capture GPS Location" to record your current position
+                  </p>
                 </div>
               )}
             </div>

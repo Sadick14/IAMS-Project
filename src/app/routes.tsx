@@ -43,6 +43,7 @@ import { StudentApplicationsPage } from "./pages/student/applications";
 import { StudentGradesPage } from "./pages/student/grades";
 import { StudentHistoryPage } from "./pages/student/history";
 import { StudentProfileSetup } from "./pages/student/profile-setup";
+import { StudentAttendancePage } from "./pages/student/attendance";
 
 // Supervisor Pages
 import { SupervisorDashboard } from "./pages/supervisor/dashboard";
@@ -189,6 +190,7 @@ export const router = createBrowserRouter([
       { path: "profile-setup", element: <StudentProfileSetup /> },
       { path: "applications", element: <StudentApplicationsPage /> },
       { path: "logbook", element: <LogbookPage /> },
+      { path: "attendance", element: <StudentAttendancePage /> },
       { path: "documents", element: <DocumentsPage /> },
       { path: "evaluation", element: <StudentGradesPage /> },
       { path: "grades", element: <Navigate to="/student/evaluation" replace /> },
