@@ -1,150 +1,121 @@
-import { useState } from "react";
-import { useAppContext } from "../../lib/context";
+import { useState, useEffect, useCallback } from "react";
 import { MapPin, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { submitSiteVisitation } from "../../services/grading-service";
-import { VisitationCriterionKey, VisitationCriterionRating } from "../../types/grading";
+import { apiClient } from "../../lib/api-client";
 
-// Import custom subcomponents
 import { ScheduleVisitModal } from "../../components/academic/schedule-visit-modal";
 import { RescheduleVisitModal } from "../../components/academic/reschedule-visit-modal";
 import { CompleteVisitModal } from "../../components/academic/complete-visit-modal";
 import { VisitListCard } from "../../components/academic/visit-list-card";
 
-interface SiteVisit {
-  id: string;
-  studentId: string;
-  studentName: string;
-  companyName: string;
-  companyAddress: string;
-  date: string;
-  time: string;
-  status: "Scheduled" | "Completed" | "Cancelled" | "Rescheduled";
-  notes?: string;
-  observations?: string;
-  ratings?: Record<VisitationCriterionKey, VisitationCriterionRating>;
-  companyFeedback?: string;
-  recommendations?: string;
-  contactPerson?: string;
-  contactPhone?: string;
-  studentEngagement?: number;
-}
-
-const initialVisits: SiteVisit[] = [];
-
 type FilterStatus = "All" | "Scheduled" | "Completed" | "Cancelled";
 
+// Map backend site-visitation to the shape VisitListCard expects
+function normalizeVisit(v: any) {
+  const statusMap: Record<string, string> = { scheduled: "Scheduled", completed: "Completed", cancelled: "Cancelled" };
+  return {
+    id: String(v.id),
+    internshipId: String(v.internship_id ?? v.internship?.id ?? ""),
+    studentId: v.internship?.student?.student_id ?? "—",
+    studentName: v.internship?.student?.user?.name ?? "—",
+    companyName: v.internship?.company?.name ?? "—",
+    companyAddress: v.internship?.company?.address ?? "",
+    date: v.visit_date,
+    time: v.visit_time ?? "",
+    status: statusMap[v.status] ?? "Scheduled",
+    notes: v.visit_purpose ?? "",
+    observations: v.observations ?? "",
+    recommendations: v.recommendations ?? "",
+  };
+}
+
 export function AcademicVisitsPage() {
-  const { user, store } = useAppContext();
-  const [visits, setVisits] = useState<SiteVisit[]>(initialVisits);
+  const [visits, setVisits] = useState<any[]>([]);
+  const [internships, setInternships] = useState<any[]>([]);
   const [filter, setFilter] = useState<FilterStatus>("All");
   const [showNewForm, setShowNewForm] = useState(false);
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
   const [showCompleteForm, setShowCompleteForm] = useState<string | null>(null);
   const [rescheduleVisitId, setRescheduleVisitId] = useState<string | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const notifyParties = (_kind: "scheduled" | "rescheduled" | "cancelled", _visit: SiteVisit, _extra?: string) => {
-    // Notification dispatch will be implemented via API
-  };
+  const fetchData = useCallback(async () => {
+    const [visitsRes, internshipsRes] = await Promise.all([
+      apiClient.getSiteVisitations({ per_page: 100 }),
+      apiClient.getActiveInternships(),
+    ]);
+    if (visitsRes.success) setVisits(visitsRes.data.map(normalizeVisit));
+    if (internshipsRes.success) setInternships(internshipsRes.data);
+  }, []);
 
-  // Students for scheduling
-  const assignedStudents = store.applications.filter(
-    (a) => (a.status === "Active") &&
-      (a.supervisorAssigned === user?.name || a.department === user?.department)
-  );
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Build student dropdown — value is the internship id (what the backend needs)
+  const assignedStudents = internships.map((i: any) => ({
+    studentId: String(i.id), // internship id used as the selector value
+    studentName: i.student?.user?.name ?? "—",
+    companyName: i.company?.name ?? "—",
+  }));
 
   const filtered = filter === "All" ? visits : visits.filter((v) => v.status === filter);
-  const upcoming = visits.filter((v) => v.status === "Scheduled" && v.date >= new Date().toISOString().split("T")[0]);
+  const today = new Date().toISOString().split("T")[0];
+  const upcoming = visits.filter((v) => v.status === "Scheduled" && v.date >= today);
   const completed = visits.filter((v) => v.status === "Completed");
 
-  const handleScheduleVisit = (newVisit: { studentId: string; date: string; time: string; notes: string }) => {
-    const student = assignedStudents.find((s) => s.studentId === newVisit.studentId);
-    if (!student) return;
-    const company = store.companies.find((c) => c.id === student.companyId);
-
-    const visit: SiteVisit = {
-      id: `v-${Date.now()}`,
-      studentId: student.studentId,
-      studentName: student.studentName,
-      companyName: student.companyName,
-      companyAddress: company?.address || "",
-      date: newVisit.date,
-      time: newVisit.time,
-      status: "Scheduled",
-      contactPerson: company?.contactPerson,
-      contactPhone: company?.contactPhone,
-      notes: newVisit.notes,
-    };
-
-    setVisits((prev) => [visit, ...prev]);
-    setShowNewForm(false);
-
-    notifyParties("scheduled", visit);
-    toast.success(`Site visit scheduled. ${student.studentName} and the industry supervisor have been notified.`);
+  const handleScheduleVisit = async (newVisit: { studentId: string; date: string; time: string; notes: string }) => {
+    const res = await apiClient.createSiteVisitation({
+      internship_id: Number(newVisit.studentId),
+      visit_date: newVisit.date,
+      visit_time: newVisit.time || undefined,
+      visit_purpose: newVisit.notes || "Routine site visit",
+    });
+    if (res.success) {
+      toast.success("Site visit scheduled.");
+      setShowNewForm(false);
+      fetchData();
+    } else {
+      toast.error(res.message ?? "Failed to schedule visit.");
+    }
   };
 
-  const handleCompleteVisit = (
+  const handleCompleteVisit = async (
     visitId: string,
-    completeData: {
-      observations: string;
-      ratings: Record<VisitationCriterionKey, VisitationCriterionRating>;
-    }
+    completeData: { observations: string; ratings: Record<string, number> }
   ) => {
-    const visit = visits.find((v) => v.id === visitId);
-    if (!visit) return;
-    
-    // Call the grading service
-    const actor = {
-      id: user?.id || "u-academic",
-      name: user?.name || "Academic Supervisor",
-      role: "academic" as const,
-      department: user?.department,
-    };
-    
-    // Use the actual application ID. We have to look it up from store using studentId
-    const app = store.applications.find(a => a.studentId === visit.studentId);
-    if (app) {
-      submitSiteVisitation(app.id, completeData.ratings, completeData.observations, actor);
-    }
-    
-    setVisits((prev) =>
-      prev.map((v) =>
-        v.id === visitId
-          ? {
-              ...v,
-              status: "Completed" as const,
-              observations: completeData.observations,
-              ratings: completeData.ratings,
-            }
-          : v
-      )
-    );
+    const res = await apiClient.completeSiteVisitation(visitId, {
+      observations: completeData.observations,
+      student_performance_notes: completeData.observations,
+    });
+    if (!res.success) { toast.error(res.message ?? "Failed to complete visit."); return; }
+
+    // Submit the visitation score (rubric)
+    const score = Object.values(completeData.ratings ?? {}).reduce((a, b) => a + Number(b), 0);
+    await apiClient.submitSiteVisitationScore(visitId, {
+      score,
+      max_score: 30,
+      comments: completeData.observations,
+      criteria_breakdown: completeData.ratings,
+    });
+
+    toast.success("Visit completed and score submitted.");
     setShowCompleteForm(null);
-    toast.success("Visit marked as completed and scores submitted.");
+    fetchData();
   };
 
-  const handleCancelVisit = (visitId: string) => {
-    const visit = visits.find((v) => v.id === visitId);
-    setVisits((prev) => prev.map((v) => v.id === visitId ? { ...v, status: "Cancelled" as const } : v));
-    if (visit) notifyParties("cancelled", visit);
-    toast.success("Visit cancelled. Student and industry supervisor notified.");
+  const handleCancelVisit = async (visitId: string) => {
+    const res = await apiClient.cancelSiteVisitation(visitId);
+    if (res.success) { toast.success("Visit cancelled."); fetchData(); }
+    else toast.error(res.message ?? "Failed to cancel visit.");
   };
 
-  const handleRescheduleVisit = (rescheduleForm: { date: string; time: string; reason: string }) => {
+  const handleRescheduleVisit = async (rescheduleForm: { date: string; time: string; reason: string }) => {
     if (!rescheduleVisitId) return;
-    const visit = visits.find((v) => v.id === rescheduleVisitId);
-    if (!visit) return;
-    const updated: SiteVisit = {
-      ...visit,
-      date: rescheduleForm.date,
-      time: rescheduleForm.time,
-      status: "Rescheduled",
-    };
-    setVisits((prev) => prev.map((v) => v.id === rescheduleVisitId ? updated : v));
-    notifyParties("rescheduled", updated, rescheduleForm.reason);
-    setRescheduleVisitId(null);
-    toast.success("Visit rescheduled. Student and industry supervisor notified.");
+    const res = await apiClient.updateSiteVisitation(rescheduleVisitId, {
+      visit_date: rescheduleForm.date,
+      visit_time: rescheduleForm.time,
+      visit_purpose: rescheduleForm.reason || undefined,
+    });
+    if (res.success) { toast.success("Visit rescheduled."); setRescheduleVisitId(null); fetchData(); }
+    else toast.error(res.message ?? "Failed to reschedule.");
   };
 
   const selectedRescheduleVisit = visits.find((v) => v.id === rescheduleVisitId);
@@ -158,11 +129,8 @@ export function AcademicVisitsPage() {
             Schedule, track, and record observations from company site visits
           </p>
         </div>
-        <button
-          onClick={() => setShowNewForm(true)}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
-          style={{ fontSize: "0.85rem" }}
-        >
+        <button onClick={() => setShowNewForm(true)}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium" style={{ fontSize: "0.85rem" }}>
           <Plus className="w-4 h-4" /> Schedule New Visit
         </button>
       </div>
@@ -171,56 +139,33 @@ export function AcademicVisitsPage() {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
           <p className="text-blue-800" style={{ fontSize: "1.8rem", lineHeight: 1.1 }}>{upcoming.length}</p>
-          <p className="text-blue-600 mt-1" style={{ fontSize: "0.8" }}>Upcoming</p>
+          <p className="text-blue-600 mt-1" style={{ fontSize: "0.8rem" }}>Upcoming</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
           <p className="text-emerald-800" style={{ fontSize: "1.8rem", lineHeight: 1.1 }}>{completed.length}</p>
-          <p className="text-emerald-600 mt-1" style={{ fontSize: "0.8" }}>Completed</p>
+          <p className="text-emerald-600 mt-1" style={{ fontSize: "0.8rem" }}>Completed</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-4 text-center">
           <p style={{ fontSize: "1.8rem", lineHeight: 1.1 }}>{visits.length}</p>
-          <p className="text-muted-foreground mt-1" style={{ fontSize: "0.8" }}>Total</p>
+          <p className="text-muted-foreground mt-1" style={{ fontSize: "0.8rem" }}>Total</p>
         </div>
       </div>
 
-      {/* New Visit Form - Modal */}
-      <ScheduleVisitModal
-        isOpen={showNewForm}
-        onClose={() => setShowNewForm(false)}
-        assignedStudents={assignedStudents}
-        onSchedule={handleScheduleVisit}
-      />
+      <ScheduleVisitModal isOpen={showNewForm} onClose={() => setShowNewForm(false)} assignedStudents={assignedStudents} onSchedule={handleScheduleVisit} />
 
       {/* Filter Tabs */}
       <div className="flex gap-1.5">
         {(["All", "Scheduled", "Completed", "Cancelled"] as FilterStatus[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-lg border transition-colors font-medium ${
-              filter === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"
-            }`}
-            style={{ fontSize: "0.8rem" }}
-          >
+          <button key={f} onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-lg border transition-colors font-medium ${filter === f ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
+            style={{ fontSize: "0.8rem" }}>
             {f}
           </button>
         ))}
       </div>
 
-      {/* Reschedule Visit Modal */}
-      <RescheduleVisitModal
-        isOpen={!!rescheduleVisitId}
-        onClose={() => setRescheduleVisitId(null)}
-        visit={selectedRescheduleVisit}
-        onReschedule={handleRescheduleVisit}
-      />
-
-      {/* Complete Visit Modal */}
-      <CompleteVisitModal
-        isOpen={!!showCompleteForm}
-        onClose={() => setShowCompleteForm(null)}
-        onComplete={(completeData) => showCompleteForm && handleCompleteVisit(showCompleteForm, completeData)}
-      />
+      <RescheduleVisitModal isOpen={!!rescheduleVisitId} onClose={() => setRescheduleVisitId(null)} visit={selectedRescheduleVisit} onReschedule={handleRescheduleVisit} />
+      <CompleteVisitModal isOpen={!!showCompleteForm} onClose={() => setShowCompleteForm(null)} onComplete={(d) => showCompleteForm && handleCompleteVisit(showCompleteForm, d)} />
 
       {/* Visits List */}
       {filtered.length === 0 ? (
@@ -233,19 +178,17 @@ export function AcademicVisitsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered
-            .sort((a, b) => b.date.localeCompare(a.date))
-            .map((visit) => (
-              <VisitListCard
-                key={visit.id}
-                visit={visit}
-                isExpanded={expandedVisit === visit.id}
-                onToggleExpand={() => setExpandedVisit(expandedVisit === visit.id ? null : visit.id)}
-                onCompleteClick={() => setShowCompleteForm(visit.id)}
-                onRescheduleClick={() => setRescheduleVisitId(visit.id)}
-                onCancelClick={() => handleCancelVisit(visit.id)}
-              />
-            ))}
+          {[...filtered].sort((a, b) => String(b.date).localeCompare(String(a.date))).map((visit) => (
+            <VisitListCard
+              key={visit.id}
+              visit={visit}
+              isExpanded={expandedVisit === visit.id}
+              onToggleExpand={() => setExpandedVisit(expandedVisit === visit.id ? null : visit.id)}
+              onCompleteClick={() => setShowCompleteForm(visit.id)}
+              onRescheduleClick={() => setRescheduleVisitId(visit.id)}
+              onCancelClick={() => handleCancelVisit(visit.id)}
+            />
+          ))}
         </div>
       )}
     </div>
