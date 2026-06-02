@@ -28,6 +28,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId }: Check
   const [lng, setLng] = useState<number | null>(null);
   const [checkInTime, setCheckInTime] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
 
   // Reverse geocode coordinates to get address
   const reverseGeocodeLocation = async (latitude: number, longitude: number) => {
@@ -82,6 +83,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId }: Check
     setCheckInTime("");
     setLocationData(null);
     setCheckInType("gps");
+    setGpsError(null);
     onClose();
   };
 
@@ -89,6 +91,8 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId }: Check
 
   const handleGetLocation = () => {
     setIsGettingLocation(true);
+    setGpsError(null);
+
     // Capture check-in time
     const now = new Date();
     const timeString = now.toLocaleTimeString("en-US", {
@@ -99,39 +103,58 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId }: Check
     });
     setCheckInTime(timeString);
 
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setLat(latitude);
-          setLng(longitude);
-          toast.success("GPS captured! Identifying location...");
-          reverseGeocodeLocation(latitude, longitude);
-          setIsGettingLocation(false);
-        },
-        (error) => {
-          // Fallback to Ho Technical University, Ghana
-          const fallbackLat = 6.6111;
-          const fallbackLng = -0.4704;
-          setLat(fallbackLat);
-          setLng(fallbackLng);
-          setLocationDetails("Ho Technical University, Ghana");
-          setLocationData({
-            address: "Ho Technical University",
-            street: "Main Campus",
-            city: "Ho",
-            area: "Volta Region",
-            company: "Ho Technical University",
-          });
-          setIsGettingLocation(false);
-          toast.info("Using default location (permission denied)");
-        }
-      );
-    } else {
-      setLocationDetails("Manual location");
+    if (!("geolocation" in navigator)) {
+      setGpsError("Geolocation is not supported by your browser");
       setIsGettingLocation(false);
       toast.error("Geolocation not supported");
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log("GPS Location captured:", latitude, longitude);
+        setLat(latitude);
+        setLng(longitude);
+        setGpsError(null);
+        toast.success("GPS captured! Identifying location...");
+        reverseGeocodeLocation(latitude, longitude);
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        let errorMessage = "";
+
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage =
+              "Location permission denied. Please enable location access in your browser settings and try again.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage =
+              "Location information is unavailable. Please try again or use manual entry.";
+            break;
+          case error.TIMEOUT:
+            errorMessage =
+              "Location request timed out. Please check your internet connection and try again.";
+            break;
+          default:
+            errorMessage = "Unable to get your location. Please try again or use manual entry.";
+        }
+
+        setGpsError(errorMessage);
+        toast.error(errorMessage);
+        console.error("Geolocation error:", error);
+
+        // Switch to manual entry to let user enter location manually
+        setCheckInType("manual");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
   };
 
   const handleCheckIn = async () => {
@@ -213,9 +236,24 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId }: Check
                 style={{ fontSize: "0.85rem" }}
               >
                 {isGettingLocation
-                  ? <><Clock className="w-4 h-4 animate-spin" /> Getting location…</>
+                  ? <><Clock className="w-4 h-4 animate-spin" /> Getting your exact location…</>
                   : <><MapPin className="w-4 h-4" /> Capture GPS Location</>}
               </button>
+
+              {/* GPS Error Message */}
+              {gpsError && (
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-red-700 dark:text-red-300 font-medium text-sm">{gpsError}</p>
+                      <p className="text-red-600 dark:text-red-400 text-xs mt-1">
+                        Switch to manual entry below to describe your location instead.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {(locationDetails || isReverseGeocoding) && lat && lng && (
                 <div className="space-y-3">
