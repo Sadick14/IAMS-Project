@@ -3,9 +3,10 @@ import { StatusBadge } from "../../components/status-badge";
 import { ProgramPicker } from "../../components/program-picker";
 import { departments as staticDepts, programsByDepartment } from "../../lib/mock-data";
 import { apiClient } from "../../lib/api-client";
+import type { TermDashboardResponse } from "../../types/api";
 import {
   Plus, Calendar, Archive, Eye, X, Play, Edit2, CheckCircle2,
-  Clock, FileText, GraduationCap, BookMarked, Layers
+  Clock, FileText, GraduationCap, BookMarked, Layers, TrendingUp
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -92,8 +93,27 @@ export function TermsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<TermShape | null>(null);
   const [selectedTerm, setSelectedTerm] = useState<TermShape | null>(null);
+  const [termDashboard, setTermDashboard] = useState<TermDashboardResponse | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  // ── Load term dashboard when detail modal opens ────────────────────────────────
+
+  useEffect(() => {
+    if (!selectedTerm) { setTermDashboard(null); return; }
+    let active = true;
+    setDashboardLoading(true);
+    apiClient.getTermDashboard(selectedTerm.id).then((res) => {
+      if (!active) return;
+      setTermDashboard(res.success ? res.data : null);
+      setDashboardLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setDashboardLoading(false);
+    });
+    return () => { active = false; };
+  }, [selectedTerm?.id]);
 
   // ── Load data ─────────────────────────────────────────────────────────────────
 
@@ -707,20 +727,98 @@ export function TermsPage() {
               </div>
             </div>
 
-            {/* Quick stats */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Total Apps", icon: FileText, color: "text-blue-600 bg-blue-50 dark:bg-blue-500/10" },
-                { label: "Active", icon: GraduationCap, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10" },
-                { label: "Completed", icon: CheckCircle2, color: "text-violet-600 bg-violet-50 dark:bg-violet-500/10" },
-              ].map((s) => (
-                <div key={s.label} className={`${s.color} rounded-xl p-4 text-center`}>
-                  <s.icon className="w-5 h-5 mx-auto mb-1" />
-                  <p style={{ fontSize: "1.2rem", fontWeight: 600 }}>—</p>
-                  <p style={{ fontSize: "0.7rem" }} className="opacity-70">{s.label}</p>
+            {/* Term statistics from API */}
+            {dashboardLoading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-muted/30 rounded-xl p-4 animate-pulse h-20" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "Total Applications",
+                      value: termDashboard?.total_applications ?? "—",
+                      icon: FileText,
+                      color: "text-blue-600 bg-blue-50 dark:bg-blue-500/10",
+                    },
+                    {
+                      label: "Active Internships",
+                      value: termDashboard?.active_internships ?? "—",
+                      icon: GraduationCap,
+                      color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10",
+                    },
+                    {
+                      label: "Completed",
+                      value: termDashboard?.completed_internships ?? "—",
+                      icon: CheckCircle2,
+                      color: "text-violet-600 bg-violet-50 dark:bg-violet-500/10",
+                    },
+                    {
+                      label: "Placement Rate",
+                      value: termDashboard?.placement_rate != null
+                        ? `${Math.round(termDashboard.placement_rate)}%`
+                        : "—",
+                      icon: TrendingUp,
+                      color: "text-amber-600 bg-amber-50 dark:bg-amber-500/10",
+                    },
+                  ].map((s) => (
+                    <div key={s.label} className={`${s.color} rounded-xl p-4`}>
+                      <s.icon className="w-4 h-4 mb-1.5" />
+                      <p style={{ fontSize: "1.3rem", fontWeight: 700, lineHeight: 1 }}>{s.value}</p>
+                      <p style={{ fontSize: "0.68rem" }} className="opacity-70 mt-1">{s.label}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+
+                {/* Department breakdown */}
+                {termDashboard?.department_breakdown && termDashboard.department_breakdown.length > 0 && (
+                  <div className="bg-muted/20 rounded-xl p-4 space-y-2">
+                    <p className="text-muted-foreground uppercase tracking-widest mb-3" style={{ fontSize: "0.62rem", fontWeight: 600 }}>
+                      Department Breakdown
+                    </p>
+                    {termDashboard.department_breakdown.map((row) => {
+                      const pct = row.total > 0 ? Math.round((row.active / row.total) * 100) : 0;
+                      return (
+                        <div key={row.department} className="flex items-center gap-3">
+                          <span className="w-36 truncate shrink-0" style={{ fontSize: "0.78rem" }}>{row.department}</span>
+                          <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-muted-foreground w-16 text-right shrink-0" style={{ fontSize: "0.72rem" }}>
+                            {row.active}/{row.total}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Pending / rejected summary */}
+                {termDashboard && (termDashboard.pending_applications > 0 || termDashboard.rejected_applications > 0) && (
+                  <div className="flex gap-3">
+                    {termDashboard.pending_applications > 0 && (
+                      <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-500/10 rounded-lg">
+                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span style={{ fontSize: "0.8rem" }} className="text-amber-700 dark:text-amber-400">
+                          {termDashboard.pending_applications} pending
+                        </span>
+                      </div>
+                    )}
+                    {termDashboard.rejected_applications > 0 && (
+                      <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-500/10 rounded-lg">
+                        <X className="w-4 h-4 text-red-600 shrink-0" />
+                        <span style={{ fontSize: "0.8rem" }} className="text-red-700 dark:text-red-400">
+                          {termDashboard.rejected_applications} rejected
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-2 justify-end pt-2 border-t border-border">
               <button

@@ -223,12 +223,36 @@ export interface TermResponse {
   name: string;
   type: "Vacation" | "Semestrial";
   status: "Upcoming" | "Active" | "Completed" | "Archived";
-  applicationStart: string;
-  applicationEnd: string;
-  internshipStart: string;
-  internshipEnd: string;
-  eligibleLevels: string[];
+  // The API returns snake_case; both forms are accepted by normalizeTerm()
+  applicationStart?: string;
+  application_start?: string;
+  applicationEnd?: string;
+  application_end?: string;
+  internshipStart?: string;
+  internship_start?: string;
+  internshipEnd?: string;
+  internship_end?: string;
+  eligibleLevels?: string[];
+  eligible_levels?: string[];
   departments: string[];
+}
+
+export interface TermDashboardResponse {
+  term_id: string | number;
+  total_applications: number;
+  active_internships: number;
+  completed_internships: number;
+  pending_applications: number;
+  approved_applications: number;
+  rejected_applications: number;
+  total_students: number;
+  placement_rate?: number;
+  department_breakdown?: Array<{
+    department: string;
+    total: number;
+    active: number;
+    completed: number;
+  }>;
 }
 
 // ── Logbook ──

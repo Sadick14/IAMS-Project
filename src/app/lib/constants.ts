@@ -246,8 +246,10 @@ export const API_ENDPOINTS = {
   // Terms
   TERMS: "/api/v1/terms",
   TERM_ACTIVE: "/api/v1/terms/active",
+  TERM_BY_ID: "/api/v1/terms/:id",
   TERM_PUBLISH: "/api/v1/terms/:id/publish",
   TERM_ARCHIVE: "/api/v1/terms/:id/archive",
+  TERM_DASHBOARD: "/api/v1/terms/:id/dashboard",
 
   // Students
   STUDENTS: "/api/v1/students",
@@ -314,6 +316,7 @@ export const API_ENDPOINTS = {
   GRADES_EXPORT: "/api/v1/grades/export",
   GRADES_COMPILE: "/api/v1/grades/:internshipId/compile",
   GRADE_APPROVE: "/api/v1/grades/:id/approve",
+  GRADE_REVISION: "/api/v1/grades/:id/revision",
   GRADES_PUBLISH: "/api/v1/grades/:id/publish",
 
   // Notifications

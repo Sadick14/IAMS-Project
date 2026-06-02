@@ -5,6 +5,7 @@ import type {
   CompanyFilters,
   CompanyResponse,
   TermResponse,
+  TermDashboardResponse,
   LogbookEntryResponse,
   LogbookFilters,
   AttendanceResponse,
@@ -424,17 +425,67 @@ export const apiClient = {
     };
   },
 
+  async getTerm(id: string): Promise<ApiResponse<TermResponse | null>> {
+    const response = await requestApi<unknown>(
+      replacePathParams(API_ENDPOINTS.TERM_BY_ID, { id }),
+      { method: "GET" }
+    );
+    if (!response.success) return { success: false, data: null, message: response.message };
+    const payload = response.data;
+    const term =
+      payload && typeof payload === "object" && "data" in (payload as object)
+        ? (payload as { data: TermResponse }).data
+        : (payload as TermResponse);
+    return { success: true, data: term, message: response.message };
+  },
+
+  async getTermDashboard(id: string): Promise<ApiResponse<TermDashboardResponse | null>> {
+    const response = await requestApi<unknown>(
+      replacePathParams(API_ENDPOINTS.TERM_DASHBOARD, { id }),
+      { method: "GET" }
+    );
+    if (!response.success) return { success: false, data: null, message: response.message };
+    const payload = response.data;
+    const dashboard =
+      payload && typeof payload === "object" && "data" in (payload as object)
+        ? (payload as { data: TermDashboardResponse }).data
+        : (payload as TermDashboardResponse);
+    return { success: true, data: dashboard, message: response.message };
+  },
+
   async createTerm(data: CreateTermRequest): Promise<ApiResponse<TermResponse | null>> {
+    // Normalize camelCase → snake_case for the API
+    const payload: Record<string, unknown> = {
+      name: data.name,
+      type: data.type,
+      application_start: data.applicationStart,
+      application_end: data.applicationEnd,
+      internship_start: data.internshipStart,
+      internship_end: data.internshipEnd,
+      eligible_levels: data.eligibleLevels,
+      departments: data.departments,
+    };
     return requestApi<TermResponse | null>(API_ENDPOINTS.TERMS, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   },
 
   async updateTerm(id: string, data: UpdateTermRequest): Promise<ApiResponse<TermResponse | null>> {
+    // Normalize camelCase → snake_case for the API
+    const payload: Record<string, unknown> = {};
+    if (data.name !== undefined) payload.name = data.name;
+    if (data.type !== undefined) payload.type = data.type;
+    if (data.applicationStart !== undefined) payload.application_start = data.applicationStart;
+    if (data.applicationEnd !== undefined) payload.application_end = data.applicationEnd;
+    if (data.internshipStart !== undefined) payload.internship_start = data.internshipStart;
+    if (data.internshipEnd !== undefined) payload.internship_end = data.internshipEnd;
+    if (data.eligibleLevels !== undefined) payload.eligible_levels = data.eligibleLevels;
+    if (data.departments !== undefined) payload.departments = data.departments;
+    if (data.status !== undefined) payload.status = data.status;
     return requestApi<TermResponse | null>(
-      replacePathParams("/api/v1/terms/:id", { id }),
-      { method: "PUT", body: JSON.stringify(data) }
+      replacePathParams(API_ENDPOINTS.TERM_BY_ID, { id }),
+      { method: "PUT", body: JSON.stringify(payload) }
     );
   },
 
