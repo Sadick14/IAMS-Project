@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppContext } from "../../../lib/context";
+import { apiClient } from "../../../lib/api-client";
 import { Megaphone, Send, CheckCircle2, Search, Pin, X, Eye, Clock } from "lucide-react";
 import { toast } from "sonner";
 import type { ExtendedRole } from "../../../services/auth-service";
@@ -63,6 +64,29 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
       totalRecipients: 210,
     },
   ]);
+
+  // Attempt to fetch announcements from API; fall back to mock data silently
+  useEffect(() => {
+    apiClient.getNotifications({ type: "announcement" }).then((res) => {
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const apiAnnouncements = res.data.map((n: any) => ({
+          id: String(n.id),
+          title: n.title ?? n.subject ?? "Announcement",
+          message: n.message ?? n.body ?? "",
+          targets: n.targets ?? ["All"],
+          sentAt: n.timestamp ?? n.created_at ?? new Date().toISOString(),
+          priority: n.priority === "urgent" ? "Urgent" : "Normal",
+          pinned: Boolean(n.pinned),
+          readCount: n.read_count ?? 0,
+          totalRecipients: n.total_recipients ?? 0,
+        }));
+        setSent(apiAnnouncements);
+      }
+      // else: keep mock data silently — no error shown to user
+    }).catch(() => {
+      // Network error — keep mock data silently
+    });
+  }, []);
 
   const handleSend = (data: {
     title: string;

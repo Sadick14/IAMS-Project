@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAppContext } from "../../../lib/context";
 import { apiClient } from "../../../lib/api-client";
+import { usePolling } from "../../../lib/hooks";
 import { MessageSquare, Send, ArrowLeft, Plus, Search, X, Paperclip, Phone, Video, MoreVertical } from "lucide-react";
 
 interface Thread {
@@ -37,30 +38,55 @@ export function MessagesPanel() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [newForm, setNewForm] = useState<NewConversationForm>({ recipientId: "", subject: "", message: "" });
+  const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const userId = String(user?.id || "");
 
   const fetchThreads = useCallback(async () => {
-    const res = await apiClient.getThreads(userId);
-    if (res.success) setThreads(res.data);
-  }, [userId]);
+    try {
+      const res = await apiClient.getThreads(userId);
+      if (res.success) {
+        setThreads(res.data);
+        setApiAvailable(true);
+      } else if (apiAvailable === null) {
+        setApiAvailable(false);
+      }
+    } catch {
+      if (apiAvailable === null) setApiAvailable(false);
+    }
+  }, [userId, apiAvailable]);
+
+  const fetchMessages = useCallback(async () => {
+    if (!selectedThread) return;
+    try {
+      const res = await apiClient.getMessages(selectedThread);
+      if (res.success) {
+        setMessages(res.data);
+        setApiAvailable(true);
+      } else if (apiAvailable === null) {
+        setApiAvailable(false);
+      }
+    } catch {
+      if (apiAvailable === null) setApiAvailable(false);
+    }
+  }, [selectedThread, apiAvailable]);
 
   useEffect(() => {
-    fetchThreads();
     apiClient.getUsers().then((res) => {
       if (res.success) setContacts(res.data.filter((u: any) => String(u.id) !== userId));
     });
-  }, [fetchThreads, userId]);
+  }, [userId]);
 
   useEffect(() => {
     if (selectedThread) {
-      apiClient.getMessages(selectedThread).then((res) => {
-        if (res.success) setMessages(res.data);
-      });
+      fetchMessages();
       apiClient.markThreadRead(selectedThread).then(() => fetchThreads());
     }
-  }, [selectedThread, fetchThreads]);
+  }, [selectedThread, fetchMessages, fetchThreads]);
+
+  usePolling(fetchThreads, 30_000, true);
+  usePolling(fetchMessages, 15_000, !!selectedThread);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -239,13 +265,26 @@ export function MessagesPanel() {
               </div>
 
               {/* Messages */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>No messages yet. Start the conversation!</p>
+              {apiAvailable === false ? (
+                <div className="flex-1 flex items-center justify-center p-8 text-center">
+                  <div>
+                    <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                    <p className="text-muted-foreground" style={{ fontSize: "0.9rem" }}>
+                      Messaging is coming soon
+                    </p>
+                    <p className="text-muted-foreground mt-1" style={{ fontSize: "0.8rem" }}>
+                      The messaging feature is being set up. Check back shortly.
+                    </p>
                   </div>
-                )}
-                {messages.map((msg) => {
+                </div>
+              ) : (
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messages.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>No messages yet. Start the conversation!</p>
+                    </div>
+                  )}
+                  {messages.map((msg) => {
                   const isMine = String(msg.senderId) === userId;
                   return (
                     <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
@@ -270,7 +309,8 @@ export function MessagesPanel() {
                     </div>
                   );
                 })}
-              </div>
+                </div>
+              )}
 
               {/* Input */}
               <div className="p-4 border-t border-border">

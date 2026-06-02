@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { apiClient } from "../../../lib/api-client";
+import { useAppContext } from "../../../lib/context";
+import { markNotificationRead, setNotifications } from "../../../lib/store";
 import {
   Bell, CheckCheck, Mail, Search, Archive, FileText,
   Building2, GraduationCap, AlertTriangle, Settings2
@@ -7,19 +9,12 @@ import {
 import { toast } from "sonner";
 
 export function NotificationsPanel() {
-  const [allNotifications, setAllNotifications] = useState<any[]>([]);
+  const { store } = useAppContext();
   const [filter, setFilter] = useState<string>("All");
   const [search, setSearch] = useState("");
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
 
-  const fetchNotifications = useCallback(async () => {
-    const res = await apiClient.getNotifications();
-    if (res.success) setAllNotifications(res.data);
-  }, []);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  const allNotifications = store.notifications;
 
   const notifications = allNotifications.filter((n) => !archivedIds.has(n.id));
   const searched = search
@@ -35,14 +30,14 @@ export function NotificationsPanel() {
       : searched.filter((n) => n.type === filter);
 
   const handleMarkRead = async (id: string) => {
+    markNotificationRead(id);
     await apiClient.markNotificationRead(id);
-    fetchNotifications();
   };
 
   const handleMarkAllRead = async () => {
+    setNotifications(allNotifications.map((n) => ({ ...n, read: true })));
     await apiClient.markAllNotificationsRead();
     toast.success("All notifications marked as read.");
-    fetchNotifications();
   };
 
   const handleArchive = (id: string) => {

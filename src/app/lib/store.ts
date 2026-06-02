@@ -166,6 +166,11 @@ export function markNotificationRead(id: string) {
   notify();
 }
 
+export function setNotifications(notifications: Notification[]) {
+  state = { ...state, notifications };
+  notify();
+}
+
 export function addAuditLog(log: AuditLog) {
   state = { ...state, auditLogs: [log, ...state.auditLogs] };
   notify();
