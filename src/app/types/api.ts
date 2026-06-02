@@ -201,6 +201,26 @@ export interface CompanyResponse {
   description?: string;
 }
 
+export interface BranchResponse {
+  id: string;
+  company_id: string;
+  name: string;
+  region?: string;
+  location?: string;
+  telephone?: string;
+  address?: string;
+  status?: string;
+  created_at?: string;
+}
+
+export interface CreateBranchRequest {
+  name: string;
+  region?: string;
+  location?: string;
+  telephone?: string;
+  address?: string;
+}
+
 // ── Terms ──
 
 export interface CreateTermRequest {

@@ -1,6 +1,7 @@
 import { SkeletonStatCards, SkeletonCardGrid } from "../../components/skeleton";
 import { exportToCSV } from "../../lib/csv-export";
 import type { ExtendedRole } from "../../services/auth-service";
+import type { BranchResponse, CreateBranchRequest } from "../../types/api";
 import { useAppContext } from "../../lib/context";
 import { ghanaRegions } from "../../lib/mock-data";
 import {
@@ -34,6 +35,12 @@ export function CompaniesPage({ viewRole }: Props) {
   const [companyForm, setCompanyForm] = useState({
     name: "", contactPerson: "", contactEmail: "", industry: "", phone: "", address: "", city: "", region: ghanaRegions[0], country: "Ghana",
   });
+  const [branches, setBranches] = useState<BranchResponse[]>([]);
+  const [showBranchForm, setShowBranchForm] = useState(false);
+  const [branchForm, setBranchForm] = useState<CreateBranchRequest>({
+    name: "", region: ghanaRegions[0], location: "", telephone: "", address: "",
+  });
+  const [branchLoading, setBranchLoading] = useState(false);
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -111,6 +118,40 @@ export function CompaniesPage({ viewRole }: Props) {
     setShowAddCompany(false);
     setCompanyForm({ name: "", contactPerson: "", contactEmail: "", industry: "", phone: "", address: "", city: "", region: ghanaRegions[0], country: "Ghana" });
     setCompanyNameQuery(""); setCommittedNew(false);
+  };
+
+  const handleSelectCompany = async (c: any) => {
+    setSelected(c);
+    const res = await apiClient.getCompanyBranches(String(c.id));
+    if (res.success) setBranches(res.data ?? []);
+  };
+
+  const handleAddBranch = async () => {
+    if (!selected || !branchForm.name.trim()) {
+      toast.error("Branch name is required.");
+      return;
+    }
+    setBranchLoading(true);
+    const res = await apiClient.createCompanyBranch(String(selected.id), branchForm);
+    if (res.success) {
+      setBranches((prev) => [...prev, res.data]);
+      setShowBranchForm(false);
+      setBranchForm({ name: "", region: ghanaRegions[0], location: "", telephone: "", address: "" });
+      toast.success("Branch added.");
+    } else toast.error(res.message ?? "Failed to add branch.");
+    setBranchLoading(false);
+  };
+
+  const closeBranchForm = () => {
+    setShowBranchForm(false);
+    setBranchForm({ name: "", region: ghanaRegions[0], location: "", telephone: "", address: "" });
+  };
+
+  const closeCompanyModal = () => {
+    setSelected(null);
+    setBranches([]);
+    setShowBranchForm(false);
+    setBranchForm({ name: "", region: ghanaRegions[0], location: "", telephone: "", address: "" });
   };
 
   const companyNameMatches = useMemo(() => searchCompanies(companyNameQuery), [companyNameQuery, companies]);
@@ -232,7 +273,7 @@ export function CompaniesPage({ viewRole }: Props) {
               <div
                 key={companyId}
                 className="border border-border rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => setSelected(c)}
+                onClick={() => handleSelectCompany(c)}
               >
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <div className="flex items-center gap-3">
@@ -299,7 +340,7 @@ export function CompaniesPage({ viewRole }: Props) {
 
                 <div className="flex gap-2 pt-2 border-t border-border">
                   <button
-                    onClick={() => setSelected(c)}
+                    onClick={() => handleSelectCompany(c)}
                     className="flex-1 py-1.5 border border-border rounded-lg hover:bg-accent flex items-center justify-center gap-1 text-muted-foreground transition-colors"
                     style={{ fontSize: "0.8rem" }}
                   >
@@ -334,12 +375,12 @@ export function CompaniesPage({ viewRole }: Props) {
 
       {/* ── Detail Modal with Tabs ──────────────────────────────────────────────────── */}
       {selected && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => closeCompanyModal()}>
           <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-border">
               <div className="flex items-center justify-between mb-3">
                 <h3>Company Details</h3>
-                <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+                <button onClick={() => closeCompanyModal()} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -365,6 +406,9 @@ export function CompaniesPage({ viewRole }: Props) {
                 </Tabs.Trigger>
                 <Tabs.Trigger value="approval" className="px-4 py-2 text-sm border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary hover:text-foreground text-muted-foreground transition-colors">
                   Approval
+                </Tabs.Trigger>
+                <Tabs.Trigger value="branches" className="px-4 py-2 text-sm border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary hover:text-foreground text-muted-foreground transition-colors">
+                  Branches {branches.length > 0 && <span className="ml-1 text-xs bg-primary/10 text-primary rounded px-1">{branches.length}</span>}
                 </Tabs.Trigger>
               </Tabs.List>
 
@@ -464,6 +508,83 @@ export function CompaniesPage({ viewRole }: Props) {
                     <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground uppercase tracking-wider">Created</p>
                     <p style={{ fontSize: "0.85rem" }} className="font-medium">{new Date(selected.created_at).toLocaleDateString()}</p>
                   </div>
+                </Tabs.Content>
+
+                <Tabs.Content value="branches" className="p-5 space-y-4 m-0">
+                  {branches.length === 0 && !showBranchForm && (
+                    <p className="text-muted-foreground text-sm">No branches added yet.</p>
+                  )}
+                  {branches.map((b) => (
+                    <div key={b.id} className="border border-border rounded-xl p-3 space-y-1">
+                      <p className="font-medium text-sm">{b.name}</p>
+                      {b.region && <p className="text-xs text-muted-foreground">Region: {b.region}</p>}
+                      {b.location && <p className="text-xs text-muted-foreground">Location: {b.location}</p>}
+                      {b.telephone && <p className="text-xs text-muted-foreground">Tel: {b.telephone}</p>}
+                      {b.address && <p className="text-xs text-muted-foreground">Address: {b.address}</p>}
+                    </div>
+                  ))}
+
+                  {showBranchForm ? (
+                    <div className="border border-border rounded-xl p-4 space-y-3">
+                      <p className="text-sm font-medium">New Branch</p>
+                      <input
+                        type="text"
+                        placeholder="Branch Name*"
+                        value={branchForm.name}
+                        onChange={(e) => setBranchForm((prev) => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-card text-sm"
+                      />
+                      <select
+                        value={branchForm.region ?? ghanaRegions[0]}
+                        onChange={(e) => setBranchForm((prev) => ({ ...prev, region: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-card text-sm"
+                      >
+                        {ghanaRegions.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Location/Town"
+                        value={branchForm.location ?? ""}
+                        onChange={(e) => setBranchForm((prev) => ({ ...prev, location: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-card text-sm"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Telephone"
+                        value={branchForm.telephone ?? ""}
+                        onChange={(e) => setBranchForm((prev) => ({ ...prev, telephone: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-card text-sm"
+                      />
+                      <textarea
+                        placeholder="Address"
+                        value={branchForm.address ?? ""}
+                        onChange={(e) => setBranchForm((prev) => ({ ...prev, address: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-card text-sm min-h-20"
+                      />
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={closeBranchForm}
+                          className="flex-1 py-1.5 border border-border rounded-lg hover:bg-accent text-sm"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleAddBranch}
+                          disabled={branchLoading}
+                          className="flex-1 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 text-sm"
+                        >
+                          {branchLoading ? "Saving..." : "Add Branch"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowBranchForm(true)}
+                      className="w-full py-2 border border-border rounded-lg hover:bg-accent flex items-center justify-center gap-2 text-sm text-muted-foreground"
+                    >
+                      <Plus className="w-4 h-4" /> Add Branch
+                    </button>
+                  )}
                 </Tabs.Content>
               </div>
             </Tabs.Root>

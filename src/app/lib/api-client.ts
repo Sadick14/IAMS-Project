@@ -4,6 +4,8 @@ import type {
   ApplicationResponse,
   CompanyFilters,
   CompanyResponse,
+  BranchResponse,
+  CreateBranchRequest,
   TermResponse,
   TermDashboardResponse,
   LogbookEntryResponse,
@@ -410,6 +412,31 @@ export const apiClient = {
       replacePathParams(API_ENDPOINTS.COMPANY_DEACTIVATE, { id }),
       { method: "PATCH" }
     );
+  },
+
+  async getCompanyBranches(companyId: string): Promise<ApiResponse<BranchResponse[]>> {
+    // TODO: replace with real endpoint when backend is ready
+    // return requestApi<BranchResponse[]>(
+    //   replacePathParams("/api/v1/companies/:id/branches", { id: companyId }),
+    //   { method: "GET" }
+    // );
+    return { success: true, data: [], message: "Branches loaded" };
+  },
+
+  async createCompanyBranch(companyId: string, data: CreateBranchRequest): Promise<ApiResponse<BranchResponse>> {
+    // TODO: replace with real endpoint when backend is ready
+    // return requestApi<BranchResponse>(
+    //   replacePathParams("/api/v1/companies/:id/branches", { id: companyId }),
+    //   { method: "POST", body: JSON.stringify(data) }
+    // );
+    const branch: BranchResponse = {
+      id: `local-${Date.now()}`,
+      company_id: companyId,
+      ...data,
+      status: "active",
+      created_at: new Date().toISOString(),
+    };
+    return { success: true, data: branch, message: "Branch added" };
   },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
