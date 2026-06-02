@@ -3,7 +3,7 @@ import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { StatusBadge } from "../../components/status-badge";
 import { StatCard } from "../../components/stat-card";
-import { BookMarked, FileText, Clock, CheckCircle2, Upload, Award, Send, ArrowRight, TrendingUp } from "lucide-react";
+import { BookMarked, FileText, Clock, CheckCircle2, Upload, Award, Send, ArrowRight, TrendingUp, Building2, User, MapPin, Calendar, Mail, Phone } from "lucide-react";
 import { useNavigate } from "react-router";
 
 export function StudentDashboard() {
@@ -45,25 +45,132 @@ export function StudentDashboard() {
 
       {/* Active Internship Spotlight or Apply CTA */}
       {activeInternship ? (
-        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-6 space-y-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                <h2 className="text-xl font-semibold">Active Internship</h2>
-              </div>
-              <p className="text-3xl font-bold text-foreground">{companyName}</p>
-              <p className="text-muted-foreground mt-2" style={{ fontSize: "0.9rem" }}>
-                {supervisorName && `Supervised by ${supervisorName}`}
-              </p>
-            </div>
-            <div className="text-right">
-              <StatusBadge status={appStatus} />
-              {startDate && (
-                <p className="text-muted-foreground mt-2" style={{ fontSize: "0.8rem" }}>
-                  Started: {new Date(startDate).toLocaleDateString()}
+        <div className="space-y-4">
+          {/* Main Internship Card */}
+          <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-semibold">Active Internship</h2>
+                </div>
+                <p className="text-3xl font-bold text-foreground">{companyName}</p>
+                <p className="text-muted-foreground mt-2" style={{ fontSize: "0.9rem" }}>
+                  {activeInternship?.company?.industry ?? "Industrial Attachment"}
                 </p>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                <StatusBadge status={appStatus} />
+              </div>
+            </div>
+
+            {/* Internship Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-primary/10">
+              {/* Start Date */}
+              {startDate && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Calendar className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground text-sm">Start Date</p>
+                    <p className="font-medium">{new Date(startDate).toLocaleDateString()}</p>
+                  </div>
+                </div>
               )}
+
+              {/* Department */}
+              {activeInternship?.student?.department && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Building2 className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground text-sm">Department</p>
+                    <p className="font-medium">{activeInternship.student.department}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Company Location */}
+              {activeInternship?.company?.location && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <MapPin className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground text-sm">Location</p>
+                    <p className="font-medium truncate">{activeInternship.company.location}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Company Contact */}
+              {activeInternship?.company?.contact_person_email && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Mail className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground text-sm">Company Contact</p>
+                    <p className="font-medium truncate text-sm">{activeInternship.company.contact_person_email}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Supervisors Section */}
+            {(supervisorName || activeInternship?.industry_supervisor?.user?.name) && (
+              <div className="pt-4 border-t border-primary/10 space-y-3">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Assigned Supervisors</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Academic Supervisor */}
+                  {supervisorName && (
+                    <div className="bg-white/50 dark:bg-white/5 rounded-lg p-3 border border-primary/10">
+                      <div className="flex items-start gap-2">
+                        <User className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-muted-foreground">Academic Supervisor</p>
+                          <p className="font-medium text-sm">{supervisorName}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Industry Supervisor */}
+                  {activeInternship?.industry_supervisor?.user?.name && (
+                    <div className="bg-white/50 dark:bg-white/5 rounded-lg p-3 border border-primary/10">
+                      <div className="flex items-start gap-2">
+                        <User className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-muted-foreground">Industry Supervisor</p>
+                          <p className="font-medium text-sm">{activeInternship.industry_supervisor.user.name}</p>
+                          {activeInternship.industry_supervisor.user.email && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate">{activeInternship.industry_supervisor.user.email}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Actions */}
+            <div className="pt-4 border-t border-primary/10 flex flex-wrap gap-2">
+              <button
+                onClick={() => navigate("/student/logbook")}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-all text-sm font-medium flex items-center gap-2"
+              >
+                <BookMarked className="w-4 h-4" />
+                View Logbook
+              </button>
+              <button
+                onClick={() => navigate("/student/history")}
+                className="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all text-sm font-medium"
+              >
+                Internship History
+              </button>
             </div>
           </div>
         </div>
