@@ -256,6 +256,7 @@ export const API_ENDPOINTS = {
 
   // CLO users
   USERS: "/api/v1/users",
+  USER_BY_ID: "/api/v1/users/:id",
   DLOS: "/api/v1/users/dlos",
   USERS_ACTIVATE: "/api/v1/users/:id/activate",
   USERS_DEACTIVATE: "/api/v1/users/:id/deactivate",

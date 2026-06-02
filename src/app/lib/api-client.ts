@@ -592,6 +592,20 @@ export const apiClient = {
     };
   },
 
+  async createUser(data: {
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    department_id?: number;
+    staff_id?: string;
+  }): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(API_ENDPOINTS.USERS, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   async createDLOAccount(data: {
     name: string;
     email: string;
@@ -604,6 +618,19 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+
+  async updateUser(id: string, data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    department_id?: number;
+    role?: string;
+  }): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(
+      replacePathParams(API_ENDPOINTS.USER_BY_ID, { id }),
+      { method: "PUT", body: JSON.stringify(data) }
+    );
   },
 
   async activateUser(id: string): Promise<ApiResponse<any | null>> {
