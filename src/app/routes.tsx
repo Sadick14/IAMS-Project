@@ -12,6 +12,7 @@ import { CLODashboard } from "./pages/clo/dashboard";
 import { TermsPage } from "./pages/clo/terms";
 import { UsersPage } from "./pages/clo/users";
 import { AuditLogsPage } from "./pages/clo/audit";
+import { DepartmentsPage } from "./pages/clo/departments";
 import { Templates } from "./pages/templates";
 import { SettingsPage } from "./pages/settings";
 
@@ -137,6 +138,7 @@ export const router = createBrowserRouter([
       { path: "reports", Component: CLOReports },
       { path: "attendance", element: <AttendancePage viewRole="clo" /> },
       { path: "audit", element: <AuditLogsPage /> },
+      { path: "departments", element: <DepartmentsPage /> },
       { path: "templates", Component: CLOTemplates },
       { path: "settings", Component: CLOSettings },
       { path: "issues", Component: CLOIssues },

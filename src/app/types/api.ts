@@ -205,11 +205,12 @@ export interface CompanyResponse {
 
 export interface CreateTermRequest {
   name: string;
+  // UI values: "Vacation" | "Semestrial" — api-client maps to "short_term" | "regular"
   type: "Vacation" | "Semestrial";
   applicationStart: string;
-  applicationEnd: string;
-  internshipStart: string;
-  internshipEnd: string;
+  applicationEnd: string; // sent as application_deadline
+  internshipStart: string; // sent as start_date
+  internshipEnd: string;   // sent as end_date
   eligibleLevels: string[];
   departments: string[];
 }
@@ -219,16 +220,48 @@ export interface UpdateTermRequest extends Partial<CreateTermRequest> {
 }
 
 export interface TermResponse {
-  id: string;
+  id: string | number;
   name: string;
-  type: "Vacation" | "Semestrial";
-  status: "Upcoming" | "Active" | "Completed" | "Archived";
-  applicationStart: string;
-  applicationEnd: string;
-  internshipStart: string;
-  internshipEnd: string;
-  eligibleLevels: string[];
+  // Real API uses "short_term" | "regular"; legacy values also accepted
+  type: "short_term" | "regular" | "Vacation" | "Semestrial";
+  // Real API uses lowercase; capitalized forms also accepted
+  status: "upcoming" | "active" | "completed" | "archived" | "Upcoming" | "Active" | "Completed" | "Archived";
+  // Real API fields
+  code?: string;
+  description?: string;
+  start_date?: string;           // internship start (ISO string)
+  end_date?: string;             // internship end (ISO string)
+  application_deadline?: string; // single application deadline (ISO string)
+  // Legacy/alternative field names (kept for backwards compat)
+  applicationStart?: string;
+  application_start?: string;
+  applicationEnd?: string;
+  application_end?: string;
+  internshipStart?: string;
+  internship_start?: string;
+  internshipEnd?: string;
+  internship_end?: string;
+  eligibleLevels?: string[];
+  eligible_levels?: string[];
   departments: string[];
+}
+
+export interface TermDashboardResponse {
+  term_id: string | number;
+  total_applications: number;
+  active_internships: number;
+  completed_internships: number;
+  pending_applications: number;
+  approved_applications: number;
+  rejected_applications: number;
+  total_students: number;
+  placement_rate?: number;
+  department_breakdown?: Array<{
+    department: string;
+    total: number;
+    active: number;
+    completed: number;
+  }>;
 }
 
 // ── Logbook ──

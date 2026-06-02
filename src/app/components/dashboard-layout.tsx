@@ -2,8 +2,8 @@ import { Outlet, NavLink, useNavigate } from "react-router";
 import {
   LayoutDashboard, FileText, Building2, Calendar, Users, Settings, Bell, LogOut,
   GraduationCap, ClipboardCheck, BarChart3, Menu, Shield, BookOpen, BookMarked,
-  Upload, Eye, MessageSquarePlus, AlertTriangle, MapPin, UserPlus, X,
-  Moon, Sun, ChevronDown, HelpCircle, Search, CheckCircle2, Award
+  Upload, MessageSquarePlus, AlertTriangle, MapPin, UserPlus, X,
+  Moon, Sun, ChevronDown, HelpCircle, Search, CheckCircle2, Award, Layers
 } from "lucide-react";
 import { useAppContext } from "../lib/context";
 import { useState, useEffect, useSyncExternalStore, useRef } from "react";
@@ -27,6 +27,7 @@ const cloNav: NavItem[] = [
   { to: "/clo/companies", icon: Building2, label: "Companies" },
   { to: "/clo/terms", icon: Calendar, label: "Terms" },
   { to: "/clo/users", icon: Users, label: "Users" },
+  { to: "/clo/departments", icon: Layers, label: "Departments" },
   { to: "/clo/students", icon: GraduationCap, label: "Students" },
   { to: "/clo/grades", icon: ClipboardCheck, label: "Grades" },
   { to: "/clo/reports", icon: BarChart3, label: "Reports" },
@@ -175,6 +176,9 @@ export function DashboardLayout() {
 
   const handleLogout = () => {
     setUser(null);
+    try {
+      localStorage.clear();
+    } catch {}
     navigate("/login", { replace: true });
   };
 
@@ -350,7 +354,7 @@ export function DashboardLayout() {
                     <h4>Notifications</h4>
                   </div>
                   <div className="max-h-72 overflow-y-auto">
-                    {roleNotifications.slice(0, 8).map((n) => (
+                    {store.notifications.slice(0, 8).map((n) => (
                       <div
                         key={n.id}
                         className={`px-4 py-3 border-b border-border last:border-0 transition-colors duration-150 hover:bg-card ${!n.read ? "bg-card/60" : ""}`}

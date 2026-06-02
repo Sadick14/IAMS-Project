@@ -5,6 +5,7 @@ import type {
   CompanyFilters,
   CompanyResponse,
   TermResponse,
+  TermDashboardResponse,
   LogbookEntryResponse,
   LogbookFilters,
   AttendanceResponse,
@@ -424,17 +425,72 @@ export const apiClient = {
     };
   },
 
+  async getTerm(id: string): Promise<ApiResponse<TermResponse | null>> {
+    const response = await requestApi<unknown>(
+      replacePathParams(API_ENDPOINTS.TERM_BY_ID, { id }),
+      { method: "GET" }
+    );
+    if (!response.success) return { success: false, data: null, message: response.message };
+    const payload = response.data;
+    const term =
+      payload && typeof payload === "object" && "data" in (payload as object)
+        ? (payload as { data: TermResponse }).data
+        : (payload as TermResponse);
+    return { success: true, data: term, message: response.message };
+  },
+
+  async getTermDashboard(id: string): Promise<ApiResponse<TermDashboardResponse | null>> {
+    const response = await requestApi<unknown>(
+      replacePathParams(API_ENDPOINTS.TERM_DASHBOARD, { id }),
+      { method: "GET" }
+    );
+    if (!response.success) return { success: false, data: null, message: response.message };
+    const payload = response.data;
+    const dashboard =
+      payload && typeof payload === "object" && "data" in (payload as object)
+        ? (payload as { data: TermDashboardResponse }).data
+        : (payload as TermDashboardResponse);
+    return { success: true, data: dashboard, message: response.message };
+  },
+
   async createTerm(data: CreateTermRequest): Promise<ApiResponse<TermResponse | null>> {
+    // Map UI types → real API type values
+    const typeMap: Record<string, string> = { Vacation: "short_term", Semestrial: "regular" };
+    const payload: Record<string, unknown> = {
+      name: data.name,
+      type: typeMap[data.type] ?? data.type,
+      // Real API: single application_deadline (use closing date)
+      application_deadline: data.applicationEnd ?? data.applicationStart,
+      // Real API: start_date / end_date for internship period
+      start_date: data.internshipStart,
+      end_date: data.internshipEnd,
+      eligible_levels: data.eligibleLevels,
+      departments: data.departments,
+    };
     return requestApi<TermResponse | null>(API_ENDPOINTS.TERMS, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   },
 
   async updateTerm(id: string, data: UpdateTermRequest): Promise<ApiResponse<TermResponse | null>> {
+    const typeMap: Record<string, string> = { Vacation: "short_term", Semestrial: "regular" };
+    const payload: Record<string, unknown> = {};
+    if (data.name !== undefined) payload.name = data.name;
+    if (data.type !== undefined) payload.type = typeMap[data.type] ?? data.type;
+    // Real API: single application_deadline — use closing date if present
+    if (data.applicationEnd !== undefined || data.applicationStart !== undefined)
+      payload.application_deadline = data.applicationEnd ?? data.applicationStart;
+    // Real API: start_date / end_date for internship period
+    if (data.internshipStart !== undefined) payload.start_date = data.internshipStart;
+    if (data.internshipEnd !== undefined) payload.end_date = data.internshipEnd;
+    if (data.eligibleLevels !== undefined) payload.eligible_levels = data.eligibleLevels;
+    if (data.departments !== undefined) payload.departments = data.departments;
+    // Real API status values are lowercase
+    if (data.status !== undefined) payload.status = data.status.toLowerCase();
     return requestApi<TermResponse | null>(
-      replacePathParams("/api/v1/terms/:id", { id }),
-      { method: "PUT", body: JSON.stringify(data) }
+      replacePathParams(API_ENDPOINTS.TERM_BY_ID, { id }),
+      { method: "PUT", body: JSON.stringify(payload) }
     );
   },
 
@@ -468,6 +524,46 @@ export const apiClient = {
     };
   },
 
+  async getDepartment(id: string): Promise<ApiResponse<any | null>> {
+    const response = await requestApi<unknown>(
+      replacePathParams(API_ENDPOINTS.DEPARTMENT_BY_ID, { id }),
+      { method: "GET" }
+    );
+    if (!response.success) return { success: false, data: null, message: response.message };
+    const payload = response.data;
+    const dept =
+      payload && typeof payload === "object" && "department" in (payload as object)
+        ? (payload as { department: any }).department
+        : (payload as any);
+    return { success: true, data: dept, message: response.message };
+  },
+
+  async createDepartment(data: {
+    name: string;
+    code: string;
+    description?: string;
+    contact_email?: string;
+    contact_phone?: string;
+  }): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(API_ENDPOINTS.DEPARTMENTS, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateDepartment(id: string, data: {
+    name?: string;
+    code?: string;
+    description?: string;
+    contact_email?: string;
+    contact_phone?: string;
+  }): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(
+      replacePathParams(API_ENDPOINTS.DEPARTMENT_BY_ID, { id }),
+      { method: "PUT", body: JSON.stringify(data) }
+    );
+  },
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // USERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -496,6 +592,20 @@ export const apiClient = {
     };
   },
 
+  async createUser(data: {
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    department_id?: number;
+    staff_id?: string;
+  }): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(API_ENDPOINTS.USERS, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   async createDLOAccount(data: {
     name: string;
     email: string;
@@ -508,6 +618,19 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+
+  async updateUser(id: string, data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    department_id?: number;
+    role?: string;
+  }): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(
+      replacePathParams(API_ENDPOINTS.USER_BY_ID, { id }),
+      { method: "PUT", body: JSON.stringify(data) }
+    );
   },
 
   async activateUser(id: string): Promise<ApiResponse<any | null>> {
