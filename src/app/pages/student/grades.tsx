@@ -24,8 +24,8 @@ export function StudentGradesPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <h1>My Score &amp; Evaluation</h1>
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Score & Evaluation</h1>
         <SkeletonStatCards count={4} />
         <SkeletonFormCard rows={6} />
       </div>
@@ -34,14 +34,11 @@ export function StudentGradesPage() {
 
   if (!internship) {
     return (
-      <div className="space-y-6">
-        <h1>My Score &amp; Evaluation</h1>
-        <Card className="p-12 text-center">
-          <Award className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-[#1a1a2e]">No Active Internship</h3>
-          <p className="text-gray-600 mt-1 text-sm">
-            You need to complete an industrial attachment before grades are available.
-          </p>
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Score & Evaluation</h1>
+        <Card className="p-6 text-center">
+          <Award className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+          <p className="text-muted-foreground text-sm">No active internship</p>
         </Card>
       </div>
     );
@@ -62,57 +59,49 @@ export function StudentGradesPage() {
   const gradeStatus       = grade?.status                     ?? null;
 
   const ComponentRow = ({ label, score, max, weighted }: { label: string; score: number | null; max: number; weighted?: number | null }) => (
-    <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
-      <span className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>{label}</span>
+    <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+      <span className="text-muted-foreground text-xs">{label}</span>
       <div className="text-right">
         {score !== null ? (
-          <>
-            <span style={{ fontSize: "0.9rem" }}>{score} / {max}</span>
-            {weighted !== null && weighted !== undefined && (
-              <span className="text-muted-foreground ml-2" style={{ fontSize: "0.75rem" }}>({Number(weighted).toFixed(1)} weighted)</span>
-            )}
-          </>
+          <span className="text-xs font-medium">{score} / {max}</span>
         ) : (
-          <span className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>Pending</span>
+          <span className="text-muted-foreground text-xs">Pending</span>
         )}
       </div>
     </div>
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl text-[#1a1a2e]">My Score &amp; Evaluation</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Your attachment evaluation scores and overall performance breakdown.
-        </p>
+        <h1 className="text-2xl font-bold">Score & Evaluation</h1>
+        <p className="text-muted-foreground text-sm mt-1">Your internship performance</p>
       </div>
 
       {!grade || totalScore === null ? (
-        <Card className="p-8 text-center space-y-3">
+        <Card className="p-6 text-center space-y-2">
           {isActive ? (
             <>
-              <Clock className="w-12 h-12 text-[#0B5ED7] mx-auto" />
-              <h3 className="text-[#1a1a2e]">Attachment In Progress</h3>
-              <p className="text-sm text-gray-600">
-                Your attachment is currently active at <strong>{companyName}</strong>. Your final grade
-                will appear here once all required components have been submitted and approved.
+              <Clock className="w-10 h-10 text-blue-500 mx-auto" />
+              <p className="font-semibold text-sm">In Progress</p>
+              <p className="text-muted-foreground text-xs">
+                Active at {companyName}. Grade will appear when ready.
               </p>
             </>
           ) : isCompleted ? (
             <>
-              <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
-              <h3 className="text-[#1a1a2e]">Grade Not Yet Compiled</h3>
-              <p className="text-sm text-gray-600">
-                Your attachment is complete. Waiting for your DLO to compile and publish your final grade.
+              <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+              <p className="font-semibold text-sm">Pending Compilation</p>
+              <p className="text-muted-foreground text-xs">
+                Waiting for your DLO to publish your grade.
               </p>
             </>
           ) : (
             <>
-              <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
-              <h3 className="text-[#1a1a2e]">Grade Not Yet Available</h3>
-              <p className="text-sm text-gray-600">
-                Status: <strong>{internship.status}</strong>
+              <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+              <p className="font-semibold text-sm">Not Available</p>
+              <p className="text-muted-foreground text-xs">
+                Status: {internship.status}
               </p>
             </>
           )}
@@ -120,43 +109,40 @@ export function StudentGradesPage() {
       ) : (
         <>
           {/* Final Grade Banner */}
-          <Card className={`p-6 ${gradeStatus === "published" ? "border-emerald-200 bg-emerald-50" : "border-primary/20 bg-primary/5"}`}>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold ${
-                  gradeStatus === "published" ? "bg-emerald-100 text-emerald-700" : "bg-primary/10 text-primary"
-                }`}>
-                  {letterGrade ?? "—"}
-                </div>
-                <div>
-                  <p className="text-[#1a1a2e] font-bold" style={{ fontSize: "1.5rem" }}>
-                    {totalScore !== null ? `${Number(totalScore).toFixed(1)}%` : "—"}
-                  </p>
-                  <p className="text-gray-600 text-sm">GPA: {gpa ?? "—"} / 4.0</p>
-                  <p className="text-muted-foreground text-xs mt-0.5 capitalize">Status: {gradeStatus ?? "draft"}</p>
-                </div>
+          <Card className={`p-4 ${gradeStatus === "published" ? "border-emerald-200 bg-emerald-50" : "border-primary/20 bg-primary/5"}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0 ${
+                gradeStatus === "published" ? "bg-emerald-100 text-emerald-700" : "bg-primary/10 text-primary"
+              }`}>
+                {letterGrade ?? "—"}
               </div>
-              {gradeStatus === "published" && (
-                <div className="flex items-center gap-2 text-emerald-700">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span style={{ fontSize: "0.85rem" }}>Grade Published</span>
-                </div>
-              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-lg">
+                  {totalScore !== null ? `${Number(totalScore).toFixed(1)}%` : "—"}
+                </p>
+                <p className="text-muted-foreground text-xs">GPA: {gpa ?? "—"} / 4.0</p>
+                {gradeStatus === "published" && (
+                  <div className="flex items-center gap-1 text-emerald-700 text-xs mt-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Published</span>
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
 
           {/* Component Breakdown */}
-          <Card className="p-5 space-y-1">
-            <h3 className="text-[#1a1a2e] mb-3 flex items-center gap-2">
-              <ClipboardCheck className="w-5 h-5 text-[#0B5ED7]" /> Component Scores
+          <Card className="p-4 space-y-0">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4" /> Scores
             </h3>
-            <ComponentRow label="Industrial Assessment (max 90)"   score={industrialScore}   max={90}  weighted={grade?.industrial_assessment_weighted} />
-            <ComponentRow label="Site Visitation (max 30)"          score={siteVisitScore}    max={30}  weighted={grade?.site_visitation_weighted} />
-            <ComponentRow label="Report (max 20)"                   score={reportScore}       max={20}  weighted={grade?.report_weighted} />
-            <ComponentRow label="Presentation (max 20)"             score={presentationScore} max={20}  weighted={grade?.presentation_weighted} />
-            <div className="pt-3 mt-1 flex items-center justify-between border-t border-border">
-              <span style={{ fontSize: "0.9rem" }}>Total</span>
-              <span style={{ fontSize: "1rem" }} className="font-bold text-[#0B5ED7]">
+            <ComponentRow label="Industrial Assessment"   score={industrialScore}   max={90}  weighted={grade?.industrial_assessment_weighted} />
+            <ComponentRow label="Site Visitation"         score={siteVisitScore}    max={30}  weighted={grade?.site_visitation_weighted} />
+            <ComponentRow label="Report"                  score={reportScore}       max={20}  weighted={grade?.report_weighted} />
+            <ComponentRow label="Presentation"            score={presentationScore} max={20}  weighted={grade?.presentation_weighted} />
+            <div className="pt-2 mt-1 flex items-center justify-between border-t border-border">
+              <span className="text-sm font-medium">Total</span>
+              <span className="font-bold text-primary">
                 {totalScore !== null ? `${Number(totalScore).toFixed(1)}%` : "—"}
               </span>
             </div>
@@ -164,25 +150,25 @@ export function StudentGradesPage() {
 
           {/* Supervisor Comments */}
           {grade?.industrial_assessment && (
-            <Card className="p-5 space-y-3">
+            <Card className="p-4 space-y-2">
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#0B5ED7]" />
-                <h3 className="text-[#1a1a2e]">Industry Supervisor Comments</h3>
+                <Users className="w-4 h-4" />
+                <h3 className="text-sm font-semibold">Supervisor Comments</h3>
               </div>
-              <p className="text-sm text-gray-700">{grade.industrial_assessment.general_comments || "—"}</p>
+              <p className="text-xs text-muted-foreground">{grade.industrial_assessment.general_comments || "—"}</p>
             </Card>
           )}
 
           {grade?.site_visitation_score && (
-            <Card className="p-5 space-y-3">
+            <Card className="p-4 space-y-2">
               <div className="flex items-center gap-2">
-                <BookMarked className="w-5 h-5 text-[#0B5ED7]" />
-                <h3 className="text-[#1a1a2e]">Site Visitation Feedback</h3>
+                <BookMarked className="w-4 h-4" />
+                <h3 className="text-sm font-semibold">Site Visit Feedback</h3>
               </div>
-              <p className="text-sm text-gray-700">{grade.site_visitation_score.comments || "—"}</p>
+              <p className="text-xs text-muted-foreground">{grade.site_visitation_score.comments || "—"}</p>
             </Card>
           )}
-        </>
+</>
       )}
     </div>
   );
