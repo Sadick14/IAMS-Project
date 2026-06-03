@@ -51,11 +51,10 @@ export function TermWindowsList({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {availableTerms.map((term) => {
             const today = new Date().toISOString().split("T")[0];
-            const appStart = term.applicationStart ?? "";
-            const appEnd = term.applicationEnd ?? "";
-            const isOpen = appStart && appEnd && today >= appStart && today <= appEnd;
-            const daysLeft = isOpen && appEnd
-              ? Math.max(0, Math.ceil((new Date(appEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+            const appDeadline = term.applicationEnd ?? ""; // This is the actual deadline
+            const isOpen = appDeadline && today <= appDeadline;
+            const daysLeft = isOpen && appDeadline
+              ? Math.max(0, Math.ceil((new Date(appDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
               : null;
 
             const termName = String(term.name ?? "Term");
@@ -98,7 +97,7 @@ export function TermWindowsList({
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
                     <Clock className="w-3 h-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
-                      {appStart} → {appEnd}
+                      Deadline: {appDeadline}
                     </span>
                   </div>
 
@@ -130,9 +129,8 @@ export function TermWindowsList({
         if (!term) return null;
 
         const today = new Date().toISOString().split("T")[0];
-        const appStart = term.applicationStart ?? "";
-        const appEnd = term.applicationEnd ?? "";
-        const isOpen = appStart && appEnd && today >= appStart && today <= appEnd;
+        const appDeadline = term.applicationEnd ?? ""; // Single deadline date
+        const isOpen = appDeadline && today <= appDeadline;
 
         const levelNames = (term.eligibleLevels ?? []).map((l: any) =>
           typeof l === "string" ? l : (l.name ?? l.code ?? String(l))
@@ -178,9 +176,9 @@ export function TermWindowsList({
                 {/* Key Dates */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-secondary/30 rounded-lg">
-                    <p className="text-xs font-semibold text-muted-foreground mb-1">Application Window</p>
-                    <p className="text-sm font-medium text-foreground">{appStart}</p>
-                    <p className="text-xs text-muted-foreground">to {appEnd}</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">Application Deadline</p>
+                    <p className="text-sm font-medium text-foreground">{appDeadline}</p>
+                    <p className="text-xs text-muted-foreground">Last day to apply</p>
                   </div>
                   <div className="p-4 bg-secondary/30 rounded-lg">
                     <p className="text-xs font-semibold text-muted-foreground mb-1">Internship Period</p>
