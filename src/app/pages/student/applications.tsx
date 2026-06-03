@@ -140,6 +140,7 @@ export function StudentApplicationsPage() {
     }
   }, [form.selectedCompanyId, form.companyChoice]);
 
+
   const { execute: submitAction, loading: isSubmitting } = useToastAction();
 
   const availableTerms = terms.filter(
