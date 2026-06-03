@@ -1,10 +1,17 @@
-import { FileText, Sparkles, CheckCircle2, Clock, X } from "lucide-react";
+import { FileText, Sparkles, CheckCircle2, Clock, X, Download, CheckSquare, AlertTriangle } from "lucide-react";
+import { useState } from "react";
 import { StatusBadge } from "../status-badge";
+import { openPlacementLetter } from "../../lib/generate-placement-letter";
+import { CompanyAcceptanceModal } from "./company-acceptance-modal";
+import { toast } from "sonner";
+import { apiClient } from "../../lib/api-client";
 
 interface ApplicationTrackerProps {
   myApp: any;
   terms?: any[];
   onViewWindows: () => void;
+  onCancelApplication?: () => void;
+  onAcceptanceSubmitted?: () => void;
 }
 
 function getStatusHistory(app: any) {
@@ -70,7 +77,45 @@ function getStatusHistory(app: any) {
   return history;
 }
 
-export function ApplicationTracker({ myApp, terms, onViewWindows }: ApplicationTrackerProps) {
+export function ApplicationTracker({ myApp, terms, onViewWindows, onCancelApplication, onAcceptanceSubmitted }: ApplicationTrackerProps) {
+  const [acceptanceModalOpen, setAcceptanceModalOpen] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleDownloadPlacementLetter = () => {
+    openPlacementLetter({
+      studentName: myApp.student?.user?.name ?? myApp.studentName ?? "Student",
+      studentId: myApp.student?.student_id ?? myApp.studentId ?? "—",
+      department: myApp.student?.department ?? myApp.department ?? "—",
+      level: myApp.student?.level ?? myApp.level ?? "—",
+      companyName: myApp.company?.name ?? myApp.companyName ?? "Company",
+      companyAddress: myApp.company?.address,
+      supervisorName: myApp.academic_supervisor?.user?.name ?? myApp.supervisorAssigned,
+      startDate: myApp.proposed_start_date,
+      endDate: myApp.proposed_end_date,
+    });
+  };
+
+  const handleCancelApplication = async () => {
+    if (!myApp?.id) return;
+    setIsCancelling(true);
+    try {
+      const res = await apiClient.deleteApplication(String(myApp.id));
+      if (res.success) {
+        toast.success("Application cancelled. You can now apply with a different company.");
+        setShowCancelConfirm(false);
+        onCancelApplication?.();
+      } else {
+        toast.error(res.message ?? "Failed to cancel application");
+      }
+    } catch (error) {
+      console.error("Cancel error:", error);
+      toast.error("An error occurred");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   if (!myApp) {
     return (
       <div className="bg-card border border-border rounded-xl p-12 text-center space-y-4">
@@ -133,6 +178,71 @@ export function ApplicationTracker({ myApp, terms, onViewWindows }: ApplicationT
           )}
         </div>
       </div>
+
+      {/* Action Buttons for Approved Status */}
+      {myApp.status === "approved" && (
+        <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-5 space-y-3">
+          <p className="text-blue-700 dark:text-blue-300 font-medium" style={{ fontSize: "0.9rem" }}>
+            Your application has been approved! Next steps:
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={handleDownloadPlacementLetter}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 font-medium"
+              style={{ fontSize: "0.85rem" }}
+            >
+              <Download className="w-4 h-4" />
+              Download Placement Letter
+            </button>
+            <button
+              onClick={() => setAcceptanceModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 font-medium"
+              style={{ fontSize: "0.85rem" }}
+            >
+              <CheckSquare className="w-4 h-4" />
+              Submit Company Acceptance
+            </button>
+            <button
+              onClick={() => setShowCancelConfirm(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/20 font-medium"
+              style={{ fontSize: "0.85rem" }}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Company Rejected
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Dialog */}
+      {showCancelConfirm && (
+        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-5 space-y-3">
+          <p className="text-red-700 dark:text-red-300 font-medium" style={{ fontSize: "0.9rem" }}>
+            Are you sure you want to cancel this application?
+          </p>
+          <p className="text-red-600 dark:text-red-400 text-sm">
+            This will remove your current application. You can apply again with a different company for this internship window.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowCancelConfirm(false)}
+              disabled={isCancelling}
+              className="flex-1 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/20 font-medium"
+              style={{ fontSize: "0.85rem" }}
+            >
+              Keep Application
+            </button>
+            <button
+              onClick={handleCancelApplication}
+              disabled={isCancelling}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-medium"
+              style={{ fontSize: "0.85rem" }}
+            >
+              {isCancelling ? "Cancelling..." : "Yes, Cancel Application"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Pre-internship Journey Panel — only while internship hasn't started */}
       {!["Active", "Completed"].includes(myApp.status) && (
@@ -412,6 +522,20 @@ function ApplicationJourney({
           })}
         </div>
       </div>
+
+      {/* Company Acceptance Modal */}
+      <CompanyAcceptanceModal
+        isOpen={acceptanceModalOpen}
+        onClose={() => setAcceptanceModalOpen(false)}
+        onSuccess={() => {
+          setAcceptanceModalOpen(false);
+          onAcceptanceSubmitted?.();
+        }}
+        applicationId={myApp.id}
+        companyName={myApp.company?.name ?? myApp.companyName ?? "Company"}
+        proposedStartDate={myApp.proposed_start_date}
+        proposedEndDate={myApp.proposed_end_date}
+      />
     </div>
   );
 }

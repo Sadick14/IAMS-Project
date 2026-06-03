@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
+import { openPlacementLetter } from "../../lib/generate-placement-letter";
 import {
   Upload, FileText, Download, CheckCircle2, Clock, X, Eye,
   File, AlertTriangle, Link2, Send
@@ -36,6 +37,21 @@ export function DocumentsPage() {
   const isActive = myApp?.status === "active";
   const isCompleted = myApp?.status === "completed";
   const needsAcceptance = myApp?.status === "approved";
+
+  const handleDownloadPlacementLetter = () => {
+    if (!myApp) return;
+    openPlacementLetter({
+      studentName: myApp.student?.user?.name ?? myApp.studentName ?? user?.name ?? "Student",
+      studentId: myApp.student?.student_id ?? myApp.studentId ?? user?.studentId ?? "—",
+      department: myApp.student?.department ?? myApp.department ?? user?.department ?? "—",
+      level: myApp.student?.level ?? myApp.level ?? "—",
+      companyName: myApp.company?.name ?? myApp.companyName ?? "Company",
+      companyAddress: myApp.company?.address,
+      supervisorName: myApp.academic_supervisor?.user?.name ?? myApp.supervisorAssigned,
+      startDate: myApp.proposed_start_date,
+      endDate: myApp.proposed_end_date,
+    });
+  };
 
   const documents = [
     {
@@ -185,11 +201,21 @@ export function DocumentsPage() {
             <div className="flex gap-2 shrink-0">
               {doc.canDownload && (
                 <button
-                  onClick={() => toast.info(`${doc.name} download coming soon.`)}
-                  disabled
-                  className="px-3 py-1.5 border border-border rounded-lg opacity-50 cursor-not-allowed flex items-center gap-1.5 text-muted-foreground"
+                  onClick={() => {
+                    if (doc.id === "placement-letter" && isApproved) {
+                      handleDownloadPlacementLetter();
+                    } else {
+                      toast.info(`${doc.name} download coming soon.`);
+                    }
+                  }}
+                  disabled={doc.id !== "placement-letter" || !isApproved}
+                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${
+                    doc.id === "placement-letter" && isApproved
+                      ? "border border-primary text-primary hover:bg-primary/5"
+                      : "border border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                  }`}
                   style={{ fontSize: "0.8rem" }}
-                  title="Coming soon"
+                  title={doc.id === "placement-letter" && isApproved ? "Download your placement letter" : "Coming soon"}
                 >
                   <Download className="w-3.5 h-3.5" /> Download
                 </button>

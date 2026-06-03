@@ -218,6 +218,18 @@ export function StudentApplicationsPage() {
   };
 
   // STU-06: Submit application via async transaction
+  const handleCancelApplication = async () => {
+    if (!myApp?.id) return;
+    const res = await apiClient.deleteApplication(String(myApp.id));
+    if (res.success) {
+      setMyApp(null);
+      setView("windows");
+      setStep(1);
+      setForm({ ...defaultForm });
+    }
+    return res;
+  };
+
   const handleSubmit = async () => {
     await submitAction(
       async () => {
@@ -471,6 +483,17 @@ export function StudentApplicationsPage() {
           myApp={myApp}
           terms={terms}
           onViewWindows={() => setView("windows")}
+          onCancelApplication={handleCancelApplication}
+          onAcceptanceSubmitted={() => {
+            apiClient.getApplications().then((res) => {
+              if (res.success && res.data.length > 0) {
+                const sorted = [...res.data].sort((a, b) =>
+                  (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1
+                );
+                setMyApp(sorted[0]);
+              }
+            });
+          }}
         />
       )}
     </div>

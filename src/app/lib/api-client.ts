@@ -299,6 +299,32 @@ export const apiClient = {
     );
   },
 
+  async submitCompanyAcceptance(
+    id: string,
+    data: {
+      industry_supervisor_name?: string;
+      industry_supervisor_title?: string;
+      industry_supervisor_email?: string;
+      industry_supervisor_phone?: string;
+      confirmed_start_date?: string;
+      confirmed_end_date?: string;
+      student_role?: string;
+      placement_department?: string;
+      acceptance_notes?: string;
+    }
+  ): Promise<ApiResponse<ApplicationResponse | null>> {
+    return requestApi<ApplicationResponse | null>(
+      replacePathParams(API_ENDPOINTS.APPLICATIONS, { id }),
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          ...data,
+          status: "company_accepted",
+        }),
+      }
+    );
+  },
+
   async bulkApproveApplications(ids: string[]): Promise<ApiResponse<null>> {
     return requestApi<null>(API_ENDPOINTS.APPLICATION_BULK_APPROVE, {
       method: "POST",
