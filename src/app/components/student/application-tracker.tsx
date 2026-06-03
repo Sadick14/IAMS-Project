@@ -333,6 +333,20 @@ export function ApplicationTracker({ myApp, terms, onViewWindows, onCancelApplic
           </div>
         </div>
       </div>
+
+      {/* Company Acceptance Modal */}
+      <CompanyAcceptanceModal
+        isOpen={acceptanceModalOpen}
+        onClose={() => setAcceptanceModalOpen(false)}
+        onSuccess={() => {
+          setAcceptanceModalOpen(false);
+          onAcceptanceSubmitted?.();
+        }}
+        applicationId={myApp.id}
+        companyName={typeof myApp.company?.name === "string" ? myApp.company.name : (typeof myApp.companyName === "string" ? myApp.companyName : "Company")}
+        proposedStartDate={typeof myApp.proposed_start_date === "string" ? myApp.proposed_start_date : undefined}
+        proposedEndDate={typeof myApp.proposed_end_date === "string" ? myApp.proposed_end_date : undefined}
+      />
     </div>
   );
 }
@@ -526,20 +540,7 @@ function ApplicationJourney({
           })}
         </div>
       </div>
-
-      {/* Company Acceptance Modal */}
-      <CompanyAcceptanceModal
-        isOpen={acceptanceModalOpen}
-        onClose={() => setAcceptanceModalOpen(false)}
-        onSuccess={() => {
-          setAcceptanceModalOpen(false);
-          onAcceptanceSubmitted?.();
-        }}
-        applicationId={myApp.id}
-        companyName={typeof myApp.company?.name === "string" ? myApp.company.name : (typeof myApp.companyName === "string" ? myApp.companyName : "Company")}
-        proposedStartDate={typeof myApp.proposed_start_date === "string" ? myApp.proposed_start_date : undefined}
-        proposedEndDate={typeof myApp.proposed_end_date === "string" ? myApp.proposed_end_date : undefined}
-      />
     </div>
-  );
-}
+    );
+  }
+

@@ -47,8 +47,8 @@ export function TermWindowsList({
         <div className="space-y-3">
           {availableTerms.map((term) => {
             const today = new Date().toISOString().split("T")[0];
-            const appStart = term.applicationStart ?? term.application_start ?? "";
-            const appEnd   = term.applicationEnd   ?? term.application_end   ?? term.application_deadline ?? "";
+            const appStart = term.applicationStart ?? "";
+            const appEnd   = term.applicationEnd   ?? "";
             const isOpen = appStart && appEnd && today >= appStart && today <= appEnd;
             const daysLeft = isOpen && appEnd
               ? Math.max(
@@ -123,9 +123,9 @@ export function TermWindowsList({
 
                   {/* Details Grid */}
                   {(() => {
-                    const intStart = term.internshipStart ?? term.start_date ?? term.internship_start ?? "—";
-                    const intEnd = term.internshipEnd ?? term.end_date ?? term.internship_end ?? "—";
-                    const levels = (term.eligibleLevels ?? term.eligible_levels ?? []) as string[];
+                    const intStart = term.internshipStart ??"—";
+                    const intEnd = term.internshipEnd ?? "—";
+                    const levels = (term.eligibleLevels ??  []) as string[];
                     const depts = (term.departments ?? []) as string[];
                     return (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
