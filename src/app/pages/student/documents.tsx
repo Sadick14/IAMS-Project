@@ -136,163 +136,154 @@ export function DocumentsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1>Documents</h1>
-        <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
-          Download, upload, and manage your internship documents
-        </p>
+        <h1 className="text-2xl font-bold">Documents</h1>
+        <p className="text-muted-foreground text-sm mt-1">Manage documents</p>
       </div>
 
       {/* Workflow Progress Banner */}
       {needsAcceptance && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
           <div>
-            <p className="text-amber-800" style={{ fontSize: "0.9rem" }}>Action Required: Document Upload Coming Soon</p>
-            <p className="text-amber-700 mt-1" style={{ fontSize: "0.8rem" }}>
-              Your application has been approved. Document upload functionality will be available shortly. In the meantime,
-              contact your DLO for the next steps.
+            <p className="text-amber-800 font-semibold text-sm">Action Required</p>
+            <p className="text-amber-700 text-xs mt-1">
+              Document upload coming soon. Contact your DLO.
             </p>
           </div>
         </div>
       )}
 
       {(isActive || isCompleted) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-          <FileText className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+          <FileText className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
           <div>
-            <p className="text-blue-800" style={{ fontSize: "0.9rem" }}>
-              {isCompleted ? "Final Report Submission Coming Soon" : "Reminder: Final Report Submission"}
+            <p className="text-blue-800 font-semibold text-sm">
+              {isCompleted ? "Internship Completed" : "Final Report Due"}
             </p>
-            <p className="text-blue-700 mt-1" style={{ fontSize: "0.8rem" }}>
+            <p className="text-blue-700 text-xs mt-1">
               {isCompleted
-                ? "Your attachment is complete. Final report submission will be available shortly."
-                : "Your final report will be due at the end of your attachment period. Submission tools coming soon."}
+                ? "Final report submission coming soon."
+                : "Submission tools coming soon."}
             </p>
           </div>
         </div>
       )}
 
       {/* Documents List */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {documents.map((doc) => (
-          <div key={doc.id} className={`bg-card border rounded-xl p-5 flex items-start gap-4 ${
+          <div key={doc.id} className={`bg-card border rounded-lg p-3 space-y-2 ${
             doc.status === "Action Required" ? "border-red-200" : "border-border"
           }`}>
-            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
-              doc.status === "Available" || doc.status === "Uploaded" || doc.status === "Submitted"
-                ? "bg-emerald-100"
-                : doc.status === "Action Required"
-                  ? "bg-red-100"
-                  : "bg-secondary"
-            }`}>
-              <doc.icon className={`w-5 h-5 ${
+            <div className="flex items-start gap-2">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
                 doc.status === "Available" || doc.status === "Uploaded" || doc.status === "Submitted"
-                  ? "text-emerald-600"
+                  ? "bg-emerald-100"
                   : doc.status === "Action Required"
-                    ? "text-red-600"
-                    : "text-muted-foreground"
-              }`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p style={{ fontSize: "0.9rem" }}>{doc.name}</p>
+                    ? "bg-red-100"
+                    : "bg-secondary"
+              }`}>
+                <doc.icon className={`w-4 h-4 ${
+                  doc.status === "Available" || doc.status === "Uploaded" || doc.status === "Submitted"
+                    ? "text-emerald-600"
+                    : doc.status === "Action Required"
+                      ? "text-red-600"
+                      : "text-muted-foreground"
+                }`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">{doc.name}</p>
                 {statusBadge(doc.status)}
               </div>
-              <p style={{ fontSize: "0.8rem" }} className="text-muted-foreground">{doc.desc}</p>
             </div>
-            <div className="flex gap-2 shrink-0">
-              {doc.canDownload && (
-                <button
-                  onClick={() => {
-                    if (doc.id === "placement-letter" && isApproved) {
-                      handleDownloadPlacementLetter();
-                    } else {
-                      toast.info(`${doc.name} download coming soon.`);
-                    }
-                  }}
-                  disabled={doc.id !== "placement-letter" || !isApproved}
-                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${
-                    doc.id === "placement-letter" && isApproved
-                      ? "border border-primary text-primary hover:bg-primary/5"
-                      : "border border-border text-muted-foreground opacity-50 cursor-not-allowed"
-                  }`}
-                  style={{ fontSize: "0.8rem" }}
-                  title={doc.id === "placement-letter" && isApproved ? "Download your placement letter" : "Coming soon"}
-                >
-                  <Download className="w-3.5 h-3.5" /> Download
-                </button>
-              )}
-              {doc.canUpload && (
-                <button
-                  disabled
-                  className="px-3 py-1.5 bg-secondary text-muted-foreground rounded-lg opacity-50 cursor-not-allowed flex items-center gap-1.5"
-                  style={{ fontSize: "0.8rem" }}
-                  title="Coming soon"
-                >
-                  <Upload className="w-3.5 h-3.5" /> Coming Soon
-                </button>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2 ml-11">{doc.desc}</p>
+            {(doc.canDownload || doc.canUpload) && (
+              <div className="flex gap-2 ml-11">
+                {doc.canDownload && (
+                  <button
+                    onClick={() => {
+                      if (doc.id === "placement-letter" && isApproved) {
+                        handleDownloadPlacementLetter();
+                      } else {
+                        toast.info(`${doc.name} download coming soon.`);
+                      }
+                    }}
+                    disabled={doc.id !== "placement-letter" || !isApproved}
+                    className={`px-2.5 py-1 rounded text-xs font-medium flex items-center gap-1 ${
+                      doc.id === "placement-letter" && isApproved
+                        ? "border border-primary text-primary hover:bg-primary/5"
+                        : "border border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                    }`}
+                  >
+                    <Download className="w-3 h-3" /> Download
+                  </button>
+                )}
+                {doc.canUpload && (
+                  <button
+                    disabled
+                    className="px-2.5 py-1 bg-secondary text-muted-foreground rounded text-xs opacity-50 cursor-not-allowed flex items-center gap-1"
+                  >
+                    <Upload className="w-3 h-3" /> Coming
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
 
       {/* Industry Supervisor Magic Link Section */}
       {(needsAcceptance || isActive) && (
-        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Link2 className="w-5 h-5 text-primary" />
-            <h3>Industry Supervisor Access</h3>
+            <Link2 className="w-4 h-4 text-primary" />
+            <h3 className="font-semibold text-sm">Supervisor Access</h3>
           </div>
-          <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
-            Provide your industry supervisor's details to send them a magic link for system access. They'll use this to review your logbook entries and submit evaluations.
+          <p className="text-muted-foreground text-xs">
+            Send a magic link to your supervisor for system access.
           </p>
 
           {magicLinkSent ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
               <div>
-                <p className="text-emerald-800" style={{ fontSize: "0.85rem" }}>Magic link sent to {supervisorEmail}</p>
-                <p className="text-emerald-600" style={{ fontSize: "0.75rem" }}>
-                  {supervisorName} can now access the system. The link expires in 30 days.
+                <p className="text-emerald-800 text-xs font-medium">Link sent</p>
+                <p className="text-emerald-700 text-xs mt-0.5">
+                  {supervisorName} can access the system. Link expires in 30 days.
                 </p>
               </div>
               <button
                 onClick={() => { setMagicLinkSent(false); setSupervisorName(""); setSupervisorEmail(""); setSupervisorPhone(""); }}
-                className="ml-auto text-emerald-600 hover:underline"
-                style={{ fontSize: "0.75rem" }}
+                className="ml-auto text-emerald-600 hover:underline text-xs font-medium shrink-0"
               >
                 Resend
               </button>
             </div>
           ) : (
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="space-y-3">
               <div>
-                <label style={{ fontSize: "0.8rem" }}>Supervisor Name *</label>
+                <label className="text-xs font-medium">Name *</label>
                 <input type="text" value={supervisorName} onChange={(e) => setSupervisorName(e.target.value)}
-                  placeholder="e.g., Mr. Kwame Asante" className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background" style={{ fontSize: "0.85rem" }} />
+                  placeholder="Supervisor name" className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm" />
               </div>
               <div>
-                <label style={{ fontSize: "0.8rem" }}>Supervisor Email *</label>
+                <label className="text-xs font-medium">Email *</label>
                 <input type="email" value={supervisorEmail} onChange={(e) => setSupervisorEmail(e.target.value)}
-                  placeholder="e.g., k.asante@company.com" className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background" style={{ fontSize: "0.85rem" }} />
+                  placeholder="supervisor@company.com" className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm" />
               </div>
               <div>
-                <label style={{ fontSize: "0.8rem" }}>Supervisor Phone</label>
+                <label className="text-xs font-medium">Phone</label>
                 <input type="tel" value={supervisorPhone} onChange={(e) => setSupervisorPhone(e.target.value)}
-                  placeholder="+233..." className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background" style={{ fontSize: "0.85rem" }} />
+                  placeholder="+233..." className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm" />
               </div>
-              <div className="md:col-span-3">
-                <button
-                  onClick={handleSendMagicLink}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2"
-                  style={{ fontSize: "0.85rem" }}
-                >
-                  <Send className="w-4 h-4" /> Send Magic Link
-                </button>
-              </div>
+              <button
+                onClick={handleSendMagicLink}
+                className="w-full px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center justify-center gap-2 text-sm font-medium"
+              >
+                <Send className="w-4 h-4" /> Send Link
+              </button>
             </div>
           )}
         </div>
