@@ -1,5 +1,6 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate, Outlet } from "react-router";
 import { DashboardLayout } from "./components/dashboard-layout";
+import { GlobalError } from "./components/global-error";
 import { AuthGuard } from "./components/auth-guard";
 import { StudentProfileGuard } from "./components/student-profile-guard";
 
@@ -115,149 +116,155 @@ function HODGuard({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
-  // Auth routes
-  { path: "/login", element: <LoginPage /> },
-  { path: "/auth/magic-link", element: <MagicLinkPage /> },
-  { path: "/auth/google/callback", element: <GoogleCallbackPage /> },
-
-  // Root redirect
-  { path: "/", element: <Navigate to="/login" replace /> },
-
-  // CLO Portal
   {
-    path: "/clo",
-    element: (
-      <CLOGuard>
-        <DashboardLayout />
-      </CLOGuard>
-    ),
+    element: <Outlet />,
+    errorElement: <GlobalError />,
     children: [
-      { index: true, element: <CLODashboard /> },
-      { path: "applications", Component: CLOApplications },
-      { path: "companies", Component: CLOCompanies },
-      { path: "terms", element: <TermsPage /> },
-      { path: "users", element: <UsersPage /> },
-      { path: "students", Component: CLOStudents },
-      { path: "grades", Component: CLOGrades },
-      { path: "reports", Component: CLOReports },
-      { path: "attendance", element: <AttendancePage viewRole="clo" /> },
-      { path: "audit", element: <AuditLogsPage /> },
-      { path: "departments", element: <DepartmentsPage /> },
-      { path: "templates", Component: CLOTemplates },
-      { path: "settings", Component: CLOSettings },
-      { path: "issues", Component: CLOIssues },
-      { path: "communications", Component: CLOCommunications },
+      // Auth routes
+      { path: "/login", element: <LoginPage /> },
+      { path: "/auth/magic-link", element: <MagicLinkPage /> },
+      { path: "/auth/google/callback", element: <GoogleCallbackPage /> },
+
+      // Root redirect
+      { path: "/", element: <Navigate to="/login" replace /> },
+
+      // CLO Portal
+      {
+        path: "/clo",
+        element: (
+          <CLOGuard>
+            <DashboardLayout />
+          </CLOGuard>
+        ),
+        children: [
+          { index: true, element: <CLODashboard /> },
+          { path: "applications", Component: CLOApplications },
+          { path: "companies", Component: CLOCompanies },
+          { path: "terms", element: <TermsPage /> },
+          { path: "users", element: <UsersPage /> },
+          { path: "students", Component: CLOStudents },
+          { path: "grades", Component: CLOGrades },
+          { path: "reports", Component: CLOReports },
+          { path: "attendance", element: <AttendancePage viewRole="clo" /> },
+          { path: "audit", element: <AuditLogsPage /> },
+          { path: "departments", element: <DepartmentsPage /> },
+          { path: "templates", Component: CLOTemplates },
+          { path: "settings", Component: CLOSettings },
+          { path: "issues", Component: CLOIssues },
+          { path: "communications", Component: CLOCommunications },
+        ],
+      },
+
+      // DLO Portal
+      {
+        path: "/dlo",
+        element: (
+          <DLOGuard>
+            <DashboardLayout />
+          </DLOGuard>
+        ),
+        children: [
+          { index: true, element: <DLODashboard /> },
+          { path: "applications", Component: DLOApplications },
+          { path: "companies", Component: DLOCompanies },
+          { path: "students", Component: DLOStudents },
+          { path: "supervisors", element: <SupervisorsPage /> },
+          { path: "assignments", element: <DLOAssignmentsPage /> },
+          { path: "final-grading", element: <DLOFinalGradingPage /> },
+          { path: "grades", Component: DLOGrades },
+          { path: "reports", Component: DLOReports },
+          { path: "attendance", element: <AttendancePage viewRole="dlo" /> },
+          { path: "settings", Component: DLOSettings },
+          { path: "issues", Component: DLOIssues },
+          { path: "communications", Component: DLOCommunications },
+        ],
+      },
+
+      // Student Portal
+      {
+        path: "/student",
+        element: (
+          <StudentGuard>
+            <StudentProfileGuard>
+              <DashboardLayout />
+            </StudentProfileGuard>
+          </StudentGuard>
+        ),
+        children: [
+          { index: true, element: <StudentDashboard /> },
+          { path: "profile-setup", element: <StudentProfileSetup /> },
+          { path: "applications", element: <StudentApplicationsPage /> },
+          { path: "logbook", element: <LogbookPage /> },
+          { path: "attendance", element: <StudentAttendancePage /> },
+          { path: "documents", element: <DocumentsPage /> },
+          { path: "evaluation", element: <StudentGradesPage /> },
+          { path: "grades", element: <Navigate to="/student/evaluation" replace /> },
+          { path: "history", element: <StudentHistoryPage /> },
+          { path: "issues", Component: StudentIssues },
+          { path: "communications", Component: StudentCommunications },
+          { path: "settings", Component: StudentSettings },
+        ],
+      },
+
+      // External Supervisor Portal
+      {
+        path: "/supervisor",
+        element: (
+          <SupervisorGuard>
+            <DashboardLayout />
+          </SupervisorGuard>
+        ),
+        children: [
+          { index: true, element: <SupervisorDashboard /> },
+          { path: "evaluate", element: <EvaluatePage /> },
+          // Legacy deep-link → merged Assessments page (preserves any ?student= param).
+          { path: "weekly-rubric", element: <Navigate to="/supervisor/evaluate?tab=weekly" replace /> },
+          { path: "logbooks", element: <SupervisorLogbooksPage /> },
+          { path: "attendance", Component: SupervisorAttendance },
+          { path: "communications", Component: SupervisorCommunications },
+          { path: "settings", Component: SupervisorSettings },
+        ],
+      },
+
+      // Academic Portal
+      {
+        path: "/academic",
+        element: (
+          <AcademicGuard>
+            <DashboardLayout />
+          </AcademicGuard>
+        ),
+        children: [
+          { index: true, element: <AcademicDashboard /> },
+          { path: "students", Component: AcademicStudents },
+          { path: "evaluate", element: <AcademicEvaluatePage /> },
+          { path: "visits", element: <AcademicVisitsPage /> },
+          { path: "attendance", element: <AttendancePage viewRole="academic" /> },
+          { path: "grades", element: <GradesPage viewRole="academic" /> },
+          { path: "communications", Component: AcademicCommunications },
+        ],
+      },
+
+      // HOD Portal
+      {
+        path: "/hod",
+        element: (
+          <HODGuard>
+            <DashboardLayout />
+          </HODGuard>
+        ),
+        children: [
+          { index: true, element: <HODDashboard /> },
+          { path: "students", Component: HODStudents },
+          { path: "reports", Component: HODReports },
+          { path: "approvals", element: <HODApprovalsPage /> },
+          { path: "communications", Component: HODCommunications },
+          { path: "settings", Component: HODSettings },
+        ],
+      },
+
+      // Catch all
+      { path: "*", element: <Navigate to="/login" replace /> },
     ],
   },
-
-  // DLO Portal
-  {
-    path: "/dlo",
-    element: (
-      <DLOGuard>
-        <DashboardLayout />
-      </DLOGuard>
-    ),
-    children: [
-      { index: true, element: <DLODashboard /> },
-      { path: "applications", Component: DLOApplications },
-      { path: "companies", Component: DLOCompanies },
-      { path: "students", Component: DLOStudents },
-      { path: "supervisors", element: <SupervisorsPage /> },
-      { path: "assignments", element: <DLOAssignmentsPage /> },
-      { path: "final-grading", element: <DLOFinalGradingPage /> },
-      { path: "grades", Component: DLOGrades },
-      { path: "reports", Component: DLOReports },
-      { path: "attendance", element: <AttendancePage viewRole="dlo" /> },
-      { path: "settings", Component: DLOSettings },
-      { path: "issues", Component: DLOIssues },
-      { path: "communications", Component: DLOCommunications },
-    ],
-  },
-
-  // Student Portal
-  {
-    path: "/student",
-    element: (
-      <StudentGuard>
-        <StudentProfileGuard>
-          <DashboardLayout />
-        </StudentProfileGuard>
-      </StudentGuard>
-    ),
-    children: [
-      { index: true, element: <StudentDashboard /> },
-      { path: "profile-setup", element: <StudentProfileSetup /> },
-      { path: "applications", element: <StudentApplicationsPage /> },
-      { path: "logbook", element: <LogbookPage /> },
-      { path: "attendance", element: <StudentAttendancePage /> },
-      { path: "documents", element: <DocumentsPage /> },
-      { path: "evaluation", element: <StudentGradesPage /> },
-      { path: "grades", element: <Navigate to="/student/evaluation" replace /> },
-      { path: "history", element: <StudentHistoryPage /> },
-      { path: "issues", Component: StudentIssues },
-      { path: "communications", Component: StudentCommunications },
-      { path: "settings", Component: StudentSettings },
-    ],
-  },
-
-  // External Supervisor Portal
-  {
-    path: "/supervisor",
-    element: (
-      <SupervisorGuard>
-        <DashboardLayout />
-      </SupervisorGuard>
-    ),
-    children: [
-      { index: true, element: <SupervisorDashboard /> },
-      { path: "evaluate", element: <EvaluatePage /> },
-      // Legacy deep-link → merged Assessments page (preserves any ?student= param).
-      { path: "weekly-rubric", element: <Navigate to="/supervisor/evaluate?tab=weekly" replace /> },
-      { path: "logbooks", element: <SupervisorLogbooksPage /> },
-      { path: "attendance", Component: SupervisorAttendance },
-      { path: "communications", Component: SupervisorCommunications },
-      { path: "settings", Component: SupervisorSettings },
-    ],
-  },
-
-  // Academic Portal
-  {
-    path: "/academic",
-    element: (
-      <AcademicGuard>
-        <DashboardLayout />
-      </AcademicGuard>
-    ),
-    children: [
-      { index: true, element: <AcademicDashboard /> },
-      { path: "students", Component: AcademicStudents },
-      { path: "evaluate", element: <AcademicEvaluatePage /> },
-      { path: "visits", element: <AcademicVisitsPage /> },
-      { path: "attendance", element: <AttendancePage viewRole="academic" /> },
-      { path: "grades", element: <GradesPage viewRole="academic" /> },
-      { path: "communications", Component: AcademicCommunications },
-    ],
-  },
-
-  // HOD Portal
-  {
-    path: "/hod",
-    element: (
-      <HODGuard>
-        <DashboardLayout />
-      </HODGuard>
-    ),
-    children: [
-      { index: true, element: <HODDashboard /> },
-      { path: "students", Component: HODStudents },
-      { path: "reports", Component: HODReports },
-      { path: "approvals", element: <HODApprovalsPage /> },
-      { path: "communications", Component: HODCommunications },
-      { path: "settings", Component: HODSettings },
-    ],
-  },
-
-  // Catch all
-  { path: "*", element: <Navigate to="/login" replace /> },
 ]);

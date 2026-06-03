@@ -2,29 +2,53 @@ import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { openPlacementLetter } from "../../lib/generate-placement-letter";
+import { exportLogbookToPDF } from "../../lib/logbook-export";
+import { CompanyAcceptanceModal } from "../../components/student/company-acceptance-modal";
+import { DocumentUploadModal } from "../../components/student/document-upload-modal";
 import {
   Upload, FileText, Download, CheckCircle2, Clock, X, Eye,
   File, AlertTriangle, Link2, Send
 } from "lucide-react";
 import { toast } from "sonner";
 
-interface UploadedDoc {
-  name: string;
-  size: string;
-  uploadedAt: string;
-}
-
 export function DocumentsPage() {
   const { user } = useAppContext();
   const [myApp, setMyApp] = useState<any | null>(null);
+  const [internshipId, setInternshipId] = useState<string | null>(null);
+  const [currentCompanyName, setCurrentCompanyName] = useState<string>("Company");
 
-  useEffect(() => {
+  // Modals state
+  const [isAcceptanceOpen, setIsAcceptanceOpen] = useState(false);
+  const [isReportUploadOpen, setIsReportUploadOpen] = useState(false);
+
+  // Simulated local state for uploaded final report name (survives reload)
+  const [finalReportName, setFinalReportName] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("iams_final_report_name");
+    } catch {
+      return null;
+    }
+  });
+
+  const fetchApplicationData = () => {
     apiClient.getApplications().then((res) => {
       if (res.success && res.data.length > 0) {
         const sorted = [...res.data].sort((a, b) => (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1);
         setMyApp(sorted[0]);
       }
     });
+
+    apiClient.getInternships().then((res) => {
+      if (res.success && res.data.length > 0) {
+        const sorted = [...res.data].sort((a, b) => (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1);
+        setInternshipId(String(sorted[0].id));
+        setCurrentCompanyName(sorted[0].company?.name || sorted[0].companyName || "Company");
+      }
+    });
+  };
+
+  useEffect(() => {
+    fetchApplicationData();
   }, []);
 
   // Supervisor magic link form
@@ -33,10 +57,10 @@ export function DocumentsPage() {
   const [supervisorPhone, setSupervisorPhone] = useState("");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
-  const isApproved = myApp && ["approved", "active", "completed"].includes(myApp.status);
-  const isActive = myApp?.status === "active";
-  const isCompleted = myApp?.status === "completed";
-  const needsAcceptance = myApp?.status === "approved";
+  const isApproved = !!(myApp?.status && ["approved", "active", "completed", "company accepted", "company_accepted"].includes(myApp.status.toLowerCase()));
+  const isActive = myApp?.status?.toLowerCase() === "active";
+  const isCompleted = myApp?.status?.toLowerCase() === "completed";
+  const needsAcceptance = myApp?.status?.toLowerCase() === "approved";
 
   const handleDownloadPlacementLetter = () => {
     if (!myApp) return;
@@ -57,6 +81,36 @@ export function DocumentsPage() {
     });
   };
 
+  const handleDownloadLogbookPDF = async () => {
+    if (!internshipId) {
+      toast.error("No active/completed internship found for logbook export.");
+      return;
+    }
+    const toastId = toast.loading("Generating logbook export PDF...");
+    try {
+      const res = await apiClient.getInternshipLogbooks(internshipId, { per_page: 100 });
+      toast.dismiss(toastId);
+      if (res.success) {
+        exportLogbookToPDF(currentCompanyName, res.data ?? []);
+        toast.success("Logbook PDF generated successfully!");
+      } else {
+        toast.error("Failed to load logbook entries.");
+      }
+    } catch {
+      toast.dismiss(toastId);
+      toast.error("An error occurred while generating PDF.");
+    }
+  };
+
+  const handleFinalReportSuccess = (fileName: string) => {
+    setFinalReportName(fileName);
+    try {
+      localStorage.setItem("iams_final_report_name", fileName);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const documents = [
     {
       id: "placement-letter",
@@ -71,18 +125,27 @@ export function DocumentsPage() {
       id: "acceptance-form",
       name: "Company Acceptance Form",
       desc: "Form to be signed by the company confirming acceptance of the student",
-      status: needsAcceptance ? "Action Required" : isApproved ? "Available" : "Pending",
+      status: (myApp?.status?.toLowerCase() === "company accepted" || myApp?.status?.toLowerCase() === "company_accepted" || isActive || isCompleted) 
+        ? "Uploaded" 
+        : needsAcceptance 
+          ? "Action Required" 
+          : isApproved 
+            ? "Available" 
+            : "Pending",
       canDownload: !!isApproved,
-      canUpload: false,
+      // Active "Upload" button when Acceptance form status is Action Required or Pending
+      canUpload: needsAcceptance || !!(myApp?.status && myApp.status.toLowerCase() === "pending"),
       icon: File,
     },
     {
       id: "final-report",
       name: "Final Internship Report",
       desc: "Your comprehensive final report documenting the internship experience, tasks, and learnings",
-      status: isActive || isCompleted ? "Not Submitted" : "Not Available Yet",
-      canDownload: false,
-      canUpload: false,
+      status: finalReportName 
+        ? "Submitted" 
+        : (isActive || isCompleted ? "Not Submitted" : "Not Available Yet"),
+      canDownload: !!finalReportName,
+      canUpload: isActive || isCompleted,
       icon: FileText,
     },
     {
@@ -95,7 +158,6 @@ export function DocumentsPage() {
       icon: FileText,
     },
   ];
-
 
   const handleSendMagicLink = async () => {
     if (!supervisorName.trim() || !supervisorEmail.trim()) {
@@ -144,28 +206,28 @@ export function DocumentsPage() {
 
       {/* Workflow Progress Banner */}
       {needsAcceptance && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
           <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
           <div>
             <p className="text-amber-800 font-semibold text-sm">Action Required</p>
             <p className="text-amber-700 text-xs mt-1">
-              Document upload coming soon. Contact your DLO.
+              Please upload your signed Company Acceptance Form to verify and start your internship.
             </p>
           </div>
         </div>
       )}
 
       {(isActive || isCompleted) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
           <FileText className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
           <div>
             <p className="text-blue-800 font-semibold text-sm">
               {isCompleted ? "Internship Completed" : "Final Report Due"}
             </p>
             <p className="text-blue-700 text-xs mt-1">
-              {isCompleted
-                ? "Final report submission coming soon."
-                : "Submission tools coming soon."}
+              {finalReportName 
+                ? "Your final internship report has been uploaded."
+                : "Please upload your comprehensive final report below before the term ends."}
             </p>
           </div>
         </div>
@@ -174,7 +236,7 @@ export function DocumentsPage() {
       {/* Documents List */}
       <div className="space-y-2">
         {documents.map((doc) => (
-          <div key={doc.id} className={`bg-card border rounded-lg p-3 space-y-2 ${
+          <div key={doc.id} className={`bg-card border rounded-lg p-3 space-y-2 transition-all ${
             doc.status === "Action Required" ? "border-red-200" : "border-border"
           }`}>
             <div className="flex items-start gap-2">
@@ -194,42 +256,57 @@ export function DocumentsPage() {
                 }`} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{doc.name}</p>
+                <p className="font-medium text-sm text-foreground">{doc.name}</p>
                 {statusBadge(doc.status)}
               </div>
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2 ml-11">{doc.desc}</p>
-            {(doc.canDownload || doc.canUpload) && (
-              <div className="flex gap-2 ml-11">
-                {doc.canDownload && (
-                  <button
-                    onClick={() => {
-                      if (doc.id === "placement-letter" && isApproved) {
-                        handleDownloadPlacementLetter();
-                      } else {
-                        toast.info(`${doc.name} download coming soon.`);
+            
+            {/* Action buttons */}
+            <div className="flex gap-2 ml-11">
+              {doc.canDownload && (
+                <button
+                  onClick={() => {
+                    if (doc.id === "placement-letter") {
+                      handleDownloadPlacementLetter();
+                    } else if (doc.id === "logbook-export") {
+                      handleDownloadLogbookPDF();
+                    } else if (doc.id === "final-report") {
+                      toast.success(`Downloaded simulated copy of ${finalReportName}`);
+                    }
+                  }}
+                  className="px-2.5 py-1 border border-primary text-primary hover:bg-primary/5 rounded text-xs font-medium flex items-center gap-1 transition-colors"
+                >
+                  <Download className="w-3 h-3" /> Download
+                </button>
+              )}
+              {doc.canUpload && (
+                <button
+                  onClick={() => {
+                    if (doc.id === "acceptance-form") {
+                      if (!myApp?.id) {
+                        toast.error("No application ID found to upload acceptance form.");
+                        return;
                       }
-                    }}
-                    disabled={doc.id !== "placement-letter" || !isApproved}
-                    className={`px-2.5 py-1 rounded text-xs font-medium flex items-center gap-1 ${
-                      doc.id === "placement-letter" && isApproved
-                        ? "border border-primary text-primary hover:bg-primary/5"
-                        : "border border-border text-muted-foreground opacity-50 cursor-not-allowed"
-                    }`}
-                  >
-                    <Download className="w-3 h-3" /> Download
-                  </button>
-                )}
-                {doc.canUpload && (
-                  <button
-                    disabled
-                    className="px-2.5 py-1 bg-secondary text-muted-foreground rounded text-xs opacity-50 cursor-not-allowed flex items-center gap-1"
-                  >
-                    <Upload className="w-3 h-3" /> Coming
-                  </button>
-                )}
-              </div>
-            )}
+                      setIsAcceptanceOpen(true);
+                    } else if (doc.id === "final-report") {
+                      setIsReportUploadOpen(true);
+                    }
+                  }}
+                  className="px-2.5 py-1 bg-primary text-primary-foreground hover:opacity-90 rounded text-xs font-medium flex items-center gap-1 transition-opacity"
+                >
+                  <Upload className="w-3 h-3" /> Upload
+                </button>
+              )}
+              {!doc.canDownload && !doc.canUpload && (
+                <button
+                  disabled
+                  className="px-2.5 py-1 bg-secondary text-muted-foreground rounded text-xs opacity-50 cursor-not-allowed flex items-center gap-1"
+                >
+                  Not Available
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -288,6 +365,29 @@ export function DocumentsPage() {
           )}
         </div>
       )}
+
+      {/* Modals */}
+      {myApp && (
+        <CompanyAcceptanceModal
+          isOpen={isAcceptanceOpen}
+          onClose={() => setIsAcceptanceOpen(false)}
+          onSuccess={() => {
+            fetchApplicationData();
+          }}
+          applicationId={myApp.id}
+          companyName={typeof myApp.company?.name === "string" ? myApp.company.name : (typeof myApp.companyName === "string" ? myApp.companyName : "Company")}
+          proposedStartDate={myApp.proposed_start_date}
+          proposedEndDate={myApp.proposed_end_date}
+        />
+      )}
+
+      <DocumentUploadModal
+        isOpen={isReportUploadOpen}
+        onClose={() => setIsReportUploadOpen(false)}
+        onSuccess={handleFinalReportSuccess}
+        title="Upload Final Report"
+        description="Select your comprehensive internship report to upload (PDF, DOCX, or DOC formats allowed. Max 10MB)."
+      />
 
     </div>
   );

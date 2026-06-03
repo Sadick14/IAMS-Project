@@ -32,7 +32,7 @@ function normalizeApiUser(u: any): AuthUser {
     name: u.name,
     email: u.email,
     role: normalizeRole(u.role),
-    department: u.department?.name ?? u.department ?? undefined,
+    department: typeof u.department === "string" ? u.department : (u.department?.name ?? undefined),
     studentId: u.student_id ?? u.studentId ?? undefined,
     avatar: u.avatar ?? u.profile_photo ?? "",
   };

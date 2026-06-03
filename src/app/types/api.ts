@@ -293,6 +293,8 @@ export interface SubmitLogbookRequest {
   activities_description: string;
   skills_learned?: string;
   challenges_faced?: string;
+  attachment_name?: string;
+  attachment_url?: string;
 }
 
 export interface ApproveLogbookRequest {
@@ -323,6 +325,8 @@ export interface LogbookEntryResponse {
   skills_learned?: string;
   challenges_faced?: string;
   status: "draft" | "submitted" | "approved" | "revision_requested";
+  attachment_name?: string;
+  attachment_url?: string;
   created_at: string;
 }
 

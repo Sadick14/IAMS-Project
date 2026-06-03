@@ -3,7 +3,7 @@ import { SkeletonList } from "../../components/skeleton";
 import { apiClient } from "../../lib/api-client";
 import {
   BookMarked, CheckCircle2, RotateCcw, Calendar, X, Clock, AlertTriangle,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, FileText, Eye, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,6 +15,8 @@ export function SupervisorLogbooksPage() {
   const [revisionComment, setRevisionComment] = useState("");
   const [approvalComment, setApprovalComment] = useState("");
   const [showRevisionModal, setShowRevisionModal] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewName, setPreviewName] = useState("");
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -239,6 +241,24 @@ export function SupervisorLogbooksPage() {
                         <p style={{ fontSize: "0.85rem" }} className="text-muted-foreground">{entry.challenges_faced}</p>
                       </div>
                     )}
+                    {(entry.attachment_url || entry.attachmentName || entry.attachment_name) && (
+                      <div>
+                        <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground uppercase tracking-wider mb-1">Evidence / Attachment</p>
+                        <div className="pt-1">
+                          <button
+                            onClick={() => {
+                              setPreviewUrl(entry.attachment_url || entry.attachmentUrl);
+                              setPreviewName(entry.attachment_name || entry.attachmentName || "Logbook Attachment");
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-border rounded-lg bg-card text-xs text-primary hover:bg-primary/5 transition-colors font-medium"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>{entry.attachment_name || entry.attachmentName || "Attachment"}</span>
+                            <Eye className="w-3 h-3 ml-0.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {entry.status === "submitted" && (
                       <div className="bg-secondary/30 rounded-lg p-4 space-y-3">
                         <div>
@@ -272,6 +292,42 @@ export function SupervisorLogbooksPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Attachment Preview Modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setPreviewUrl(null)}>
+          <div className="bg-card border border-border rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-bold text-sm text-foreground truncate max-w-[80%]">{previewName}</h3>
+              <button
+                type="button"
+                onClick={() => setPreviewUrl(null)}
+                className="p-1 rounded-md hover:bg-accent text-muted-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 flex items-center justify-center bg-black/5 min-h-[300px]">
+              {previewUrl.startsWith("blob:") || previewName.endsWith(".png") || previewName.endsWith(".jpg") || previewName.endsWith(".jpeg") ? (
+                <img src={previewUrl} alt={previewName} className="max-w-full max-h-[60vh] rounded-lg object-contain" />
+              ) : (
+                <div className="text-center space-y-4">
+                  <FileText className="w-16 h-16 text-muted-foreground mx-auto" />
+                  <p className="text-sm font-medium">Document attachment: {previewName}</p>
+                  <a
+                    href={previewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold text-sm hover:opacity-90 animate-fade-in"
+                  >
+                    Open Document <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
