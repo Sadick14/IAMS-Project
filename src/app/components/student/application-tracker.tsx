@@ -5,7 +5,6 @@ import { ApplicationStatus } from "./application-status";
 import { ApplicationActions } from "./application-actions";
 import { ApplicationHistory } from "./application-history";
 import { openPlacementLetter } from "../../lib/generate-placement-letter";
-import { formatDateToDDMMYYYY } from "../../lib/date-utils";
 import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
 
@@ -172,8 +171,8 @@ export function ApplicationTracker({
         }}
         applicationId={myApp.id}
         companyName={companyName}
-        proposedStartDate={formatDateToDDMMYYYY(proposedStartDate)}
-        proposedEndDate={formatDateToDDMMYYYY(proposedEndDate)}
+        proposedStartDate={proposedStartDate}
+        proposedEndDate={proposedEndDate}
       />
     </div>
   );
