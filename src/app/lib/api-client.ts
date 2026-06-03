@@ -99,6 +99,18 @@ export function getApiUrl(path: string, query?: Record<string, unknown>): string
   }
 }
 
+// Unwrap a single object that the backend nests under data.<key> (e.g. { data: { term: {...} } }).
+function unwrapEntity<T>(response: ApiResponse<unknown>, key: string): T | null {
+  const payload = response.data as any;
+  if (!payload || typeof payload !== "object") return (payload ?? null) as T | null;
+  if (payload[key] && typeof payload[key] === "object") return payload[key] as T;
+  return payload as T;
+}
+
+function unwrapTerm(response: ApiResponse<unknown>): TermResponse | null {
+  return response.success ? unwrapEntity<TermResponse>(response, "term") : null;
+}
+
 function extractCollection<T>(response: ApiResponse<unknown>, collectionKey: string): T[] {
   const payload = response.data;
   if (Array.isArray(payload)) return payload as T[];
@@ -314,13 +326,10 @@ export const apiClient = {
     }
   ): Promise<ApiResponse<ApplicationResponse | null>> {
     return requestApi<ApplicationResponse | null>(
-      replacePathParams(API_ENDPOINTS.APPLICATIONS, { id }),
+      replacePathParams("/api/v1/applications/:id/accept", { id }),
       {
-        method: "PUT",
-        body: JSON.stringify({
-          ...data,
-          status: "company_accepted",
-        }),
+        method: "PATCH",
+        body: JSON.stringify(data),
       }
     );
   },
@@ -520,10 +529,11 @@ export const apiClient = {
       eligible_levels: data.eligibleLevels,
       departments: data.departments,
     };
-    return requestApi<TermResponse | null>(API_ENDPOINTS.TERMS, {
+    const response = await requestApi<unknown>(API_ENDPOINTS.TERMS, {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    return { success: response.success, data: unwrapTerm(response), message: response.message };
   },
 
   async updateTerm(id: string, data: UpdateTermRequest): Promise<ApiResponse<TermResponse | null>> {
@@ -541,10 +551,11 @@ export const apiClient = {
     if (data.departments !== undefined) payload.departments = data.departments;
     // Real API status values are lowercase
     if (data.status !== undefined) payload.status = data.status.toLowerCase();
-    return requestApi<TermResponse | null>(
+    const response = await requestApi<unknown>(
       replacePathParams(API_ENDPOINTS.TERM_BY_ID, { id }),
       { method: "PUT", body: JSON.stringify(payload) }
     );
+    return { success: response.success, data: unwrapTerm(response), message: response.message };
   },
 
   async publishTerm(id: string): Promise<ApiResponse<null>> {
