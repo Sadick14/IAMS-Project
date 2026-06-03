@@ -201,18 +201,25 @@ export function TermsPage() {
     };
 
     if (editTarget) {
-      await apiClient.updateTerm(editTarget.id, payload);
+      const res = await apiClient.updateTerm(editTarget.id, payload);
+      if (!res.success) {
+        toast.error(res.message ?? "Failed to update term.");
+        setSaving(false);
+        return;
+      }
+      const updated = res.data ? normalizeTerm(res.data, 0) : null;
       setTerms((prev) => prev.map((t) =>
-        t.id === editTarget.id ? { ...t, ...payload } : t
+        t.id === editTarget.id ? (updated ?? { ...t, ...payload }) : t
       ));
       toast.success("Term updated.");
     } else {
       const res = await apiClient.createTerm(payload);
-      const newTerm: TermShape =
-        res.success && res.data
-          ? normalizeTerm(res.data, terms.length)
-          : { id: `local-${Date.now()}`, status: "Upcoming", ...payload };
-      setTerms((prev) => [...prev, newTerm]);
+      if (!res.success || !res.data) {
+        toast.error(res.message ?? "Failed to create term.");
+        setSaving(false);
+        return;
+      }
+      setTerms((prev) => [...prev, normalizeTerm(res.data, terms.length)]);
       toast.success("Term created.");
     }
 
