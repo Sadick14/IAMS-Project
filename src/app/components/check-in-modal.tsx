@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MapPin, X, CheckCircle2, Clock, ExternalLink, AlertCircle, Loader2 } from "lucide-react";
+import { MapPin, X, CheckCircle2, Clock, AlertCircle, Loader2 } from "lucide-react";
 import { apiClient } from "../lib/api-client";
 import { toast } from "sonner";
 
@@ -39,7 +39,6 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
   const reverseGeocodeLocation = async (latitude: number, longitude: number) => {
     setIsReverseGeocoding(true);
     try {
-      // Use OpenStreetMap Nominatim API for reverse geocoding (free, no key required)
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
       );
@@ -56,7 +55,6 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
         };
         setLocationData(locationInfo);
 
-        // Build a readable location string
         const parts = [];
         if (locationInfo.company) parts.push(locationInfo.company);
         if (locationInfo.street) parts.push(locationInfo.street);
@@ -68,14 +66,13 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
           : `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
 
         setLocationDetails(readableLocation);
-        toast.success("Location identified successfully!");
+        toast.success("Location identified!");
       }
     } catch (error) {
       console.error("Reverse geocoding failed:", error);
-      // Fallback to coordinates
       setLocationDetails(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
       setLocationData({ address: "Location retrieved via GPS" });
-      toast.info("Using GPS coordinates (address lookup unavailable)");
+      toast.info("Using GPS coordinates");
     } finally {
       setIsReverseGeocoding(false);
     }
@@ -98,7 +95,6 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
     setIsGettingLocation(true);
     setGpsError(null);
 
-    // Capture check-in time
     const now = new Date();
     const timeString = now.toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -122,36 +118,28 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
         setLat(latitude);
         setLng(longitude);
         setGpsError(null);
-        toast.success("GPS captured! Identifying location...");
+        toast.success("GPS captured!");
         reverseGeocodeLocation(latitude, longitude);
         setIsGettingLocation(false);
       },
       (error) => {
         setIsGettingLocation(false);
-        let errorMessage = "";
+        let errorMessage = "Unable to get location. Try manual entry.";
 
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage =
-              "Location permission denied. Please enable location access in your browser settings and try again.";
+            errorMessage = "Location permission denied. Enable location in browser settings.";
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage =
-              "Location information is unavailable. Please try again or use manual entry.";
+            errorMessage = "Location information unavailable. Try manual entry.";
             break;
           case error.TIMEOUT:
-            errorMessage =
-              "Location request timed out. Please check your internet connection and try again.";
+            errorMessage = "Location request timed out. Check internet and try again.";
             break;
-          default:
-            errorMessage = "Unable to get your location. Please try again or use manual entry.";
         }
 
         setGpsError(errorMessage);
         toast.error(errorMessage);
-        console.error("Geolocation error:", error);
-
-        // Switch to manual entry to let user enter location manually
         setCheckInType("manual");
       },
       {
@@ -164,15 +152,15 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
 
   const handleCheckIn = async () => {
     if (!canCheckIn) {
-      toast.error("Check-in is only available during an active internship period.");
+      toast.error("Check-in only available during active internship.");
       return;
     }
     if (!locationDetails && checkInType === "gps") {
-      toast.error("Please capture your GPS location first.");
+      toast.error("Please capture GPS location first.");
       return;
     }
     if (checkInType === "manual" && !locationDetails.trim()) {
-      toast.error("Please describe your location.");
+      toast.error("Please enter your location.");
       return;
     }
 
@@ -202,228 +190,149 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
     }
   };
 
+  const hasLocationData = !!(locationDetails && lat && lng);
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleClose}>
-      <div className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3>Daily Check-in</h3>
-            <button onClick={handleClose} className="p-1 rounded-md hover:bg-accent"><X className="w-5 h-5" /></button>
+      <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="border-b border-border p-6 flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Daily Check-in</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {checkInTime ? `Checked in at ${checkInTime}` : "Record your attendance"}
+            </p>
           </div>
+          <button onClick={handleClose} className="p-1.5 hover:bg-accent rounded-lg transition-colors text-muted-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
-            Record your attendance for today before submitting logbook entries.
-          </p>
-
-          {/* Internship Status Warning */}
+        <div className="p-6 space-y-5">
+          {/* Status Warning */}
           {!canCheckIn && (
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-3 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-red-700 dark:text-red-300 font-medium" style={{ fontSize: "0.85rem" }}>
-                  Check-in Not Available
-                </p>
-                <p className="text-red-600 dark:text-red-400 text-sm mt-0.5">
-                  Check-in is only available during an active internship period. {internshipStatus && <>Your current internship status is: <span className="font-semibold capitalize">{internshipStatus}</span></>}
+                <p className="font-semibold text-red-700 dark:text-red-300 text-sm">Check-in Unavailable</p>
+                <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                  Only available during active internship. Status: <span className="font-semibold capitalize">{internshipStatus}</span>
                 </p>
               </div>
             </div>
           )}
 
-          {/* Check-in type */}
-          <div className="grid grid-cols-2 gap-3">
-            {(["gps", "manual"] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => setCheckInType(type)}
-                disabled={!canCheckIn}
-                className={`flex items-center gap-2 p-3 rounded-xl border transition-colors ${
-                  !canCheckIn
-                    ? "border-border/50 text-muted-foreground/50 cursor-not-allowed opacity-60"
-                    : checkInType === type ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"
-                }`}
-                style={{ fontSize: "0.85rem" }}
-              >
-                {type === "gps" ? <MapPin className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                {type === "gps" ? "GPS Check-in" : "Manual Entry"}
-              </button>
-            ))}
+          {/* Location Method Selection */}
+          <div className="space-y-3">
+            <label className="text-sm font-semibold text-foreground">Check-in Method</label>
+            <div className="grid grid-cols-2 gap-3">
+              {(["gps", "manual"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setCheckInType(type)}
+                  disabled={!canCheckIn}
+                  className={`p-3 rounded-lg border-2 transition-all font-medium text-sm flex items-center justify-center gap-2 ${
+                    checkInType === type
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:border-primary/50 text-foreground"
+                  } ${!canCheckIn ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {type === "gps" ? <MapPin className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                  {type === "gps" ? "GPS" : "Manual"}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* GPS Method */}
           {checkInType === "gps" ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <button
                 onClick={handleGetLocation}
-                disabled={isGettingLocation || !canCheckIn}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-60 font-medium"
-                style={{ fontSize: "0.85rem" }}
+                disabled={isGettingLocation || !canCheckIn || hasLocationData}
+                className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
+                  hasLocationData
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                    : "bg-primary text-primary-foreground hover:opacity-90"
+                } ${isGettingLocation ? "opacity-75" : ""} ${!canCheckIn ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                {isGettingLocation
-                  ? <><Clock className="w-4 h-4 animate-spin" /> Getting your exact location…</>
-                  : <><MapPin className="w-4 h-4" /> Capture GPS Location</>}
+                {isGettingLocation ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Getting location...</>
+                ) : hasLocationData ? (
+                  <><CheckCircle2 className="w-4 h-4" /> Location captured</>
+                ) : (
+                  <><MapPin className="w-4 h-4" /> Capture GPS Location</>
+                )}
               </button>
 
-              {/* GPS Error Message */}
+              {/* GPS Error */}
               {gpsError && (
-                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-3 space-y-2">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-red-700 dark:text-red-300 font-medium text-sm">{gpsError}</p>
-                      <p className="text-red-600 dark:text-red-400 text-xs mt-1">
-                        Switch to manual entry below to describe your location instead.
-                      </p>
-                    </div>
-                  </div>
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3 flex gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700 dark:text-red-300">{gpsError}</p>
                 </div>
               )}
 
-              {(locationDetails || isReverseGeocoding) && lat && lng && (
-                <div className="space-y-3">
-                  {/* Location Success */}
-                  <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 space-y-3">
-                    <div className="flex items-start gap-2">
-                      {isReverseGeocoding ? (
-                        <Loader2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                      )}
-                      <div className="flex-1">
-                        <p className="text-emerald-700 dark:text-emerald-300 font-medium" style={{ fontSize: "0.85rem" }}>
-                          {isReverseGeocoding ? "Identifying location..." : "Location captured"}
-                        </p>
-                        <p className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1" style={{ fontSize: "0.9rem" }}>
-                          {locationDetails}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Check-in Time Display */}
-                    {checkInTime && !isReverseGeocoding && (
-                      <div className="flex items-center gap-3 pt-2 border-t border-emerald-200 dark:border-emerald-800">
-                        <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <div>
-                          <p className="text-emerald-700 dark:text-emerald-300 text-xs font-medium">Check-in Time</p>
-                          <p className="text-emerald-600 dark:text-emerald-400 font-semibold" style={{ fontSize: "0.95rem" }}>
-                            {checkInTime}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Location Details */}
-                    {locationData && !isReverseGeocoding && (
-                      <div className="text-xs text-emerald-600 dark:text-emerald-400 space-y-1 mt-2 pt-2 border-t border-emerald-200 dark:border-emerald-800">
-                        {locationData.company && (
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">Facility:</span>
-                            <span>{locationData.company}</span>
-                          </div>
-                        )}
-                        {locationData.street && (
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">Street:</span>
-                            <span>{locationData.street}</span>
-                          </div>
-                        )}
-                        {locationData.area && (
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">Area:</span>
-                            <span>{locationData.area}</span>
-                          </div>
-                        )}
-                        {locationData.city && (
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">City:</span>
-                            <span>{locationData.city}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                          <span className="font-semibold">Coordinates:</span>
-                          <span>{lat.toFixed(4)}, {lng.toFixed(4)}</span>
-                        </div>
-                      </div>
-                    )}
+              {/* Location Display */}
+              {hasLocationData && (
+                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">LOCATION</p>
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mt-1">{locationDetails}</p>
                   </div>
-
-                  {!isReverseGeocoding && (
-                    <>
-                      {/* Map Preview - OpenStreetMap with proper attribution */}
-                      <div className="border border-border rounded-xl overflow-hidden bg-muted/30">
-                        <div className="aspect-video bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-950/20 dark:to-blue-950/10 flex items-center justify-center relative overflow-hidden">
-                          <iframe
-                            title="OpenStreetMap Location"
-                            width="100%"
-                            height="100%"
-                            style={{ border: "none" }}
-                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${(lng - 0.01).toFixed(4)},${(lat - 0.01).toFixed(4)},${(lng + 0.01).toFixed(4)},${(lat + 0.01).toFixed(4)}&layer=mapnik&marker=${lat.toFixed(4)},${lng.toFixed(4)}`}
-                          />
-                        </div>
-                        <div className="bg-muted/50 px-2 py-1 text-xs text-muted-foreground text-center">
-                          Map © OpenStreetMap contributors
-                        </div>
-                      </div>
-
-                      {/* View in Maps Buttons */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <a
-                          href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=18`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 font-medium text-xs"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          OpenStreetMap
-                        </a>
-                        <a
-                          href={`https://maps.google.com/?q=${lat},${lng}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 font-medium text-xs"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          Google Maps
-                        </a>
-                      </div>
-                    </>
+                  {locationData?.city && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                      📍 {locationData.city}{locationData.area && `, ${locationData.area}`}
+                    </p>
                   )}
+                  <div className="pt-2 border-t border-emerald-200 dark:border-emerald-800 text-xs text-emerald-600 dark:text-emerald-400">
+                    <p>Lat: {lat?.toFixed(4)}, Lng: {lng?.toFixed(4)}</p>
+                  </div>
                 </div>
               )}
 
-              {!locationDetails && (
-                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-3 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                  <p className="text-blue-700 dark:text-blue-300 text-sm">
-                    Click "Capture GPS Location" to record your current position
-                  </p>
+              {!hasLocationData && !gpsError && (
+                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">
+                  📍 Click "Capture GPS Location" to record your position
                 </div>
               )}
             </div>
           ) : (
-            <div>
-              <label style={{ fontSize: "0.8rem" }}>Location Description</label>
+            /* Manual Method */
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-foreground">Describe Your Location</label>
               <input
                 type="text"
                 value={locationDetails}
                 onChange={(e) => setLocationDetails(e.target.value)}
-                placeholder="e.g., Office Floor 2, Ghana Telecom Ltd"
-                className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
-                style={{ fontSize: "0.85rem" }}
+                placeholder="e.g., Office Floor 2, Ghana Telecom"
+                className="w-full px-4 py-3 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           )}
 
-          <div className="flex gap-2 pt-2">
-            <button onClick={handleClose} className="flex-1 py-2 border border-border rounded-lg hover:bg-accent font-medium" style={{ fontSize: "0.85rem" }}>
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-2 border-t border-border">
+            <button
+              onClick={handleClose}
+              className="flex-1 py-3 border border-border rounded-lg hover:bg-accent font-semibold transition-colors"
+            >
               Cancel
             </button>
             <button
               onClick={handleCheckIn}
               disabled={isSubmitting || !locationDetails || !canCheckIn}
-              className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
-              style={{ fontSize: "0.85rem" }}
+              className={`flex-1 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+                isSubmitting || !locationDetails || !canCheckIn
+                  ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                  : "bg-primary text-primary-foreground hover:opacity-90"
+              }`}
             >
-              {isSubmitting ? "Checking in…" : "Confirm Check-in"}
+              {isSubmitting ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Checking in...</>
+              ) : (
+                <><CheckCircle2 className="w-4 h-4" /> Confirm Check-in</>
+              )}
             </button>
           </div>
         </div>
