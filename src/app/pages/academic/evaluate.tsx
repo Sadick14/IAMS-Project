@@ -81,11 +81,13 @@ export function AcademicEvaluatePage() {
     },
   ]);
 
-  // Get assigned students
-  const assignedStudents = store.applications.filter(
-    (a) => (a.status === "Active" || a.status === "Completed") &&
-      (a.supervisorAssigned === user?.name || a.department === user?.department)
-  );
+  // Get assigned students (handle both legacy capitalized and real lowercase statuses)
+  const assignedStudents = store.applications.filter((a) => {
+    const s = (a.status ?? "").toLowerCase();
+    return (s === "active" || s === "completed") &&
+      (a.supervisorAssigned === user?.name || a.department === user?.department ||
+       a.student?.department?.name === user?.department);
+  });
 
   const student = assignedStudents.find((s) => s.id === selectedStudent);
   const logbookEntries = student ? getStudentLogbook(student.studentId) : [];
@@ -200,7 +202,7 @@ export function AcademicEvaluatePage() {
           <div className="flex items-center gap-2">
             <h2>{student?.studentName}</h2>
             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-              student?.status === "Active"
+              (student?.status ?? "").toLowerCase() === "active"
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                 : "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
             }`} style={{ fontSize: "0.7rem" }}>

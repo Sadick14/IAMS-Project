@@ -36,19 +36,21 @@ function getStatusHistory(app: any) {
       actor: "DLO",
     });
   }
-  if (["Approved", "Company Accepted", "Active", "Completed", "approved"].includes(app.status)) {
+  // Match real backend status values (all lowercase)
+  const s = (app.status ?? "").toLowerCase();
+  if (["approved", "company_accepted", "active", "completed"].includes(s)) {
     history.push({
       status: "Approved",
-      timestamp: createdAt ? `${createdAt.split("T")[0]}T16:00:00` : "—",
+      timestamp: app.reviewed_at ? app.reviewed_at.split("T")[0] + "T16:00:00" : (createdAt ? `${createdAt.split("T")[0]}T16:00:00` : "—"),
       description: "Application approved by DLO. Placement letter generated.",
       actor: "DLO",
     });
   }
-  if (["Company Accepted", "Active", "Completed"].includes(app.status)) {
+  if (["company_accepted", "active", "completed"].includes(s)) {
     history.push({
       status: "Company Accepted",
-      timestamp: "—",
-      description: "Company signed acceptance form. Student confirmed placement.",
+      timestamp: app.accepted_at ? app.accepted_at.split("T")[0] : "—",
+      description: `Company confirmed. Supervisor: ${app.industry_supervisor_name ?? "TBC"}`,
       actor: "Company / Student",
     });
   }
@@ -60,15 +62,15 @@ function getStatusHistory(app: any) {
       actor: "DLO",
     });
   }
-  if (app.status === "Active" || app.status === "Completed") {
+  if (["active", "completed"].includes(s)) {
     history.push({
       status: "Active",
-      timestamp: "—",
+      timestamp: app.confirmed_start_date ?? "—",
       description: "Internship officially started.",
       actor: "System",
     });
   }
-  if (app.status === "Completed") {
+  if (s === "completed") {
     history.push({
       status: "Completed",
       timestamp: "—",

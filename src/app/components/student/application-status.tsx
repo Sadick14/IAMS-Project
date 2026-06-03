@@ -9,11 +9,11 @@ export function ApplicationStatus({ status, createdAt }: ApplicationStatusProps)
   return (
     <div
       className={`rounded-xl p-5 border ${
-        status === "Active"
+        (status === "active" || status === "Active")
           ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800"
-          : status === "Completed"
+          : (status === "completed" || status === "Completed")
           ? "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800"
-          : status === "Rejected"
+          : (status === "rejected" || status === "Rejected")
           ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800"
           : "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800"
       }`}
@@ -30,7 +30,7 @@ export function ApplicationStatus({ status, createdAt }: ApplicationStatusProps)
             </span>
           </div>
         </div>
-        {status === "Pending" && (
+        {(status === "submitted" || status === "under_review" || status === "Pending") && (
           <p className="text-amber-700 dark:text-amber-400" style={{ fontSize: "0.8rem" }}>
             Your application is awaiting departmental review by the DLO.
           </p>

@@ -34,8 +34,11 @@ interface StaffOption {
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function normalizeDept(d: any, index: number): Department {
-  const headUser = d.department_head?.user ?? null;
-  const headRole = headUser?.role ?? null;
+  // Backend now returns separate hod + dlo objects; department_head.user is legacy fallback.
+  const legacyHead = d.department_head?.user ?? null;
+  const legacyRole = legacyHead?.role ?? null;
+  const hod = d.hod ?? (legacyRole === "hod" ? legacyHead : null);
+  const dlo = d.dlo ?? (legacyRole === "dlo" ? legacyHead : null);
   return {
     id: String(d.id ?? `dept-${index}`),
     name: d.name ?? `Department ${index + 1}`,
@@ -44,10 +47,10 @@ function normalizeDept(d: any, index: number): Department {
     contactEmail: d.contact_email ?? undefined,
     contactPhone: d.contact_phone ?? undefined,
     status: d.status === "inactive" ? "inactive" : "active",
-    hodName: headRole === "hod" ? headUser?.name : undefined,
-    hodId: headRole === "hod" ? String(headUser?.id) : undefined,
-    dloName: headRole === "dlo" ? headUser?.name : (d.dlo?.name ?? undefined),
-    dloId: headRole === "dlo" ? String(headUser?.id) : undefined,
+    hodName: hod?.name ?? undefined,
+    hodId: hod?.id ? String(hod.id) : undefined,
+    dloName: dlo?.name ?? undefined,
+    dloId: dlo?.id ? String(dlo.id) : undefined,
   };
 }
 
@@ -184,7 +187,7 @@ export function DepartmentsPage() {
     let active = true;
     const load = async () => {
       setLoading(true);
-      const res = await apiClient.getDepartments();
+      const res = await apiClient.getDepartments({ include_stats: true });
       if (!active) return;
       if (res.success && res.data.length > 0) {
         setDepts(res.data.map((d, i) => normalizeDept(d, i)));

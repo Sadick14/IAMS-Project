@@ -1,5 +1,5 @@
 // StudentApplicationsPage.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
@@ -12,6 +12,8 @@ import {
   ChevronRight,
   CheckCircle2,
   Loader2,
+  RotateCcw,
+  Save,
 } from "lucide-react";
 
 import { TermSelector } from "../../components/student/term-selector";
@@ -128,30 +130,55 @@ export function StudentApplicationsPage() {
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<FormData>({ ...defaultForm });
   const [eligibilityError, setEligibilityError] = useState<string | null>(null);
+  const [hasSavedDraft, setHasSavedDraft] = useState(false);
 
-  // Load saved form and step from localStorage on mount
+  // Per-user draft keys so drafts don't bleed between accounts
+  const draftKey  = `application_form_${user?.id ?? "anon"}`;
+  const stepKey   = `application_step_${user?.id ?? "anon"}`;
+
+  const hasMeaningfulDraft = useCallback((f: FormData, s: number) =>
+    s > 1 || !!f.termId || !!f.selectedCompanyId || !!f.newCompanyName, []);
+
+  // Restore draft on mount (but don't auto-navigate — show a banner instead)
   useEffect(() => {
     try {
-      const savedForm = localStorage.getItem("application_form");
-      const savedStep = localStorage.getItem("application_step");
-
-      if (savedForm) {
-        setForm(JSON.parse(savedForm));
+      const savedForm = localStorage.getItem(draftKey);
+      const savedStep = localStorage.getItem(stepKey);
+      if (savedForm && savedStep) {
+        const f: FormData = JSON.parse(savedForm);
+        const s = parseInt(savedStep) as Step;
+        if (hasMeaningfulDraft(f, s)) {
+          setForm(f);
+          setStep(s);
+          setHasSavedDraft(true);
+          // Don't auto-jump to apply view; show resume banner on windows view instead
+        }
       }
-      if (savedStep) {
-        setStep(parseInt(savedStep) as Step);
-        setView("apply");
-      }
-    } catch (error) {
-      console.error("Failed to load saved application:", error);
-    }
+    } catch { /* ignore parse errors */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Save form and step to localStorage whenever they change
+  // Save draft only while the student is actively in the apply flow
   useEffect(() => {
-    localStorage.setItem("application_form", JSON.stringify(form));
-    localStorage.setItem("application_step", String(step));
-  }, [form, step]);
+    if (view === "apply") {
+      localStorage.setItem(draftKey, JSON.stringify(form));
+      localStorage.setItem(stepKey, String(step));
+      setHasSavedDraft(hasMeaningfulDraft(form, step));
+    }
+  }, [form, step, view, draftKey, stepKey, hasMeaningfulDraft]);
+
+  const clearDraft = () => {
+    localStorage.removeItem(draftKey);
+    localStorage.removeItem(stepKey);
+    setForm({ ...defaultForm });
+    setStep(1);
+    setHasSavedDraft(false);
+  };
+
+  const resumeDraft = () => {
+    setView("apply");
+    // form + step already restored from localStorage on mount
+  };
 
   // Load branches when company selection changes
   useEffect(() => {
@@ -269,9 +296,8 @@ export function StudentApplicationsPage() {
     const res = await apiClient.deleteApplication(String(myApp.id));
     if (res.success) {
       setMyApp(null);
+      clearDraft();
       setView("windows");
-      setStep(1);
-      setForm({ ...defaultForm });
     }
     return res;
   };
@@ -341,11 +367,7 @@ export function StudentApplicationsPage() {
 
         const submitRes = await apiClient.submitApplication(String(createRes.data.id));
         if (submitRes.success) {
-          setForm({ ...defaultForm });
-          setStep(1);
-          // Clear saved form state after successful submission
-          localStorage.removeItem("application_form");
-          localStorage.removeItem("application_step");
+          clearDraft();
           setView("tracker");
         }
         return submitRes;
@@ -384,7 +406,8 @@ export function StudentApplicationsPage() {
             type="button"
             onClick={() => {
               setView(tab.key);
-              if (tab.key === "apply") setStep(1);
+              // Only reset to step 1 when starting fresh (no draft in progress)
+              if (tab.key === "apply" && !hasSavedDraft) setStep(1);
             }}
             className={`flex items-center justify-center px-3 py-2 rounded-lg text-xs font-medium transition-all ${
               view === tab.key
@@ -399,11 +422,43 @@ export function StudentApplicationsPage() {
       </div>
 
       {view === "windows" && (
-        <TermWindowsList
-          availableTerms={availableTerms}
-          onSelectTerm={handleSelectTerm}
-          onViewChange={setView}
-        />
+        <div className="space-y-4">
+          {/* Resume draft banner */}
+          {hasSavedDraft && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+              <Save className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-amber-800" style={{ fontSize: "0.9rem" }}>
+                  You have an unfinished application
+                </p>
+                <p className="text-amber-700 mt-0.5" style={{ fontSize: "0.8rem" }}>
+                  Step {step} of 4 — your progress has been saved. Pick up where you left off.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={resumeDraft}
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium flex items-center gap-1.5"
+                    style={{ fontSize: "0.82rem" }}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Continue Application
+                  </button>
+                  <button
+                    onClick={clearDraft}
+                    className="px-4 py-2 border border-amber-400 text-amber-700 rounded-lg hover:bg-amber-100 flex items-center gap-1.5"
+                    style={{ fontSize: "0.82rem" }}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Start Over
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          <TermWindowsList
+            availableTerms={availableTerms}
+            onSelectTerm={handleSelectTerm}
+            onViewChange={setView}
+          />
+        </div>
       )}
 
       {view === "apply" && (
@@ -474,12 +529,19 @@ export function StudentApplicationsPage() {
 
           {/* Navigation - full width on mobile */}
           <div className="flex flex-col gap-3 border-t border-border pt-4">
-            <p className="text-muted-foreground text-xs text-center">Step {step} of 4</p>
+            <div className="flex items-center justify-between">
+              <p className="text-muted-foreground text-xs">Step {step} of 4</p>
+              {hasSavedDraft && (
+                <span className="text-xs text-emerald-600 flex items-center gap-1">
+                  <Save className="w-3 h-3" /> Draft saved
+                </span>
+              )}
+            </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => (step === 1 ? setView("windows") : setStep((step - 1) as Step))}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 border border-border rounded-lg hover:bg-accent font-medium text-sm"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 border border-border rounded-lg hover:bg-accent font-medium text-sm"
               >
                 <ChevronLeft className="w-4 h-4" /> {step === 1 ? "Back" : "Prev"}
               </button>

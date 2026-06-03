@@ -32,7 +32,10 @@ export function EvaluatePage() {
 
   // Industrial supervisors see students attached to their company.
   // For mock purposes, show all active students; in production filter by supervisor.
-  const activeApps = store.applications.filter((a) => a.status === "Active" || a.status === "Completed");
+  const activeApps = store.applications.filter((a) => {
+    const s = (a.status ?? "").toLowerCase();
+    return s === "active" || s === "completed";
+  });
 
   const initialAppId = params.get("student") || activeApps[0]?.id || "";
   const [appId, setAppId] = useState<string>(initialAppId);

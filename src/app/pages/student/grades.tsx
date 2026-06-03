@@ -159,13 +159,13 @@ export function StudentGradesPage() {
             </Card>
           )}
 
-          {grade?.site_visitation_score && (
+          {grade?.site_visitation_assessment && (
             <Card className="p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <BookMarked className="w-4 h-4" />
                 <h3 className="text-sm font-semibold">Site Visit Feedback</h3>
               </div>
-              <p className="text-xs text-muted-foreground">{grade.site_visitation_score.comments || "—"}</p>
+              <p className="text-xs text-muted-foreground">{grade.site_visitation_assessment.comments || "—"}</p>
             </Card>
           )}
 </>
