@@ -1,4 +1,5 @@
 import { Calendar, Info, ArrowRight, Clock, Shield, Building2 } from "lucide-react";
+import { formatDateToDDMMYYYY } from "../../lib/date-utils";
 
 interface Term {
   id: string;
@@ -144,10 +145,10 @@ export function TermWindowsList({
                               Application Window
                             </p>
                             <p style={{ fontSize: "0.8rem" }} className="font-medium">
-                              {appStart || "—"}
+                              {formatDateToDDMMYYYY(appStart)}
                             </p>
                             <p style={{ fontSize: "0.8rem" }} className="text-muted-foreground">
-                              to {appEnd || "—"}
+                              to {formatDateToDDMMYYYY(appEnd)}
                             </p>
                           </div>
                         </div>
@@ -158,10 +159,10 @@ export function TermWindowsList({
                               Internship Period
                             </p>
                             <p style={{ fontSize: "0.8rem" }} className="font-medium">
-                              {intStart}
+                              {formatDateToDDMMYYYY(intStart)}
                             </p>
                             <p style={{ fontSize: "0.8rem" }} className="text-muted-foreground">
-                              to {intEnd}
+                              to {formatDateToDDMMYYYY(intEnd)}
                             </p>
                           </div>
                         </div>

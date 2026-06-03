@@ -1,4 +1,5 @@
 import { FileText } from "lucide-react";
+import { formatDateToDDMMYYYY } from "../../lib/date-utils";
 
 type CompanyChoice = "none" | "existing" | "new";
 type BranchChoice = "none" | "existing" | "new";
@@ -63,7 +64,7 @@ export function ApplicationReview({
             {selectedTerm?.name || "—"}
           </p>
           <p className="text-muted-foreground" style={{ fontSize: "0.75rem" }}>
-            {selectedTerm?.type} · {selectedTerm?.internshipStart} → {selectedTerm?.internshipEnd}
+            {selectedTerm?.type} · {formatDateToDDMMYYYY(selectedTerm?.internshipStart)} → {formatDateToDDMMYYYY(selectedTerm?.internshipEnd)}
           </p>
         </div>
 
