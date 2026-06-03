@@ -24,6 +24,31 @@ import { TermWindowsList } from "../../components/student/term-windows-list";
 type View = "windows" | "apply" | "tracker";
 type Step = 1 | 2 | 3 | 4;
 
+// Normalize term data from API response using same pattern as CLO terms page
+function toDateStr(iso?: string | null): string {
+  if (!iso) return "";
+  return iso.slice(0, 10);
+}
+
+function normalizeTerm(t: any) {
+  return {
+    id: String(t.id),
+    name: t.name ?? "Term",
+    status: String(t.status ?? "upcoming").toLowerCase(),
+    type: String(t.type ?? "regular").toLowerCase(),
+    // Real API uses application_deadline; fallback to legacy fields
+    applicationStart: toDateStr(t.application_deadline ?? t.application_start ?? t.applicationStart),
+    applicationEnd: toDateStr(t.application_end ?? t.applicationEnd) || toDateStr(t.application_deadline ?? t.application_start ?? t.applicationStart),
+    // Real API uses start_date/end_date for internship period
+    internshipStart: toDateStr(t.start_date ?? t.internship_start ?? t.internshipStart),
+    internshipEnd: toDateStr(t.end_date ?? t.internship_end ?? t.internshipEnd),
+    eligibleLevels: t.eligible_levels ?? t.eligibleLevels ?? [],
+    departments: (t.departments ?? []).map((d: any) =>
+      typeof d === "string" ? d : d.name ?? String(d)
+    ),
+  };
+}
+
 type CompanyChoice = "none" | "existing" | "new";
 type BranchChoice = "none" | "existing" | "new";
 
@@ -94,7 +119,7 @@ export function StudentApplicationsPage() {
         );
         setMyApp(sorted[0]);
       }
-      if (termsRes.success) setTerms(termsRes.data);
+      if (termsRes.success) setTerms(termsRes.data.map(normalizeTerm));
       if (companiesRes.success) setCompanies(companiesRes.data);
     });
   }, []);
@@ -143,12 +168,12 @@ export function StudentApplicationsPage() {
     if (!term) return false;
 
     const today = new Date().toISOString().split("T")[0];
-    if (term.application_deadline && today > term.application_deadline) {
-      setEligibilityError(`The application deadline has passed (${term.application_deadline}).`);
+    if (term.applicationEnd && today > term.applicationEnd) {
+      setEligibilityError(`The application deadline has passed (${term.applicationEnd}).`);
       return false;
     }
-    if (term.start_date && today < term.start_date) {
-      setEligibilityError(`The application window has not opened yet. It opens on ${term.start_date}.`);
+    if (term.applicationStart && today < term.applicationStart) {
+      setEligibilityError(`The application window has not opened yet. It opens on ${term.applicationStart}.`);
       return false;
     }
 
