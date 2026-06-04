@@ -176,31 +176,38 @@ export function StudentProfileSetup() {
 
     setIsSaving(true);
     try {
-      const updateData = {
+      const updateData: Record<string, any> = {
         name: fullName,
-        phone,
-        emergency_contact: emergencyContact,
-        emergency_phone: emergencyPhone,
-        student_id: studentId,
-        department,
-        level,
-        cgpa: parseFloat(cgpa) || null,
-        technical_skills: technicalSkills,
-        soft_skills: softSkills,
-        languages,
-        certifications,
-        past_experience: pastExperience,
-        interests,
-        preferred_start_date: preferredStartDate,
-        preferred_end_date: preferredEndDate,
-        preferred_industries: preferredIndustries,
-        desired_roles: desiredRoles,
-        career_goals: careerGoals,
-        salary_expectations: salaryExpectations,
-        major_subjects: majorSubjects,
-        current_courses: currentCourses,
-        profile_complete: true,
+        phone: phone || undefined,
+        emergency_contact: emergencyContact || undefined,
+        emergency_phone: emergencyPhone || undefined,
+        student_id: studentId || undefined,
+        department: department || undefined,
+        level: level || undefined,
       };
+
+      // Add optional fields only if they have values
+      if (cgpa.trim()) updateData.cgpa = parseFloat(cgpa);
+      if (technicalSkills.trim()) updateData.technical_skills = technicalSkills;
+      if (softSkills.trim()) updateData.soft_skills = softSkills;
+      if (languages.trim()) updateData.languages = languages;
+      if (certifications.trim()) updateData.certifications = certifications;
+      if (pastExperience.trim()) updateData.past_experience = pastExperience;
+      if (interests.trim()) updateData.interests = interests;
+      if (preferredStartDate) updateData.preferred_start_date = preferredStartDate;
+      if (preferredEndDate) updateData.preferred_end_date = preferredEndDate;
+      if (preferredIndustries.trim()) updateData.preferred_industries = preferredIndustries;
+      if (desiredRoles.trim()) updateData.desired_roles = desiredRoles;
+      if (careerGoals.trim()) updateData.career_goals = careerGoals;
+      if (salaryExpectations.trim()) updateData.salary_expectations = salaryExpectations;
+      if (majorSubjects.trim()) updateData.major_subjects = majorSubjects;
+      if (currentCourses.trim()) updateData.current_courses = currentCourses;
+      updateData.profile_complete = true;
+
+      // Filter out undefined values
+      Object.keys(updateData).forEach(key =>
+        updateData[key] === undefined && delete updateData[key]
+      );
 
       const res = await apiClient.updateUser(user?.id || "", updateData);
       if (res.success) {
@@ -217,10 +224,15 @@ export function StudentProfileSetup() {
           navigate("/student", { replace: true });
         }, 1500);
       } else {
-        toast.error("Failed to save profile");
+        // Show detailed error from backend
+        const errorMsg = res.message || "Failed to save profile. Please try again.";
+        toast.error(errorMsg);
+        console.error("Profile save error:", res);
       }
     } catch (error) {
-      toast.error("Error saving profile");
+      const errorMsg = error instanceof Error ? error.message : "Error saving profile";
+      toast.error(errorMsg);
+      console.error("Profile save exception:", error);
     } finally {
       setIsSaving(false);
     }
