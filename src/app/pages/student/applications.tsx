@@ -109,13 +109,16 @@ export function StudentApplicationsPage() {
   const [terms, setTerms] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      apiClient.getApplications(),
-      apiClient.getTerms(),
-      apiClient.getCompanies({ status: "approved" }),
-    ]).then(([appsRes, termsRes, companiesRes]) => {
+  const refreshApplications = async () => {
+    setRefreshing(true);
+    try {
+      const [appsRes, termsRes, companiesRes] = await Promise.all([
+        apiClient.getApplications(),
+        apiClient.getTerms(),
+        apiClient.getCompanies({ status: "approved" }),
+      ]);
       if (appsRes.success && appsRes.data.length > 0) {
         const sorted = [...appsRes.data].sort((a, b) =>
           (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1
@@ -124,7 +127,20 @@ export function StudentApplicationsPage() {
       }
       if (termsRes.success) setTerms(termsRes.data.map(normalizeTerm));
       if (companiesRes.success) setCompanies(companiesRes.data);
-    });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    refreshApplications();
+  }, []);
+
+  // Auto-refresh every 10 seconds to catch DLO approvals
+  useEffect(() => {
+    const interval = setInterval(refreshApplications, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const [view, setView] = useState<View>("windows");
@@ -407,9 +423,20 @@ export function StudentApplicationsPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Applications</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your applications</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Applications</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage your applications</p>
+        </div>
+        <button
+          onClick={refreshApplications}
+          disabled={refreshing}
+          className="px-3 py-2 bg-muted hover:bg-muted/80 disabled:opacity-50 rounded-lg flex items-center gap-2 text-sm font-medium transition-all"
+          title="Refresh applications (auto-refreshes every 10s)"
+        >
+          <RotateCcw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline">{refreshing ? "Refreshing..." : "Refresh"}</span>
+        </button>
       </div>
 
       {/* View Tabs */}

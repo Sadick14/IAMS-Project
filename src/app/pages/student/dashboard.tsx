@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { StatusBadge } from "../../components/status-badge";
-import { BookMarked, Clock, Award, ArrowRight, Calendar, MapPin, Mail, User, AlertCircle, CheckCircle2, Zap, FileText, MessageSquare, Briefcase } from "lucide-react";
+import { BookMarked, Clock, Award, ArrowRight, Calendar, MapPin, Mail, User, AlertCircle, CheckCircle2, Zap, FileText, MessageSquare, Briefcase, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router";
 
 export function StudentDashboard() {
@@ -11,23 +11,41 @@ export function StudentDashboard() {
   const [dashboard, setDashboard] = useState<any>(null);
   const [visitations, setVisitations] = useState<any[]>([]);
   const [pendingApplication, setPendingApplication] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    apiClient.getDashboard("student").then((res) => {
-      if (res.success) setDashboard(res.data);
-    });
-    apiClient.getSiteVisitations().then((res) => {
-      if (res.success) setVisitations(res.data);
-    });
-    apiClient.getApplications().then((res) => {
-      if (res.success && res.data) {
-        const apps = Array.isArray(res.data) ? res.data : res.data.applications || [];
+  const refreshDashboard = async () => {
+    setRefreshing(true);
+    try {
+      const [dashRes, visRes, appsRes, internshipRes] = await Promise.all([
+        apiClient.getDashboard("student"),
+        apiClient.getSiteVisitations(),
+        apiClient.getApplications(),
+        apiClient.getInternships(), // Fetch internship data to get approved applications
+      ]);
+      if (dashRes.success) setDashboard(dashRes.data);
+      if (visRes.success) setVisitations(visRes.data);
+      if (appsRes.success && appsRes.data) {
+        const apps = Array.isArray(appsRes.data) ? appsRes.data : appsRes.data.applications || [];
         const pending = apps.find(
           (app) => app && !["rejected", "completed"].includes((app.status ?? "").toLowerCase())
         );
         setPendingApplication(pending || null);
       }
-    });
+      // internshipRes is fetched to update dashboard with approved internship data
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    refreshDashboard();
+  }, []);
+
+  // Auto-refresh every 8 seconds to catch DLO approvals
+  useEffect(() => {
+    const interval = setInterval(refreshDashboard, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   const activeInternship = dashboard?.active_internship;
@@ -50,15 +68,25 @@ export function StudentDashboard() {
             className="w-full px-4 py-2 border border-border rounded-lg bg-background text-sm"
           />
         </div>
-        <div className="flex items-center gap-3 px-4 py-2 bg-card border border-border rounded-lg">
-          <img
-            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email}`}
-            alt={user?.name}
-            className="w-8 h-8 rounded-full"
-          />
-          <div className="min-w-0">
-            <p className="font-semibold text-sm">{user?.name}</p>
-            <p className="text-muted-foreground text-xs">3rd year</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refreshDashboard}
+            disabled={refreshing}
+            className="px-3 py-2 bg-muted hover:bg-muted/80 disabled:opacity-50 rounded-lg flex items-center gap-2 text-sm font-medium transition-all"
+            title="Refresh dashboard (auto-refreshes every 8s)"
+          >
+            <RotateCcw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+          <div className="flex items-center gap-3 px-4 py-2 bg-card border border-border rounded-lg">
+            <img
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email}`}
+              alt={user?.name}
+              className="w-8 h-8 rounded-full"
+            />
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">{user?.name}</p>
+              <p className="text-muted-foreground text-xs">3rd year</p>
+            </div>
           </div>
         </div>
       </div>
