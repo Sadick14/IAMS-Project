@@ -343,11 +343,7 @@ export function CompanyAcceptanceModal({
           </button>
           <button
             onClick={handleSubmit}
-<<<<<<< HEAD
-            disabled={!isValid || !uploadedFile || isSubmitting}
-=======
-            disabled={!isValid || isSubmitting || isUploading}
->>>>>>> 6b4aa9b (feat: Real file upload in company acceptance modal via Cloudinary)
+            disabled={!isValid || !uploadedFileUrl || isSubmitting || isUploading}
             className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
             style={{ fontSize: "0.85rem" }}
           >
