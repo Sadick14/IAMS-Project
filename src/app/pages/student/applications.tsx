@@ -153,9 +153,9 @@ export function StudentApplicationsPage() {
   const draftKey  = `application_form_${user?.id ?? "anon"}`;
   const stepKey   = `application_step_${user?.id ?? "anon"}`;
 
-  // Draft is not a real pending application — it means a previous submit half-failed.
-  // Exclude it so students aren't permanently blocked by an orphan backend draft.
-  const hasPendingApplication = myApp && !["rejected", "completed", "draft"].includes((myApp.status ?? "").toLowerCase());
+  // Only block new applications when truly pending (submitted or under_review)
+  // Approved, rejected, or completed applications don't block new submissions
+  const hasPendingApplication = myApp && ["submitted", "under_review"].includes((myApp.status ?? "").toLowerCase());
 
   const hasMeaningfulDraft = useCallback((f: FormData, s: number) =>
     s > 1 || !!f.termId || !!f.selectedCompanyId || !!f.newCompanyName, []);

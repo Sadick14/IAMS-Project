@@ -26,8 +26,9 @@ export function StudentDashboard() {
       if (visRes.success) setVisitations(visRes.data);
       if (appsRes.success && appsRes.data) {
         const apps = Array.isArray(appsRes.data) ? appsRes.data : appsRes.data.applications || [];
+        // Show pending, approved, or rejected applications (don't show completed)
         const pending = apps.find(
-          (app) => app && !["rejected", "completed"].includes((app.status ?? "").toLowerCase())
+          (app) => app && ["submitted", "under_review", "approved", "rejected"].includes((app.status ?? "").toLowerCase())
         );
         setPendingApplication(pending || null);
       }
@@ -97,7 +98,7 @@ export function StudentDashboard() {
         {/* Left Content: 2 columns */}
         <div className="space-y-6 lg:col-span-2">
 
-          {/* Hero Banner */}
+          {/* Hero Banner - Based on Application Status */}
           {activeInternship ? (
             <div className="bg-gradient-to-r from-primary/80 via-primary/60 to-primary/40 rounded-2xl p-8 text-white relative overflow-hidden">
               <div className="relative z-10">
@@ -107,6 +108,46 @@ export function StudentDashboard() {
               </div>
               <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 flex items-center justify-center">
                 <Award className="w-40 h-40" />
+              </div>
+            </div>
+          ) : pendingApplication?.status?.toLowerCase() === "approved" ? (
+            <div className="bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-950/30 dark:to-green-950/30 rounded-2xl p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">🎉 Application Approved!</h1>
+                  <p className="text-sm mb-4">Congratulations! Your application for <span className="font-semibold">{pendingApplication?.company?.name || "a position"}</span> has been approved by the DLO.</p>
+                  <div className="space-y-2 mb-4 text-sm">
+                    <p>📋 <strong>Next Steps:</strong></p>
+                    <ul className="list-disc list-inside text-sm space-y-1">
+                      <li>Download your Placement Letter from Applications</li>
+                      <li>Get the Company Acceptance Form from your DLO</li>
+                      <li>Have the company/supervisor sign the form</li>
+                      <li>Submit the completed form to activate your internship</li>
+                    </ul>
+                  </div>
+                  <button
+                    onClick={() => navigate("/student/applications")}
+                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                  >
+                    View Documents <ArrowRight className="w-4 h-4 inline ml-2" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : pendingApplication?.status?.toLowerCase() === "rejected" ? (
+            <div className="bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-950/30 dark:to-rose-950/30 rounded-2xl p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">Application Not Approved</h1>
+                  <p className="text-sm mb-4">Your application for <span className="font-semibold">{pendingApplication?.company?.name || "a position"}</span> was not approved at this time.</p>
+                  <p className="text-sm mb-4">You can now apply for other internship positions. Review feedback from your DLO and apply to another opportunity.</p>
+                  <button
+                    onClick={() => navigate("/student/applications")}
+                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                  >
+                    Apply Again <ArrowRight className="w-4 h-4 inline ml-2" />
+                  </button>
+                </div>
               </div>
             </div>
           ) : pendingApplication ? (
