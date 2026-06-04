@@ -538,7 +538,10 @@ export function LogbookPage() {
       <CheckInModal
         isOpen={checkInModalOpen}
         onClose={() => setCheckInModalOpen(false)}
-        onSuccess={onCheckInSuccess}
+        onSuccess={() => {
+          setCheckInModalOpen(false);
+          setCheckedInToday(true);
+        }}
         internshipId={internshipId ?? undefined}
         internshipStatus={internshipStatus ?? undefined}
       />

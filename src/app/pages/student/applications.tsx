@@ -362,6 +362,13 @@ export function StudentApplicationsPage() {
           proposed_start_date: form.preferredStartDate || undefined,
         });
         if (!createRes.success || !createRes.data?.id) {
+          // If student profile not found, provide helpful message
+          if (createRes.message?.toLowerCase().includes("student profile")) {
+            return {
+              ...createRes,
+              message: "Please complete your profile first before submitting an application. Go to 'My Profile' to update your information."
+            };
+          }
           return createRes;
         }
 

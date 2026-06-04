@@ -84,7 +84,8 @@ export function StudentDashboard() {
                 </div>
                 <div className="shrink-0">
                   <StatusBadge status={appStatus} />
-              )}
+                </div>
+              </div>
 
               {/* Department */}
               {activeInternship?.student?.department && (
@@ -95,7 +96,7 @@ export function StudentDashboard() {
                     <p className="font-medium text-sm">{activeInternship.student.department?.name ?? activeInternship.student.department}</p>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Details grid inside Spotlight card */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
