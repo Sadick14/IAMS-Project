@@ -327,8 +327,29 @@ export const apiClient = {
       student_role?: string;
       placement_department?: string;
       acceptance_notes?: string;
-    }
+    },
+    acceptanceFormFile?: File
   ): Promise<ApiResponse<ApplicationResponse | null>> {
+    // If file is provided, use FormData to send both form fields and file
+    if (acceptanceFormFile) {
+      const formData = new FormData();
+      // Add form fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (value) formData.append(key, value);
+      });
+      // Add file
+      formData.append("acceptance_form", acceptanceFormFile);
+
+      return requestApi<ApplicationResponse | null>(
+        replacePathParams("/api/v1/applications/:id/accept", { id }),
+        {
+          method: "PATCH",
+          body: formData,
+        }
+      );
+    }
+
+    // If no file, send as JSON
     return requestApi<ApplicationResponse | null>(
       replacePathParams("/api/v1/applications/:id/accept", { id }),
       {

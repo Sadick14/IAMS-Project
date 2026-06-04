@@ -54,22 +54,31 @@ export function CompanyAcceptanceModal({
       return;
     }
 
+    if (!uploadedFile) {
+      toast.error("Please upload the signed acceptance form");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const res = await apiClient.submitCompanyAcceptance(applicationId, {
-        industry_supervisor_name: supervisorName,
-        industry_supervisor_title: supervisorTitle,
-        industry_supervisor_email: supervisorEmail,
-        industry_supervisor_phone: supervisorPhone,
-        confirmed_start_date: confirmedStartDate,
-        confirmed_end_date: confirmedEndDate,
-        student_role: studentRole,
-        placement_department: placementDepartment,
-        acceptance_notes: `Company accepted. Student role: ${studentRole} in ${placementDepartment}. Supervisor: ${supervisorName} (${supervisorTitle}).`,
-      });
+      const res = await apiClient.submitCompanyAcceptance(
+        applicationId,
+        {
+          industry_supervisor_name: supervisorName,
+          industry_supervisor_title: supervisorTitle,
+          industry_supervisor_email: supervisorEmail,
+          industry_supervisor_phone: supervisorPhone,
+          confirmed_start_date: confirmedStartDate,
+          confirmed_end_date: confirmedEndDate,
+          student_role: studentRole,
+          placement_department: placementDepartment,
+          acceptance_notes: `Company accepted. Student role: ${studentRole} in ${placementDepartment}. Supervisor: ${supervisorName} (${supervisorTitle}).`,
+        },
+        uploadedFile
+      );
 
       if (res.success) {
-        toast.success("Company acceptance submitted successfully!");
+        toast.success("Company acceptance submitted successfully! Your internship is now active.");
         onSuccess();
         onClose();
       } else {
@@ -303,7 +312,7 @@ export function CompanyAcceptanceModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!isValid || isSubmitting}
+            disabled={!isValid || !uploadedFile || isSubmitting}
             className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
             style={{ fontSize: "0.85rem" }}
           >

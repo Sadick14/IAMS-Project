@@ -134,41 +134,14 @@ export function StudentDashboard() {
             </div>
           ) : pendingApplication?.status?.toLowerCase() === "approved" ? (
             <div className="bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-950/30 dark:to-green-950/30 rounded-2xl p-8">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold mb-2">🎉 Application Approved!</h1>
-                  <p className="text-sm mb-4">Congratulations! Your application for <span className="font-semibold">{pendingApplication?.company?.name || "a position"}</span> has been approved by the DLO.</p>
-                  <div className="space-y-3 mb-4">
-                    <div>
-                      <p className="text-sm font-semibold mb-2">📄 <strong>Download Required Documents:</strong></p>
-                      <ul className="list-disc list-inside text-sm space-y-1">
-                        <li><span className="font-semibold">Placement Letter</span> - Download from Documents</li>
-                        <li><span className="font-semibold">Company Acceptance Form</span> - Download from Documents</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-2">✍️ <strong>Next Steps:</strong></p>
-                      <ul className="list-decimal list-inside text-sm space-y-1">
-                        <li>Print or provide the documents to the company</li>
-                        <li>Have the company/supervisor sign the acceptance form</li>
-                        <li>Return to Documents tab and upload the signed form</li>
-                        <li>Once uploaded, your internship becomes active</li>
-                      </ul>
-                    </div>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-100/50 dark:bg-emerald-900/30 p-2 rounded">
-                      ⚠️ You cannot apply for another internship until you submit the signed company acceptance form.
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => navigate("/student/documents")}
-                      className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
-                    >
-                      Download Documents <ArrowRight className="w-4 h-4 inline ml-2" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <h1 className="text-3xl font-bold mb-2">🎉 Application Approved!</h1>
+              <p className="text-sm mb-4">Your application for <span className="font-semibold">{pendingApplication?.company?.name || "a position"}</span> has been approved. Download documents and submit the signed company acceptance form to activate your internship.</p>
+              <button
+                onClick={() => navigate("/student/documents")}
+                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
+              >
+                Go to Documents <ArrowRight className="w-4 h-4 inline ml-2" />
+              </button>
             </div>
           ) : pendingApplication?.status?.toLowerCase() === "rejected" ? (
             <div className="bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-950/30 dark:to-rose-950/30 rounded-2xl p-8">
