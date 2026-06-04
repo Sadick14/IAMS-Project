@@ -253,6 +253,7 @@ export const API_ENDPOINTS = {
 
   // Students
   STUDENTS: "/api/v1/students",
+  STUDENT_BY_ID: "/api/v1/students/:id",
 
   // CLO users
   USERS: "/api/v1/users",

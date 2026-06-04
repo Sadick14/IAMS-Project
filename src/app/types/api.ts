@@ -78,6 +78,7 @@ export interface CreateApplicationRequest {
   cover_letter?: string | null;
   proposed_start_date?: string | null;
   proposed_end_date?: string | null;
+  status?: "draft" | "submitted"; // default: "submitted" (draft only used locally in localStorage)
 }
 
 export interface ApproveApplicationRequest {

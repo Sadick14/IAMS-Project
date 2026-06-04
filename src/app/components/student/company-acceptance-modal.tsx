@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Upload, AlertCircle } from "lucide-react";
+import { X, Upload, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { apiClient } from "../../lib/api-client";
 import { toast } from "sonner";
 
@@ -31,26 +31,49 @@ export function CompanyAcceptanceModal({
   const [studentRole, setStudentRole] = useState("");
   const [placementDepartment, setPlacementDepartment] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isValid = supervisorName.trim() && supervisorTitle.trim() && supervisorEmail.trim() &&
     supervisorPhone.trim() && confirmedStartDate && confirmedEndDate && studentRole.trim() &&
     placementDepartment.trim();
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size exceeds 10MB limit");
-        return;
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size exceeds 10MB limit");
+      return;
+    }
+    setUploadedFile(file);
+    setUploadedFileUrl(null);
+    setIsUploading(true);
+    try {
+      const res = await apiClient.uploadFile(file, "iams/acceptance-forms");
+      if (res.success && res.data?.url) {
+        setUploadedFileUrl(res.data.url);
+        toast.success("File uploaded successfully");
+      } else {
+        toast.error(res.message ?? "Upload failed — you can still submit without the file");
+        setUploadedFile(null);
       }
-      setUploadedFile(file);
+    } catch {
+      toast.error("Upload failed — you can still submit without the file");
+      setUploadedFile(null);
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleSubmit = async () => {
     if (!isValid) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!uploadedFile) {
+      toast.error("Please upload the signed acceptance form");
       return;
     }
 
@@ -66,10 +89,11 @@ export function CompanyAcceptanceModal({
         student_role: studentRole,
         placement_department: placementDepartment,
         acceptance_notes: `Company accepted. Student role: ${studentRole} in ${placementDepartment}. Supervisor: ${supervisorName} (${supervisorTitle}).`,
+        acceptance_form_url: uploadedFileUrl ?? undefined,
       });
 
       if (res.success) {
-        toast.success("Company acceptance submitted successfully!");
+        toast.success("Company acceptance submitted successfully! Your internship is now active.");
         onSuccess();
         onClose();
       } else {
@@ -260,17 +284,33 @@ export function CompanyAcceptanceModal({
             <p className="text-muted-foreground text-sm">
               Upload a scan or photo of the signed acceptance form from the company. Max 10MB (PDF or Image).
             </p>
-            <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:bg-muted/30 transition-colors">
-              <label className="cursor-pointer flex flex-col items-center gap-2">
-                <Upload className="w-8 h-8 text-muted-foreground" />
+            <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${uploadedFileUrl ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20" : "border-border hover:bg-muted/30"}`}>
+              <label className={`flex flex-col items-center gap-2 ${isUploading ? "cursor-wait" : "cursor-pointer"}`}>
+                {isUploading ? (
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                ) : uploadedFileUrl ? (
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                ) : (
+                  <Upload className="w-8 h-8 text-muted-foreground" />
+                )}
                 <span className="text-sm font-medium">
-                  {uploadedFile ? uploadedFile.name : "Click to select file or drag & drop"}
+                  {isUploading
+                    ? "Uploading..."
+                    : uploadedFileUrl
+                    ? uploadedFile?.name ?? "File uploaded"
+                    : "Click to select file or drag & drop"}
                 </span>
-                {uploadedFile && <span className="text-xs text-muted-foreground">{(uploadedFile.size / 1024 / 1024).toFixed(2)} MB</span>}
+                {uploadedFileUrl && (
+                  <span className="text-xs text-emerald-600">Uploaded successfully</span>
+                )}
+                {uploadedFile && !uploadedFileUrl && !isUploading && (
+                  <span className="text-xs text-muted-foreground">{(uploadedFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                )}
                 <input
                   type="file"
                   onChange={handleFileSelect}
                   accept="image/*,.pdf"
+                  disabled={isUploading}
                   className="hidden"
                 />
               </label>
@@ -303,11 +343,11 @@ export function CompanyAcceptanceModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!isValid || isSubmitting}
+            disabled={!isValid || !uploadedFileUrl || isSubmitting || isUploading}
             className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
             style={{ fontSize: "0.85rem" }}
           >
-            {isSubmitting ? "Submitting..." : "Submit Acceptance"}
+            {isUploading ? "Uploading file..." : isSubmitting ? "Submitting..." : "Submit Acceptance"}
           </button>
         </div>
       </div>

@@ -22,14 +22,12 @@ export function ApplicationsPage({ viewRole }: Props) {
   const [showAssign, setShowAssign] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const department = viewRole === "dlo" ? user?.department : undefined;
-
   const fetchApplications = useCallback(async () => {
     setLoading(true);
-    const res = await apiClient.getApplications(department ? { department } : undefined);
+    const res = await apiClient.getApplications();
     if (res.success) setApplications(res.data);
     setLoading(false);
-  }, [department]);
+  }, []);
 
   useEffect(() => {
     fetchApplications();
@@ -42,19 +40,20 @@ export function ApplicationsPage({ viewRole }: Props) {
   }, []);
 
   const filtered = applications.filter((a) => {
-    const studentName = a.student?.name ?? a.studentName ?? "";
+    const studentName = a.student?.user?.name ?? a.student?.name ?? a.studentName ?? "";
     const companyName = a.company?.name ?? a.companyName ?? "";
-    const appDept = a.student?.department ?? a.department ?? "";
     const matchSearch =
       studentName.toLowerCase().includes(search.toLowerCase()) ||
       companyName.toLowerCase().includes(search.toLowerCase());
     const appStatus = a.status ?? "";
     const matchStatus = statusFilter === "All" || appStatus === statusFilter;
-    const matchDept = !department || appDept === department;
-    return matchSearch && matchStatus && matchDept;
+    return matchSearch && matchStatus;
   });
 
-  const statuses = ["All", "draft", "submitted", "under_review", "approved", "rejected"];
+  // Students can filter their own drafts; staff never see drafts (backend excludes them)
+  const statuses = viewRole === "student"
+    ? ["All", "draft", "submitted", "under_review", "approved", "rejected"]
+    : ["All", "submitted", "under_review", "approved", "rejected", "company_accepted"];
 
   const handleApprove = async (id: string) => {
     const res = await apiClient.approveApplication(id);
@@ -91,7 +90,14 @@ export function ApplicationsPage({ viewRole }: Props) {
   };
 
   const handleAssignSupervisor = async (appId: string, supervisorId: number) => {
-    const res = await apiClient.assignSupervisor(appId, supervisorId);
+    const app = applications.find((a) => String(a.id) === appId);
+    const internshipId = app?.internship?.id ? String(app.internship.id) : null;
+    if (!internshipId) {
+      toast.error("No internship found for this application. Please activate the internship first.");
+      setShowAssign(null);
+      return;
+    }
+    const res = await apiClient.assignSupervisor(internshipId, supervisorId);
     if (res.success) {
       toast.success(res.message ?? "Supervisor assigned.");
       fetchApplications();
@@ -109,7 +115,7 @@ export function ApplicationsPage({ viewRole }: Props) {
         <div>
           <h1>Applications</h1>
           <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
-            {viewRole === "clo" ? "All departments" : `${department ?? ""} Department`}
+            {viewRole === "clo" ? "All departments" : `${user?.department ?? ""} Department`}
           </p>
         </div>
         <button
@@ -123,10 +129,10 @@ export function ApplicationsPage({ viewRole }: Props) {
           onClick={() =>
             exportToCSV(
               filtered.map((a) => ({
-                Student: a.student?.name ?? a.studentName ?? "",
+                Student: a.student?.user?.name ?? a.student?.name ?? a.studentName ?? "",
                 ID: a.student?.student_id ?? a.studentId ?? "",
                 Company: a.company?.name ?? a.companyName ?? "",
-                Department: a.student?.department ?? a.department ?? "",
+                Department: a.student?.department?.name ?? a.student?.department ?? a.department ?? "",
                 Status: a.status,
                 Date: a.created_at ?? a.dateApplied ?? "",
               })),
@@ -181,9 +187,10 @@ export function ApplicationsPage({ viewRole }: Props) {
           )}
           {!loading && filtered.map((app) => {
             const appId = String(app.id);
-            const studentName = app.student?.name ?? app.studentName ?? "—";
+            const studentName = app.student?.user?.name ?? app.student?.name ?? app.studentName ?? "—";
             const studentNum = app.student?.student_id ?? app.studentId ?? "—";
             const companyName = app.company?.name ?? app.companyName ?? "—";
+            const deptName = app.student?.department?.name ?? app.student?.department ?? app.department ?? "";
             return (
               <div
                 key={appId}
@@ -199,9 +206,9 @@ export function ApplicationsPage({ viewRole }: Props) {
                 </div>
                 <p className="text-muted-foreground truncate" style={{ fontSize: "0.82rem" }}>🏢 {companyName}</p>
                 {viewRole === "clo" && (
-                  <p className="text-muted-foreground" style={{ fontSize: "0.78rem" }}>{app.student?.department ?? app.department ?? ""}</p>
+                  <p className="text-muted-foreground" style={{ fontSize: "0.78rem" }}>{deptName}</p>
                 )}
-                {(app.status === "submitted" || app.status === "approved") && (
+                {(viewRole === "dlo" && (app.status === "submitted" || app.status === "approved")) && (
                   <div className="flex gap-2 pt-2 border-t border-border" onClick={(e) => e.stopPropagation()}>
                     {app.status === "submitted" && (
                       <>
@@ -265,10 +272,10 @@ export function ApplicationsPage({ viewRole }: Props) {
                 <tbody>
                   {filtered.map((app) => {
                     const appId = String(app.id);
-                    const studentName = app.student?.name ?? app.studentName ?? "—";
+                    const studentName = app.student?.user?.name ?? app.student?.name ?? app.studentName ?? "—";
                     const studentNum = app.student?.student_id ?? app.studentId ?? "—";
                     const companyName = app.company?.name ?? app.companyName ?? "—";
-                    const dept = (app.student?.department ?? app.department ?? "").split(" ")[0];
+                    const dept = (app.student?.department?.name ?? app.student?.department ?? app.department ?? "").split(" ")[0];
                     return (
                       <tr
                         key={appId}
@@ -282,7 +289,7 @@ export function ApplicationsPage({ viewRole }: Props) {
                         <td className="px-4 py-3"><StatusBadge status={app.status} /></td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                            {app.status === "submitted" && (
+                            {viewRole === "dlo" && app.status === "submitted" && (
                               <>
                                 <button onClick={() => handleApprove(appId)} className="p-1.5 rounded-md hover:bg-emerald-100 text-emerald-600">
                                   <CheckCircle2 className="w-4 h-4" />
@@ -353,9 +360,9 @@ export function ApplicationsPage({ viewRole }: Props) {
                 </div>
                 <div className="space-y-3">
                   {[
-                    ["Student", detail.student?.name ?? detail.studentName ?? "—"],
+                    ["Student", detail.student?.user?.name ?? detail.student?.name ?? detail.studentName ?? "—"],
                     ["Student ID", detail.student?.student_id ?? detail.studentId ?? "—"],
-                    ["Department", detail.student?.department ?? detail.department ?? "—"],
+                    ["Department", detail.student?.department?.name ?? detail.student?.department ?? detail.department ?? "—"],
                     ["Company", detail.company?.name ?? detail.companyName ?? "—"],
                     ["Date Applied", detail.created_at ?? detail.dateApplied ?? "—"],
                     ["Type", detail.application_type ?? "individual"],
@@ -371,7 +378,7 @@ export function ApplicationsPage({ viewRole }: Props) {
                   </div>
                 </div>
                 <div className="pt-3 border-t border-border space-y-2">
-                  {detail.status === "submitted" && (
+                  {viewRole === "dlo" && detail.status === "submitted" && (
                     <>
                       <button onClick={() => { handleApprove(String(detail.id)); setSelectedApp(null); }} className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90" style={{ fontSize: "0.85rem" }}>
                         Approve Application

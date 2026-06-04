@@ -41,6 +41,7 @@ export function CompaniesPage({ viewRole }: Props) {
     name: "", region: ghanaRegions[0], location: "", telephone: "", address: "",
   });
   const [branchLoading, setBranchLoading] = useState(false);
+  const [defaultBranchTab, setDefaultBranchTab] = useState(false);
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -120,6 +121,16 @@ export function CompaniesPage({ viewRole }: Props) {
     setCompanyNameQuery(""); setCommittedNew(false);
   };
 
+  // Called when user clicks an existing company inside the "Add Company" modal.
+  // Closes the add-company modal and opens that company's detail on the Branches tab
+  // with the branch form already open.
+  const handleSelectExistingInModal = async (c: any) => {
+    closeAddCompany();
+    await handleSelectCompany(c);
+    setDefaultBranchTab(true);
+    setShowBranchForm(true);
+  };
+
   const handleSelectCompany = async (c: any) => {
     setSelected(c);
     const res = await apiClient.getCompanyBranches(String(c.id));
@@ -129,6 +140,14 @@ export function CompaniesPage({ viewRole }: Props) {
   const handleAddBranch = async () => {
     if (!selected || !branchForm.name.trim()) {
       toast.error("Branch name is required.");
+      return;
+    }
+    // Duplicate branch check
+    const dupBranch = branches.find(
+      (b) => (b.name ?? "").toLowerCase() === branchForm.name.trim().toLowerCase()
+    );
+    if (dupBranch) {
+      toast.error(`A branch named "${branchForm.name.trim()}" already exists for ${selected.name}. Please use a different name.`);
       return;
     }
     setBranchLoading(true);
@@ -151,6 +170,7 @@ export function CompaniesPage({ viewRole }: Props) {
     setSelected(null);
     setBranches([]);
     setShowBranchForm(false);
+    setDefaultBranchTab(false);
     setBranchForm({ name: "", region: ghanaRegions[0], location: "", telephone: "", address: "" });
   };
 
@@ -393,7 +413,7 @@ export function CompaniesPage({ viewRole }: Props) {
               </div>
             </div>
 
-            <Tabs.Root defaultValue="basic" className="flex-1 flex flex-col overflow-hidden">
+            <Tabs.Root defaultValue={defaultBranchTab ? "branches" : "basic"} className="flex-1 flex flex-col overflow-hidden">
               <Tabs.List className="flex border-b border-border px-5 bg-secondary/30">
                 <Tabs.Trigger value="basic" className="px-4 py-2 text-sm border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary hover:text-foreground text-muted-foreground transition-colors">
                   Basic Info
@@ -532,8 +552,17 @@ export function CompaniesPage({ viewRole }: Props) {
                         placeholder="Branch Name*"
                         value={branchForm.name}
                         onChange={(e) => setBranchForm((prev) => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-lg bg-card text-sm"
+                        className={`w-full px-3 py-2 border rounded-lg bg-card text-sm ${
+                          branches.some((b) => (b.name ?? "").toLowerCase() === branchForm.name.trim().toLowerCase())
+                            ? "border-red-400"
+                            : "border-border"
+                        }`}
                       />
+                      {branches.some((b) => (b.name ?? "").toLowerCase() === branchForm.name.trim().toLowerCase()) && (
+                        <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                          ⚠ A branch with this name already exists for {selected?.name}.
+                        </p>
+                      )}
                       <select
                         value={branchForm.region ?? ghanaRegions[0]}
                         onChange={(e) => setBranchForm((prev) => ({ ...prev, region: e.target.value }))}
@@ -570,7 +599,7 @@ export function CompaniesPage({ viewRole }: Props) {
                         </button>
                         <button
                           onClick={handleAddBranch}
-                          disabled={branchLoading}
+                          disabled={branchLoading || branches.some((b) => (b.name ?? "").toLowerCase() === branchForm.name.trim().toLowerCase())}
                           className="flex-1 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 text-sm"
                         >
                           {branchLoading ? "Saving..." : "Add Branch"}
@@ -657,10 +686,13 @@ export function CompaniesPage({ viewRole }: Props) {
                       <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
                         {companyNameMatches.map(({ company: c }: { company: any }) => (
                           <button key={c.id} type="button"
-                            className="w-full text-left p-2.5 rounded-lg border border-border hover:border-primary/40 hover:bg-primary/5 transition-all flex items-start justify-between gap-2">
+                            onClick={() => handleSelectExistingInModal(c)}
+                            className="w-full text-left p-2.5 rounded-lg border border-border hover:border-primary/40 hover:bg-primary/5 transition-all flex items-start justify-between gap-2 group">
                             <div>
                               <p style={{ fontSize: "0.85rem" }}>{c.name}</p>
-                              <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>{c.email ?? c.contactEmail}</p>
+                              <p className="text-muted-foreground group-hover:text-primary transition-colors" style={{ fontSize: "0.7rem" }}>
+                                Click to add a branch to this company
+                              </p>
                             </div>
                             <StatusBadge status={c.approval_status ?? c.status ?? ""} />
                           </button>

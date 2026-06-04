@@ -263,6 +263,7 @@ export const apiClient = {
       company_id: Number((data as any).company_id ?? (data as any).companyId),
       academic_term_id: Number((data as any).academic_term_id ?? (data as any).termId),
       application_type: (data as any).application_type ?? "individual",
+      status: (data as any).status ?? "submitted", // Default to "submitted" (draft only used locally)
     };
     const coverLetter = (data as any).cover_letter ?? (data as any).coverLetter ?? (data as any).additionalNotes;
     if (coverLetter) payload.cover_letter = coverLetter;
@@ -271,10 +272,13 @@ export const apiClient = {
     const endDate = (data as any).proposed_end_date;
     if (endDate) payload.proposed_end_date = endDate;
 
-    return requestApi<ApplicationResponse | null>(API_ENDPOINTS.APPLICATIONS, {
+    const response = await requestApi<any>(API_ENDPOINTS.APPLICATIONS, {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    // Backend wraps the application under data.application — unwrap to top level
+    const application = response.data?.application ?? response.data;
+    return { ...response, data: application };
   },
 
   async updateApplication(id: string, data: Partial<CreateApplicationRequest>): Promise<ApiResponse<ApplicationResponse | null>> {
@@ -323,14 +327,37 @@ export const apiClient = {
       student_role?: string;
       placement_department?: string;
       acceptance_notes?: string;
+      acceptance_form_url?: string;
     }
   ): Promise<ApiResponse<ApplicationResponse | null>> {
     return requestApi<ApplicationResponse | null>(
       replacePathParams("/api/v1/applications/:id/accept", { id }),
-      {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }
+      { method: "PATCH", body: JSON.stringify(data) }
+    );
+  },
+
+  async uploadFile(file: File, folder = "iams"): Promise<ApiResponse<{ url: string; public_id: string } | null>> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", folder);
+    const requestHeaders = new Headers();
+    requestHeaders.set("Accept", "application/json");
+    const currentToken = getApiAuthToken();
+    if (currentToken) requestHeaders.set("Authorization", `Bearer ${currentToken}`);
+    const response = await fetch(buildApiUrl("/api/v1/upload"), {
+      method: "POST",
+      headers: requestHeaders,
+      body: formData,
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { success: false, data: null, message: body?.message ?? "Upload failed" };
+    return { success: true, data: body?.data ?? null, message: body?.message };
+  },
+
+  async withdrawApplication(id: string): Promise<ApiResponse<null>> {
+    return requestApi<null>(
+      replacePathParams("/api/v1/applications/:id/withdraw", { id }),
+      { method: "DELETE" }
     );
   },
 
@@ -682,6 +709,27 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+
+  async getUser(id: string): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(
+      replacePathParams(API_ENDPOINTS.USER_BY_ID, { id }),
+      { method: "GET" }
+    );
+  },
+
+  async getStudentProfile(userId: string): Promise<ApiResponse<any | null>> {
+    const res = await requestApi<any>(API_ENDPOINTS.STUDENTS, { query: { user_id: userId } });
+    if (!res.success) return { success: false, data: null, message: res.message };
+    const payload = res.data as any;
+    // Student role returns { data: { student: {...} } }; admin returns paginated list
+    const profile =
+      payload?.student ??
+      (Array.isArray(payload?.students) ? payload.students[0] : null) ??
+      (Array.isArray(payload?.data) ? payload.data[0] : null) ??
+      (Array.isArray(payload) ? payload[0] : null);
+    if (!profile) return { success: false, data: null, message: "Student profile not found" };
+    return { success: true, data: profile, message: res.message };
   },
 
   async updateUser(id: string, data: Record<string, any>): Promise<ApiResponse<any | null>> {

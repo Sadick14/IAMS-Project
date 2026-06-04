@@ -14,6 +14,7 @@ import {
   Loader2,
   RotateCcw,
   Save,
+  AlertCircle,
 } from "lucide-react";
 
 import { TermSelector } from "../../components/student/term-selector";
@@ -108,13 +109,16 @@ export function StudentApplicationsPage() {
   const [terms, setTerms] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      apiClient.getApplications(),
-      apiClient.getTerms(),
-      apiClient.getCompanies(),
-    ]).then(([appsRes, termsRes, companiesRes]) => {
+  const refreshApplications = async () => {
+    setRefreshing(true);
+    try {
+      const [appsRes, termsRes, companiesRes] = await Promise.all([
+        apiClient.getApplications(),
+        apiClient.getTerms(),
+        apiClient.getCompanies({ approval_status: "approved", per_page: 200 }),
+      ]);
       if (appsRes.success && appsRes.data.length > 0) {
         const sorted = [...appsRes.data].sort((a, b) =>
           (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1
@@ -123,7 +127,20 @@ export function StudentApplicationsPage() {
       }
       if (termsRes.success) setTerms(termsRes.data.map(normalizeTerm));
       if (companiesRes.success) setCompanies(companiesRes.data);
-    });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    refreshApplications();
+  }, []);
+
+  // Auto-refresh every 10 seconds to catch DLO approvals
+  useEffect(() => {
+    const interval = setInterval(refreshApplications, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const [view, setView] = useState<View>("windows");
@@ -135,6 +152,12 @@ export function StudentApplicationsPage() {
   // Per-user draft keys so drafts don't bleed between accounts
   const draftKey  = `application_form_${user?.id ?? "anon"}`;
   const stepKey   = `application_step_${user?.id ?? "anon"}`;
+
+  // Block new applications when:
+  // 1. Application is submitted/under_review (awaiting DLO decision)
+  // 2. Application is approved (student must submit company acceptance form first)
+  // Can apply again only if rejected or form is submitted and internship is active
+  const hasPendingApplication = myApp && ["submitted", "under_review", "approved"].includes((myApp.status ?? "").toLowerCase());
 
   const hasMeaningfulDraft = useCallback((f: FormData, s: number) =>
     s > 1 || !!f.termId || !!f.selectedCompanyId || !!f.newCompanyName, []);
@@ -252,6 +275,9 @@ export function StudentApplicationsPage() {
       case 2: {
         if (form.companyChoice === "existing") {
           if (!form.selectedCompanyId) return false;
+          // Company must be approved by DLO/CLO before an application can be submitted
+          const selectedCo = companies.find((c: any) => String(c.id) === form.selectedCompanyId);
+          if (selectedCo && selectedCo.approval_status !== "approved") return false;
           if (form.branchChoice === "existing") return !!form.selectedBranchId;
           if (form.branchChoice === "new") {
             return !!(
@@ -352,6 +378,17 @@ export function StudentApplicationsPage() {
             return { success: false, data: null, message: companyRes.message || "Failed to register company." };
           }
           companyId = companyRes.data.company.id;
+
+          // New company is pending DLO approval — cannot submit application yet.
+          // Show a success message explaining next steps and exit without creating an application.
+          clearDraft();
+          await refreshApplications(); // refresh company list
+          setView("windows");
+          return {
+            success: true,
+            data: null,
+            message: `"${form.newCompanyName}" has been submitted for DLO approval. Once approved it will appear in the company search and you can submit your application.`,
+          };
         }
 
         const createRes = await apiClient.createApplication({
@@ -360,6 +397,7 @@ export function StudentApplicationsPage() {
           application_type: "individual",
           cover_letter: form.additionalNotes || undefined,
           proposed_start_date: form.preferredStartDate || undefined,
+          status: "submitted", // Create directly as submitted, not draft
         });
         if (!createRes.success || !createRes.data?.id) {
           // If student profile not found, provide helpful message
@@ -372,12 +410,17 @@ export function StudentApplicationsPage() {
           return createRes;
         }
 
-        const submitRes = await apiClient.submitApplication(String(createRes.data.id));
-        if (submitRes.success) {
-          clearDraft();
-          setView("tracker");
+        clearDraft();
+        // Refresh applications data to show the new submission
+        const appsRes = await apiClient.getApplications();
+        if (appsRes.success && appsRes.data.length > 0) {
+          const sorted = [...appsRes.data].sort((a, b) =>
+            (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1
+          );
+          setMyApp(sorted[0]);
         }
-        return submitRes;
+        setView("tracker");
+        return createRes;
       },
       {
         successMessage: "Application submitted successfully!",
@@ -396,9 +439,20 @@ export function StudentApplicationsPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Applications</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your applications</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Applications</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage your applications</p>
+        </div>
+        <button
+          onClick={refreshApplications}
+          disabled={refreshing}
+          className="px-3 py-2 bg-muted hover:bg-muted/80 disabled:opacity-50 rounded-lg flex items-center gap-2 text-sm font-medium transition-all"
+          title="Refresh applications (auto-refreshes every 10s)"
+        >
+          <RotateCcw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline">{refreshing ? "Refreshing..." : "Refresh"}</span>
+        </button>
       </div>
 
       {/* View Tabs */}
@@ -411,13 +465,17 @@ export function StudentApplicationsPage() {
           <button
             key={tab.key}
             type="button"
+            disabled={tab.key === "apply" && hasPendingApplication}
             onClick={() => {
+              if (tab.key === "apply" && hasPendingApplication) return;
               setView(tab.key);
               // Only reset to step 1 when starting fresh (no draft in progress)
               if (tab.key === "apply" && !hasSavedDraft) setStep(1);
             }}
             className={`flex items-center justify-center px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-              view === tab.key
+              tab.key === "apply" && hasPendingApplication
+                ? "bg-muted/30 text-muted-foreground cursor-not-allowed opacity-50"
+                : view === tab.key
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
             }`}
@@ -430,8 +488,25 @@ export function StudentApplicationsPage() {
 
       {view === "windows" && (
         <div className="space-y-4">
+          {/* Pending Application Block */}
+          {hasPendingApplication && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-amber-900 dark:text-amber-100 text-sm">
+                  {myApp.status?.toLowerCase() === "approved" ? "Application Approved" : "Application Pending"}
+                </p>
+                <p className="text-amber-800 dark:text-amber-200 mt-1 text-xs">
+                  {myApp.status?.toLowerCase() === "approved"
+                    ? "Visit Documents to complete your company acceptance form to activate your internship"
+                    : "Your application is being reviewed. You can't apply for other internships yet."}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Resume draft banner */}
-          {hasSavedDraft && (
+          {hasSavedDraft && !hasPendingApplication && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
               <Save className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -464,6 +539,7 @@ export function StudentApplicationsPage() {
             availableTerms={availableTerms}
             onSelectTerm={handleSelectTerm}
             onViewChange={setView}
+            isBlocked={hasPendingApplication}
           />
         </div>
       )}

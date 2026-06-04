@@ -193,8 +193,8 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
   const hasLocationData = !!(locationDetails && lat && lng);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleClose}>
-      <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4" onClick={handleClose}>
+      <div className="bg-card border border-border rounded-t-2xl md:rounded-2xl w-full md:max-w-md shadow-2xl max-h-[70vh] md:max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="border-b border-border p-6 flex items-start justify-between">
           <div>
@@ -208,133 +208,69 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
-          {/* Status Warning */}
-          {!canCheckIn && (
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-red-700 dark:text-red-300 text-sm">Check-in Unavailable</p>
-                <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-                  Only available during active internship. Status: <span className="font-semibold capitalize">{internshipStatus}</span>
-                </p>
-              </div>
+        <div className="p-4 space-y-3">
+          {/* GPS Capture Button */}
+          <button
+            onClick={handleGetLocation}
+            disabled={isGettingLocation || !canCheckIn || hasLocationData}
+            className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
+              hasLocationData
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                : "bg-primary text-primary-foreground hover:opacity-90"
+            } ${isGettingLocation ? "opacity-75" : ""} ${!canCheckIn ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            {isGettingLocation ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Getting location...</>
+            ) : hasLocationData ? (
+              <><CheckCircle2 className="w-4 h-4" /> Location captured</>
+            ) : (
+              <><MapPin className="w-4 h-4" /> Capture GPS Location</>
+            )}
+          </button>
+
+          {/* Manual Entry */}
+          {!hasLocationData && (
+            <input
+              type="text"
+              value={locationDetails}
+              onChange={(e) => setLocationDetails(e.target.value)}
+              placeholder="Or enter location manually"
+              disabled={!canCheckIn}
+              className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            />
+          )}
+
+          {/* GPS Error */}
+          {gpsError && (
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-2.5 flex gap-2 text-xs">
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <p className="text-red-700 dark:text-red-300">{gpsError}</p>
             </div>
           )}
 
-          {/* Location Method Selection */}
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-foreground">Check-in Method</label>
-            <div className="grid grid-cols-2 gap-3">
-              {(["gps", "manual"] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setCheckInType(type)}
-                  disabled={!canCheckIn}
-                  className={`p-3 rounded-lg border-2 transition-all font-medium text-sm flex items-center justify-center gap-2 ${
-                    checkInType === type
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50 text-foreground"
-                  } ${!canCheckIn ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {type === "gps" ? <MapPin className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                  {type === "gps" ? "GPS" : "Manual"}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Check-in Button */}
+          <button
+            onClick={handleCheckIn}
+            disabled={isSubmitting || !locationDetails || !canCheckIn}
+            className={`w-full py-2.5 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm ${
+              isSubmitting || !locationDetails || !canCheckIn
+                ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                : "bg-primary text-primary-foreground hover:opacity-90"
+            }`}
+          >
+            {isSubmitting ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Checking in...</>
+            ) : (
+              <><CheckCircle2 className="w-4 h-4" /> Check-in</>
+            )}
+          </button>
 
-          {/* GPS Method */}
-          {checkInType === "gps" ? (
-            <div className="space-y-4">
-              <button
-                onClick={handleGetLocation}
-                disabled={isGettingLocation || !canCheckIn || hasLocationData}
-                className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
-                  hasLocationData
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-                    : "bg-primary text-primary-foreground hover:opacity-90"
-                } ${isGettingLocation ? "opacity-75" : ""} ${!canCheckIn ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {isGettingLocation ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Getting location...</>
-                ) : hasLocationData ? (
-                  <><CheckCircle2 className="w-4 h-4" /> Location captured</>
-                ) : (
-                  <><MapPin className="w-4 h-4" /> Capture GPS Location</>
-                )}
-              </button>
-
-              {/* GPS Error */}
-              {gpsError && (
-                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3 flex gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700 dark:text-red-300">{gpsError}</p>
-                </div>
-              )}
-
-              {/* Location Display */}
-              {hasLocationData && (
-                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 space-y-3">
-                  <div>
-                    <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">LOCATION</p>
-                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mt-1">{locationDetails}</p>
-                  </div>
-                  {locationData?.city && (
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                      📍 {locationData.city}{locationData.area && `, ${locationData.area}`}
-                    </p>
-                  )}
-                  <div className="pt-2 border-t border-emerald-200 dark:border-emerald-800 text-xs text-emerald-600 dark:text-emerald-400">
-                    <p>Lat: {lat?.toFixed(4)}, Lng: {lng?.toFixed(4)}</p>
-                  </div>
-                </div>
-              )}
-
-              {!hasLocationData && !gpsError && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">
-                  📍 Click "Capture GPS Location" to record your position
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Manual Method */
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground">Describe Your Location</label>
-              <input
-                type="text"
-                value={locationDetails}
-                onChange={(e) => setLocationDetails(e.target.value)}
-                placeholder="e.g., Office Floor 2, Ghana Telecom"
-                className="w-full px-4 py-3 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-2 border-t border-border">
-            <button
-              onClick={handleClose}
-              className="flex-1 py-3 border border-border rounded-lg hover:bg-accent font-semibold transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCheckIn}
-              disabled={isSubmitting || !locationDetails || !canCheckIn}
-              className={`flex-1 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
-                isSubmitting || !locationDetails || !canCheckIn
-                  ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
-                  : "bg-primary text-primary-foreground hover:opacity-90"
-              }`}
-            >
-              {isSubmitting ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Checking in...</>
-              ) : (
-                <><CheckCircle2 className="w-4 h-4" /> Confirm Check-in</>
-              )}
-            </button>
-          </div>
+          <button
+            onClick={handleClose}
+            className="w-full py-2 border border-border rounded-lg hover:bg-accent font-medium text-sm transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>

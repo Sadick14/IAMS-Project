@@ -19,6 +19,7 @@ interface TermWindowsListProps {
   onSelectTerm: (termId: string) => void;
   onViewChange: (view: "windows" | "apply" | "tracker") => void;
   userLevel?: string;
+  isBlocked?: boolean;
 }
 
 export function TermWindowsList({
@@ -26,6 +27,7 @@ export function TermWindowsList({
   onSelectTerm,
   onViewChange,
   userLevel = "L300",
+  isBlocked = false,
 }: TermWindowsListProps) {
   const [selectedDetail, setSelectedDetail] = useState<string | null>(null);
   return (
@@ -78,15 +80,17 @@ export function TermWindowsList({
             return (
               <div
                 key={term.id}
-                onClick={() => setSelectedDetail(term.id)}
-                className={`bg-card border-l-4 ${statusStyle.border} border-t border-r border-b border-border rounded-lg overflow-hidden hover:shadow-md transition-all cursor-pointer group`}
+                onClick={() => !isBlocked && setSelectedDetail(term.id)}
+                className={`bg-card border-l-4 ${statusStyle.border} border-t border-r border-b border-border rounded-lg overflow-hidden transition-all group ${
+                  isBlocked ? "opacity-50 cursor-not-allowed" : "hover:shadow-md cursor-pointer"
+                }`}
               >
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
                       <h3 className="font-semibold text-foreground text-sm">{termName}</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {termType === "Semestrial" ? "📚 Semestrial" : "🏖️ Vacation"}
+                        {termType === "regular" ? "📚 Semestrial" : "🏖️ Vacation"}
                       </p>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${statusStyle.text} bg-white dark:bg-background`}>
@@ -217,14 +221,14 @@ export function TermWindowsList({
                       onViewChange("apply");
                       setSelectedDetail(null);
                     }}
-                    disabled={!isOpen || !isEligible}
+                    disabled={!isOpen || !isEligible || isBlocked}
                     className={`w-full py-3 rounded-lg font-semibold transition-all ${
-                      isOpen && isEligible
+                      isOpen && isEligible && !isBlocked
                         ? "bg-primary text-primary-foreground hover:opacity-90"
                         : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                     }`}
                   >
-                    {!isOpen ? "Application Window Not Yet Open" : !isEligible ? "Your Level Does Not Match" : "Apply Now"}
+                    {isBlocked ? "Complete Your Pending Application First" : !isOpen ? "Application Window Not Yet Open" : !isEligible ? "Your Level Does Not Match" : "Apply Now"}
                   </button>
                 </div>
               </div>

@@ -211,6 +211,16 @@ export function CompanyBranchSelector({
             </button>
           </div>
 
+          {/* Warn if company is somehow not yet approved */}
+          {selectedCompany && selectedCompany.approval_status !== "approved" && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-amber-800" style={{ fontSize: "0.8rem" }}>
+                <strong>{selectedCompany.name}</strong> is pending DLO approval. You cannot submit an application until the company is approved. Please check back later or choose a different company.
+              </p>
+            </div>
+          )}
+
           <div>
             <h4 className="flex items-center gap-2 mb-2">
               <GitBranch className="w-4 h-4 text-primary" />
