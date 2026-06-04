@@ -208,11 +208,31 @@ export function usePolling(
   }, [intervalMs, enabled]);
 }
 
-// ── useNotifications: Poll API → sync store → fire toasts for new items ──
+// ── useNotifications: Poll API → sync store → fire toasts + browser push ──
+
+function requestPushPermission() {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+function firePushNotification(title: string, body: string) {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission !== "granted") return;
+  try {
+    new Notification(title, { body, icon: "/favicon.ico", badge: "/favicon.ico" });
+  } catch {
+    // Some environments block new Notification() — ignore
+  }
+}
 
 export function useNotifications(enabled = true) {
   const seenIdsRef = useRef<Set<string>>(new Set());
   const isFirstFetchRef = useRef(true);
+
+  // Request browser permission once on mount
+  useEffect(() => { if (enabled) requestPushPermission(); }, [enabled]);
 
   const fetchAndSync = useCallback(async () => {
     try {
@@ -237,14 +257,12 @@ export function useNotifications(enabled = true) {
       // Update the store (this triggers badge + panel reactivity)
       setNotifications(normalised);
 
-      // Fire toast for each new unread item — but skip on first load
+      // Fire toast + browser push for each new unread item — skip on first load
       if (!isFirstFetchRef.current && newUnread.length > 0) {
         newUnread.slice(0, 3).forEach((n) => {
           const toastFn = n.type === "escalation" ? toast.error : toast;
-          toastFn(n.title, {
-            description: n.message,
-            duration: 5000,
-          });
+          toastFn(n.title, { description: n.message, duration: 5000 });
+          firePushNotification(n.title, n.message);
         });
         if (newUnread.length > 3) {
           toast(`+${newUnread.length - 3} more notifications`, { duration: 4000 });
@@ -261,7 +279,5 @@ export function useNotifications(enabled = true) {
 
   usePolling(fetchAndSync, 30_000, enabled);
 
-  return {
-    refetch: fetchAndSync,
-  };
+  return { refetch: fetchAndSync };
 }

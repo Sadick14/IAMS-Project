@@ -88,7 +88,7 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
     });
   }, []);
 
-  const handleSend = (data: {
+  const handleSend = async (data: {
     title: string;
     message: string;
     priority: "Normal" | "Urgent";
@@ -97,40 +97,58 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
     targets: string[];
     filters: Record<string, string>;
   }) => {
-    // Determine the string representation for targets including filters if applicable
     const formattedTargets = data.targets.map(t => {
       if (t === "Students") {
         const activeFilters = Object.entries(data.filters)
-          .filter(([_, v]) => v !== "")
+          .filter(([, v]) => v !== "")
           .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)}: ${v}`);
         return activeFilters.length > 0 ? `Students (${activeFilters.join(", ")})` : "Students (All)";
       }
       return t;
     });
 
-    // Simple mock math for recipient counts based on targets
-    const recipientCount = data.targets.includes("Students") ? 210 : data.targets.length * 30;
-    
-    setSent((prev) => [
-      {
-        id: `ann-${Date.now()}`,
+    // Map target labels to backend role names
+    const roleMap: Record<string, string> = {
+      "Students": "student", "DLOs": "dlo", "CLO": "clo",
+      "HODs": "hod", "Academic Supervisors": "academic_supervisor",
+      "Industry Supervisors": "industry_supervisor",
+    };
+    const roles = data.targets.map((t) => roleMap[t]).filter(Boolean);
+
+    let recipients = 0;
+    if (data.sendInApp) {
+      const res = await apiClient.broadcastNotification({
         title: data.title,
         message: data.message,
-        targets: formattedTargets,
-        sentAt: new Date().toISOString(),
-        priority: data.priority,
-        pinned: false,
-        readCount: 0,
-        totalRecipients: recipientCount,
-      },
-      ...prev,
-    ]);
-    
+        type: "system",
+        priority: data.priority === "Urgent" ? "urgent" : "normal",
+        roles: roles.length > 0 ? roles : undefined,
+      });
+      if (res.success) {
+        recipients = (res.data as any)?.recipients ?? 0;
+      } else {
+        toast.error(res.message ?? "Failed to send announcement.");
+        return;
+      }
+    }
+
+    setSent((prev) => [{
+      id: `ann-${Date.now()}`,
+      title: data.title,
+      message: data.message,
+      targets: formattedTargets,
+      sentAt: new Date().toISOString(),
+      priority: data.priority,
+      pinned: false,
+      readCount: 0,
+      totalRecipients: recipients,
+    }, ...prev]);
+
     const deliveryMethods = [];
-    if (data.sendInApp) deliveryMethods.push("In-App");
+    if (data.sendInApp) deliveryMethods.push(`In-App (${recipients} recipients)`);
     if (data.sendEmail) deliveryMethods.push("Email");
-    
-    toast.success(`Announcement sent successfully via ${deliveryMethods.join(" & ")}!`);
+
+    toast.success(`Announcement sent via ${deliveryMethods.join(" & ")}!`);
     setShowCompose(false);
   };
 

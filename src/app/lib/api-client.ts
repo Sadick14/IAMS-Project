@@ -1027,6 +1027,19 @@ export const apiClient = {
     return requestApi<null>(API_ENDPOINTS.NOTIFICATIONS_READ_ALL, { method: "POST" });
   },
 
+  async broadcastNotification(data: {
+    title: string;
+    message: string;
+    type?: string;
+    priority?: "normal" | "urgent";
+    roles?: string[];
+  }): Promise<ApiResponse<{ recipients: number } | null>> {
+    return requestApi<{ recipients: number } | null>("/api/v1/notifications/broadcast", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // DASHBOARDS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
