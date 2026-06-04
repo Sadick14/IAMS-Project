@@ -121,11 +121,11 @@ export function ApplicationTracker({
     openPlacementLetter({
       studentName: myApp.student?.user?.name ?? myApp.studentName ?? "Student",
       studentId: myApp.student?.student_id ?? myApp.studentId ?? "—",
-      department: myApp.student?.department ?? myApp.department ?? "—",
+      department: myApp.student?.department?.name ?? myApp.student?.department ?? myApp.department ?? "—",
       level: myApp.student?.level ?? myApp.level ?? "—",
       companyName,
       companyAddress,
-      supervisorName,
+      supervisorName: myApp.internship?.academic_supervisor?.user?.name ?? supervisorName,
       startDate: myApp.proposed_start_date,
       endDate: myApp.proposed_end_date,
     });
@@ -134,7 +134,8 @@ export function ApplicationTracker({
   const handleCancelApplication = async () => {
     if (!myApp?.id) return;
     try {
-      const res = await apiClient.deleteApplication(String(myApp.id));
+      // Use withdraw (not delete) — delete only works on drafts
+      const res = await apiClient.withdrawApplication(String(myApp.id));
       if (res.success) {
         toast.success("Application cancelled. You can now apply with a different company.");
         onCancelApplication?.();

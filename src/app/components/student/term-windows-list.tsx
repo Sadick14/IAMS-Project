@@ -90,7 +90,7 @@ export function TermWindowsList({
                     <div>
                       <h3 className="font-semibold text-foreground text-sm">{termName}</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {termType === "Semestrial" ? "📚 Semestrial" : "🏖️ Vacation"}
+                        {termType === "regular" ? "📚 Semestrial" : "🏖️ Vacation"}
                       </p>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${statusStyle.text} bg-white dark:bg-background`}>

@@ -114,7 +114,7 @@ export function StudentApplicationsPage() {
     Promise.all([
       apiClient.getApplications(),
       apiClient.getTerms(),
-      apiClient.getCompanies(),
+      apiClient.getCompanies({ status: "approved" }),
     ]).then(([appsRes, termsRes, companiesRes]) => {
       if (appsRes.success && appsRes.data.length > 0) {
         const sorted = [...appsRes.data].sort((a, b) =>
@@ -137,8 +137,9 @@ export function StudentApplicationsPage() {
   const draftKey  = `application_form_${user?.id ?? "anon"}`;
   const stepKey   = `application_step_${user?.id ?? "anon"}`;
 
-  // Check if student has a pending application
-  const hasPendingApplication = myApp && !["rejected", "completed"].includes((myApp.status ?? "").toLowerCase());
+  // Draft is not a real pending application — it means a previous submit half-failed.
+  // Exclude it so students aren't permanently blocked by an orphan backend draft.
+  const hasPendingApplication = myApp && !["rejected", "completed", "draft"].includes((myApp.status ?? "").toLowerCase());
 
   const hasMeaningfulDraft = useCallback((f: FormData, s: number) =>
     s > 1 || !!f.termId || !!f.selectedCompanyId || !!f.newCompanyName, []);
