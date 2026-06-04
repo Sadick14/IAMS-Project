@@ -692,12 +692,17 @@ export const apiClient = {
   },
 
   async getStudentProfile(userId: string): Promise<ApiResponse<any | null>> {
-    // Fetch student profile by user ID
-    const res = await requestApi<any[]>(API_ENDPOINTS.STUDENTS, { query: { user_id: userId } });
-    if (res.success && res.data && res.data.length > 0) {
-      return { success: true, data: res.data[0], message: res.message };
-    }
-    return { success: false, data: null, message: "Student profile not found" };
+    const res = await requestApi<any>(API_ENDPOINTS.STUDENTS, { query: { user_id: userId } });
+    if (!res.success) return { success: false, data: null, message: res.message };
+    const payload = res.data as any;
+    // Student role returns { data: { student: {...} } }; admin returns paginated list
+    const profile =
+      payload?.student ??
+      (Array.isArray(payload?.students) ? payload.students[0] : null) ??
+      (Array.isArray(payload?.data) ? payload.data[0] : null) ??
+      (Array.isArray(payload) ? payload[0] : null);
+    if (!profile) return { success: false, data: null, message: "Student profile not found" };
+    return { success: true, data: profile, message: res.message };
   },
 
   async updateUser(id: string, data: Record<string, any>): Promise<ApiResponse<any | null>> {

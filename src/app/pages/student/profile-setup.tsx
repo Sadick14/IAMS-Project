@@ -98,13 +98,15 @@ export function StudentProfileSetup() {
             const res = await apiClient.getStudentProfile(String(user.id));
             if (res.success && res.data) {
               const profile = res.data;
-              setFullName(profile.name || user?.name || "");
-              setEmail(profile.email || user?.email || "");
+              setFullName(profile.name || profile.user?.name || user?.name || "");
+              setEmail(profile.email || profile.user?.email || user?.email || "");
               setPhone(profile.phone || "");
-              setEmergencyContact(profile.emergency_contact || "");
+              // emergency_contact is aliased from emergency_contact_name by the backend
+              setEmergencyContact(profile.emergency_contact || profile.emergency_contact_name || "");
               setEmergencyPhone(profile.emergency_contact_phone || "");
               setStudentId(profile.student_id || (user?.email ? user.email.split("@")[0] : ""));
-              setDepartment(profile.department || "");
+              // department may be a relation object {id, name} or a plain string
+              setDepartment(profile.department_name || (typeof profile.department === "string" ? profile.department : profile.department?.name) || "");
               setProgram(profile.program || "");
               setLevel(String(profile.level || "200"));
               setCgpa(profile.cgpa ? String(profile.cgpa) : "");
