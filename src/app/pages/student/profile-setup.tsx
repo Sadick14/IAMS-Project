@@ -49,7 +49,7 @@ export function StudentProfileSetup() {
   const [completionPercentage, setCompletionPercentage] = useState(0);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Load draft from localStorage on mount
+  // Load draft from localStorage on mount and auto-fill student ID from email
   useEffect(() => {
     const draftKey = `profile_setup_draft_${user?.id}`;
     try {
@@ -57,11 +57,11 @@ export function StudentProfileSetup() {
       if (saved) {
         const draft = JSON.parse(saved);
         setFullName(draft.fullName || "");
-        setEmail(draft.email || "");
+        setEmail(draft.email || user?.email || "");
         setPhone(draft.phone || "");
         setEmergencyContact(draft.emergencyContact || "");
         setEmergencyPhone(draft.emergencyPhone || "");
-        setStudentId(draft.studentId || "");
+        setStudentId(draft.studentId || (user?.email ? user.email.split("@")[0] : ""));
         setDepartment(draft.department || "");
         setLevel(draft.level || "200");
         setCurrentCourses(draft.currentCourses || "");
@@ -79,11 +79,16 @@ export function StudentProfileSetup() {
         setCertifications(draft.certifications || "");
         setPastExperience(draft.pastExperience || "");
         setInterests(draft.interests || "");
+      } else {
+        // If no draft, still auto-fill student ID from email
+        if (user?.email) {
+          setStudentId(user.email.split("@")[0]);
+        }
       }
     } catch (err) {
       console.error("Failed to load draft:", err);
     }
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   // Auto-save draft to localStorage
   useEffect(() => {
