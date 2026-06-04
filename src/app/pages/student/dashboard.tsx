@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { StatusBadge } from "../../components/status-badge";
-import { BookMarked, Clock, Award, ArrowRight, Calendar, MapPin, Mail, User, AlertCircle, CheckCircle2, Zap } from "lucide-react";
+import { BookMarked, Clock, Award, ArrowRight, Calendar, MapPin, Mail, User, AlertCircle, CheckCircle2, Zap, FileText, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router";
 
 export function StudentDashboard() {
@@ -67,8 +67,8 @@ export function StudentDashboard() {
                 <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name?.split(" ")[0]}!</h1>
                 <p className="opacity-90 text-sm">Always stay updated with your internship progress</p>
               </div>
-              <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10">
-                <div className="text-9xl">🎓</div>
+              <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 flex items-center justify-center">
+                <Award className="w-40 h-40" />
               </div>
             </div>
           ) : (
@@ -252,16 +252,16 @@ export function StudentDashboard() {
             <h3 className="font-bold">Quick Access</h3>
             <div className="space-y-2">
               {[
-                { label: "My Profile", icon: "👤", action: () => navigate("/student/profile-setup") },
-                { label: "Documents", icon: "📄", action: () => navigate("/student/documents") },
-                { label: "Messages", icon: "💬", action: () => navigate("/student/communications") },
+                { label: "My Profile", Icon: User, action: () => navigate("/student/profile-setup") },
+                { label: "Documents", Icon: FileText, action: () => navigate("/student/documents") },
+                { label: "Messages", Icon: MessageSquare, action: () => navigate("/student/communications") },
               ].map((item) => (
                 <button
                   key={item.label}
                   onClick={item.action}
                   className="w-full flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/40 hover:shadow-sm transition-all text-left"
                 >
-                  <span className="text-xl">{item.icon}</span>
+                  <item.Icon className="w-5 h-5 text-primary" />
                   <span className="font-medium text-sm flex-1">{item.label}</span>
                   <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 </button>
