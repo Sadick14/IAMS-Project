@@ -61,10 +61,11 @@ export interface AuthResponse {
     email: string;
     role: "clo" | "dlo" | "student" | "supervisor" | "academic" | "hod";
     department?: string;
+    department_id?: number;
     avatar?: string;
     studentId?: string;
   };
-  token: string; // JWT or session token
+  token: string;
   expiresAt: string;
 }
 

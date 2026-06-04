@@ -1033,6 +1033,7 @@ export const apiClient = {
     type?: string;
     priority?: "normal" | "urgent";
     roles?: string[];
+    department_id?: number;
   }): Promise<ApiResponse<{ recipients: number } | null>> {
     return requestApi<{ recipients: number } | null>("/api/v1/notifications/broadcast", {
       method: "POST",

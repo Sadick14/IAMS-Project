@@ -24,6 +24,19 @@ interface SentAnnouncement {
   totalRecipients: number;
 }
 
+// Map UI audience label → backend role name
+const ROLE_MAP: Record<string, string> = {
+  "Everyone": "",                                    // empty = all roles
+  "Students": "student",
+  "Students in my department": "student",
+  "DLOs": "dlo",
+  "HODs": "hod",
+  "HOD of my department": "hod",
+  "Academic Supervisors": "academic_supervisor",
+  "Academic Supervisors in my department": "academic_supervisor",
+  "Industry Supervisors": "industry_supervisor",
+};
+
 export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
   const { user } = useAppContext();
   const [search, setSearch] = useState("");
@@ -108,12 +121,15 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
     });
 
     // Map target labels to backend role names
-    const roleMap: Record<string, string> = {
-      "Students": "student", "DLOs": "dlo", "CLO": "clo",
-      "HODs": "hod", "Academic Supervisors": "academic_supervisor",
-      "Industry Supervisors": "industry_supervisor",
-    };
-    const roles = data.targets.map((t) => roleMap[t]).filter(Boolean);
+    const roles = data.targets
+      .map((t) => ROLE_MAP[t])
+      .filter((r): r is string => r !== undefined && r !== ""); // "" = everyone → omit roles filter
+
+    // "Everyone" selected means omit roles (backend defaults to all roles)
+    const isEveryone = data.targets.includes("Everyone");
+
+    // DLO always broadcasts within their department
+    const deptScoped = viewRole === "dlo" || data.targets.some((t) => t.includes("my department"));
 
     let recipients = 0;
     if (data.sendInApp) {
@@ -122,7 +138,11 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
         message: data.message,
         type: "system",
         priority: data.priority === "Urgent" ? "urgent" : "normal",
-        roles: roles.length > 0 ? roles : undefined,
+        roles: isEveryone ? undefined : (roles.length > 0 ? roles : undefined),
+        // Use department_id from user object (set for DLO users)
+        department_id: deptScoped
+          ? ((user as any)?.department_id ?? undefined)
+          : undefined,
       });
       if (res.success) {
         recipients = (res.data as any)?.recipients ?? 0;

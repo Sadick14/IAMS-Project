@@ -61,12 +61,23 @@ export function AnnouncementComposer({ viewRole, onClose, onSend }: Props) {
     }, 0);
   };
 
-  // Hierarchy Selection
-  // DLOs can broadcast to: Students, Academic Supervisors, Industry Supervisors
-  // CLO can do everything.
-  const baseTargetOptions = viewRole === "clo" 
-    ? ["All Institutions", "All DLOs", "Academic Supervisors", "Industry Supervisors", "Students"]
-    : ["Students", "Academic Supervisors", "Industry Supervisors"];
+  // CLO → institution-wide options (each maps to one backend role)
+  // DLO → same groups but scoped to their department on the backend
+  const baseTargetOptions = viewRole === "clo"
+    ? [
+        "Everyone",
+        "Students",
+        "DLOs",
+        "HODs",
+        "Academic Supervisors",
+        "Industry Supervisors",
+      ]
+    : [
+        "Students in my department",
+        "Academic Supervisors in my department",
+        "Industry Supervisors",
+        "HOD of my department",
+      ];
     
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
 
