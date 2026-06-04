@@ -140,24 +140,33 @@ export function StudentDashboard() {
                   <p className="text-sm mb-4">Congratulations! Your application for <span className="font-semibold">{pendingApplication?.company?.name || "a position"}</span> has been approved by the DLO.</p>
                   <div className="space-y-3 mb-4">
                     <div>
-                      <p className="text-sm font-semibold mb-2">📋 <strong>Required Actions (to activate internship):</strong></p>
+                      <p className="text-sm font-semibold mb-2">📄 <strong>Download Required Documents:</strong></p>
+                      <ul className="list-disc list-inside text-sm space-y-1">
+                        <li><span className="font-semibold">Placement Letter</span> - Download from Documents</li>
+                        <li><span className="font-semibold">Company Acceptance Form</span> - Download from Documents</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-2">✍️ <strong>Next Steps:</strong></p>
                       <ul className="list-decimal list-inside text-sm space-y-1">
-                        <li>Download Placement Letter from Applications tab</li>
-                        <li>Get Company Acceptance Form from your DLO</li>
-                        <li>Have company/supervisor sign the form</li>
-                        <li>Submit the signed form to activate your internship</li>
+                        <li>Print or provide the documents to the company</li>
+                        <li>Have the company/supervisor sign the acceptance form</li>
+                        <li>Return to Documents tab and upload the signed form</li>
+                        <li>Once uploaded, your internship becomes active</li>
                       </ul>
                     </div>
                     <p className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-100/50 dark:bg-emerald-900/30 p-2 rounded">
-                      ⚠️ You cannot apply for another internship until you submit the company acceptance form and this internship becomes active.
+                      ⚠️ You cannot apply for another internship until you submit the signed company acceptance form.
                     </p>
                   </div>
-                  <button
-                    onClick={() => navigate("/student/applications")}
-                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
-                  >
-                    View Documents <ArrowRight className="w-4 h-4 inline ml-2" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate("/student/documents")}
+                      className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                    >
+                      Download Documents <ArrowRight className="w-4 h-4 inline ml-2" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

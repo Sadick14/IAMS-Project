@@ -487,11 +487,18 @@ export function StudentApplicationsPage() {
                 </p>
                 {myApp.status?.toLowerCase() === "approved" ? (
                   <p className="text-amber-700 dark:text-amber-300 mt-2 text-xs">
-                    Your application has been approved! You must <span className="font-semibold">download the placement letter and company acceptance form</span>, have the company sign it, and <span className="font-semibold">submit it</span> to activate your internship. Only then can you apply for another internship.
+                    Your application has been approved! Go to <span className="font-semibold">Documents</span> to:
+                    <ul className="list-decimal list-inside mt-1 space-y-0.5">
+                      <li>Download the Placement Letter</li>
+                      <li>Download the Company Acceptance Form</li>
+                      <li>Have the company sign it</li>
+                      <li>Upload the signed form</li>
+                    </ul>
+                    Only then can you apply for another internship.
                   </p>
                 ) : (
                   <p className="text-amber-700 dark:text-amber-300 mt-2 text-xs">
-                    You can apply for another internship only if your current application is <span className="font-semibold">rejected</span> or the company acceptance form is <span className="font-semibold">submitted</span> and your internship becomes active.
+                    You can apply for another internship only if your current application is <span className="font-semibold">rejected</span> or you've <span className="font-semibold">submitted the company acceptance form</span> and your internship is active.
                   </p>
                 )}
               </div>
