@@ -327,36 +327,31 @@ export const apiClient = {
       student_role?: string;
       placement_department?: string;
       acceptance_notes?: string;
-    },
-    acceptanceFormFile?: File
-  ): Promise<ApiResponse<ApplicationResponse | null>> {
-    // If file is provided, use FormData to send both form fields and file
-    if (acceptanceFormFile) {
-      const formData = new FormData();
-      // Add form fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (value) formData.append(key, value);
-      });
-      // Add file
-      formData.append("acceptance_form", acceptanceFormFile);
-
-      return requestApi<ApplicationResponse | null>(
-        replacePathParams("/api/v1/applications/:id/accept", { id }),
-        {
-          method: "PATCH",
-          body: formData,
-        }
-      );
+      acceptance_form_url?: string;
     }
-
-    // If no file, send as JSON
+  ): Promise<ApiResponse<ApplicationResponse | null>> {
     return requestApi<ApplicationResponse | null>(
       replacePathParams("/api/v1/applications/:id/accept", { id }),
-      {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }
+      { method: "PATCH", body: JSON.stringify(data) }
     );
+  },
+
+  async uploadFile(file: File, folder = "iams"): Promise<ApiResponse<{ url: string; public_id: string } | null>> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", folder);
+    const requestHeaders = new Headers();
+    requestHeaders.set("Accept", "application/json");
+    const currentToken = getApiAuthToken();
+    if (currentToken) requestHeaders.set("Authorization", `Bearer ${currentToken}`);
+    const response = await fetch(buildApiUrl("/api/v1/upload"), {
+      method: "POST",
+      headers: requestHeaders,
+      body: formData,
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { success: false, data: null, message: body?.message ?? "Upload failed" };
+    return { success: true, data: body?.data ?? null, message: body?.message };
   },
 
   async withdrawApplication(id: string): Promise<ApiResponse<null>> {
