@@ -28,6 +28,7 @@ export interface StoreState {
   companies: Company[];
   branches: Branch[];
   notifications: Notification[];
+  announcementUnread: number;
   auditLogs: AuditLog[];
   terms: Term[];
   logbookEntries: LogbookEntry[];
@@ -47,6 +48,7 @@ function getInitialState(): StoreState {
     companies: [],
     branches: [],
     notifications: [],
+    announcementUnread: 0,
     auditLogs: [],
     terms: [],
     logbookEntries: [],
@@ -168,6 +170,11 @@ export function markNotificationRead(id: string) {
 
 export function setNotifications(notifications: Notification[]) {
   state = { ...state, notifications };
+  notify();
+}
+
+export function setAnnouncementUnread(count: number) {
+  state = { ...state, announcementUnread: count };
   notify();
 }
 

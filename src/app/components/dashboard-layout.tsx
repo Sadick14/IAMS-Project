@@ -184,7 +184,7 @@ export function DashboardLayout() {
   }
 
   const nav = getNavForRole(user.role);
-  const unread = store.notifications.filter((n) => !n.read).length;
+  const unread = store.notifications.filter((n) => !n.read).length + (store.announcementUnread ?? 0);
 
   // Per-role nav badges. Recomputed on every store change because `store` is reactive.
   const navBadges: Record<NonNullable<NavItem["badgeKey"]>, number> = {

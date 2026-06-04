@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ApiResponse } from "../types/api";
 import { apiClient } from "./api-client";
-import { setNotifications } from "./store";
+import { setNotifications, setAnnouncementUnread } from "./store";
 import { toast } from "sonner";
 
 // ── useAsync: Generic async operation hook ──
@@ -268,6 +268,14 @@ export function useNotifications(enabled = true) {
           toast(`+${newUnread.length - 3} more notifications`, { duration: 4000 });
         }
       }
+
+      // Also poll announcement unread count and sync to store
+      try {
+        const annRes = await apiClient.getAnnouncementUnreadCount();
+        if (annRes.success && annRes.data) {
+          setAnnouncementUnread((annRes.data as any).unread_count ?? 0);
+        }
+      } catch { /* silent */ }
 
       // Mark all current IDs as seen
       seenIdsRef.current = new Set(normalised.map((n) => n.id));

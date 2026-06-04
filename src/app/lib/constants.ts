@@ -327,6 +327,13 @@ export const API_ENDPOINTS = {
   NOTIFICATION_READ: "/api/v1/notifications/:id/read",
   NOTIFICATIONS_READ_ALL: "/api/v1/notifications/read-all",
 
+  // Announcements (dedicated table)
+  ANNOUNCEMENTS: "/api/v1/announcements",
+  ANNOUNCEMENT_UNREAD_COUNT: "/api/v1/announcements/unread-count",
+  ANNOUNCEMENT_READ: "/api/v1/announcements/:id/read",
+  ANNOUNCEMENT_PIN: "/api/v1/announcements/:id/pin",
+  ANNOUNCEMENT_DELETE: "/api/v1/announcements/:id",
+
   // Messages (not yet implemented in backend — calls will fail gracefully)
   THREADS: "/api/v1/messages/threads",
   THREAD_MESSAGES: "/api/v1/messages/threads/:id",

@@ -1027,6 +1027,63 @@ export const apiClient = {
     return requestApi<null>(API_ENDPOINTS.NOTIFICATIONS_READ_ALL, { method: "POST" });
   },
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ANNOUNCEMENTS (dedicated table)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  async getAnnouncements(filters?: { unread_only?: boolean; per_page?: number }): Promise<ApiResponse<any[]>> {
+    const response = await requestApi<unknown>(API_ENDPOINTS.ANNOUNCEMENTS, {
+      method: "GET",
+      query: filters as Record<string, unknown>,
+    });
+    return {
+      success: response.success,
+      data: response.success ? extractCollection<any>(response, "announcements") : [],
+      message: response.message,
+    };
+  },
+
+  async getAnnouncementUnreadCount(): Promise<ApiResponse<{ unread_count: number } | null>> {
+    return requestApi<{ unread_count: number } | null>(API_ENDPOINTS.ANNOUNCEMENT_UNREAD_COUNT, { method: "GET" });
+  },
+
+  async createAnnouncement(data: {
+    title: string;
+    message: string;
+    priority?: "low" | "normal" | "high" | "urgent";
+    target_roles?: string[];
+    target_department_id?: number;
+    student_level?: number;
+    term_type?: string;
+    placement_status?: string;
+  }): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(API_ENDPOINTS.ANNOUNCEMENTS, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async markAnnouncementRead(id: string): Promise<ApiResponse<null>> {
+    return requestApi<null>(
+      replacePathParams(API_ENDPOINTS.ANNOUNCEMENT_READ, { id }),
+      { method: "POST" }
+    );
+  },
+
+  async pinAnnouncement(id: string): Promise<ApiResponse<{ pinned: boolean } | null>> {
+    return requestApi<{ pinned: boolean } | null>(
+      replacePathParams(API_ENDPOINTS.ANNOUNCEMENT_PIN, { id }),
+      { method: "PATCH" }
+    );
+  },
+
+  async deleteAnnouncement(id: string): Promise<ApiResponse<null>> {
+    return requestApi<null>(
+      replacePathParams(API_ENDPOINTS.ANNOUNCEMENT_DELETE, { id }),
+      { method: "DELETE" }
+    );
+  },
+
   async broadcastNotification(data: {
     title: string;
     message: string;
