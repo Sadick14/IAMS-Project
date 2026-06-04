@@ -14,6 +14,7 @@ import {
   Loader2,
   RotateCcw,
   Save,
+  AlertCircle,
 } from "lucide-react";
 
 import { TermSelector } from "../../components/student/term-selector";
@@ -135,6 +136,9 @@ export function StudentApplicationsPage() {
   // Per-user draft keys so drafts don't bleed between accounts
   const draftKey  = `application_form_${user?.id ?? "anon"}`;
   const stepKey   = `application_step_${user?.id ?? "anon"}`;
+
+  // Check if student has a pending application
+  const hasPendingApplication = myApp && !["rejected", "completed"].includes((myApp.status ?? "").toLowerCase());
 
   const hasMeaningfulDraft = useCallback((f: FormData, s: number) =>
     s > 1 || !!f.termId || !!f.selectedCompanyId || !!f.newCompanyName, []);
@@ -419,13 +423,17 @@ export function StudentApplicationsPage() {
           <button
             key={tab.key}
             type="button"
+            disabled={tab.key === "apply" && hasPendingApplication}
             onClick={() => {
+              if (tab.key === "apply" && hasPendingApplication) return;
               setView(tab.key);
               // Only reset to step 1 when starting fresh (no draft in progress)
               if (tab.key === "apply" && !hasSavedDraft) setStep(1);
             }}
             className={`flex items-center justify-center px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-              view === tab.key
+              tab.key === "apply" && hasPendingApplication
+                ? "bg-muted/30 text-muted-foreground cursor-not-allowed opacity-50"
+                : view === tab.key
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
             }`}
@@ -438,8 +446,26 @@ export function StudentApplicationsPage() {
 
       {view === "windows" && (
         <div className="space-y-4">
+          {/* Pending Application Block */}
+          {hasPendingApplication && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-amber-900 dark:text-amber-100" style={{ fontSize: "0.95rem" }}>
+                  You have a pending internship application
+                </p>
+                <p className="text-amber-800 dark:text-amber-200 mt-1" style={{ fontSize: "0.85rem" }}>
+                  You cannot submit a new application while waiting for approval on your current one. Your application status is: <span className="font-semibold capitalize">{myApp.status}</span>
+                </p>
+                <p className="text-amber-700 dark:text-amber-300 mt-2 text-xs">
+                  Once your current application is either <span className="font-semibold">approved</span>, <span className="font-semibold">rejected</span>, or <span className="font-semibold">completed</span>, you'll be able to submit a new application.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Resume draft banner */}
-          {hasSavedDraft && (
+          {hasSavedDraft && !hasPendingApplication && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
               <Save className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
