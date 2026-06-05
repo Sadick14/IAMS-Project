@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { X, Calendar } from "lucide-react";
+import { X, Calendar, Loader2 } from "lucide-react";
 
 interface RescheduleVisitModalProps {
   isOpen: boolean;
   onClose: () => void;
   visit: any;
   onReschedule: (rescheduleData: { date: string; time: string; reason: string }) => void;
+  isLoading?: boolean;
 }
 
 export function RescheduleVisitModal({
@@ -13,6 +14,7 @@ export function RescheduleVisitModal({
   onClose,
   visit,
   onReschedule,
+  isLoading = false,
 }: RescheduleVisitModalProps) {
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", time: "", reason: "" });
 
@@ -89,11 +91,11 @@ export function RescheduleVisitModal({
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!rescheduleForm.date || !rescheduleForm.time}
+              disabled={!rescheduleForm.date || !rescheduleForm.time || isLoading}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2 font-medium transition-opacity"
               style={{ fontSize: "0.85rem" }}
             >
-              <Calendar className="w-4 h-4" /> Reschedule
+              {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Calendar className="w-4 h-4" /> Reschedule</>}
             </button>
           </div>
         </div>

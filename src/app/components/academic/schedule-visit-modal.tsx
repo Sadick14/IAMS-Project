@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { X, Calendar } from "lucide-react";
+import { X, Calendar, Loader2 } from "lucide-react";
 
 interface ScheduleVisitModalProps {
   isOpen: boolean;
   onClose: () => void;
   assignedStudents: any[];
   onSchedule: (visit: { studentId: string; date: string; time: string; notes: string }) => void;
+  isLoading?: boolean;
 }
 
 export function ScheduleVisitModal({
@@ -13,6 +14,7 @@ export function ScheduleVisitModal({
   onClose,
   assignedStudents,
   onSchedule,
+  isLoading = false,
 }: ScheduleVisitModalProps) {
   const [newVisit, setNewVisit] = useState({
     studentId: "",
@@ -101,11 +103,11 @@ export function ScheduleVisitModal({
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!newVisit.studentId || !newVisit.date || !newVisit.time}
+              disabled={!newVisit.studentId || !newVisit.date || !newVisit.time || isLoading}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2 font-medium transition-opacity"
               style={{ fontSize: "0.85rem" }}
             >
-              <Calendar className="w-4 h-4" /> Schedule Visit
+              {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Scheduling…</> : <><Calendar className="w-4 h-4" /> Schedule Visit</>}
             </button>
           </div>
         </div>

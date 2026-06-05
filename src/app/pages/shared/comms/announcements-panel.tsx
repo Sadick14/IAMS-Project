@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAppContext } from "../../../lib/context";
 import { apiClient } from "../../../lib/api-client";
+import { useToastAction } from "../../../lib/hooks";
 import { TARGET_ROLE_MAP } from "../../../components/announcement-composer";
 import { Megaphone, Send, Pin, X, Eye, Clock, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
   const { user } = useAppContext();
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { execute: sendAction, loading: isSending } = useToastAction();
   const [search, setSearch] = useState("");
   const [showCompose, setShowCompose] = useState(false);
   const [selectedAnn, setSelectedAnn] = useState<any | null>(null);
@@ -41,31 +43,28 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
     term_type?: string;
     placement_status?: string;
   }) => {
-    const isEveryone = data.targets.includes("Everyone");
-    const roles = isEveryone
-      ? undefined
-      : data.targets.map((t) => TARGET_ROLE_MAP[t]).filter((r): r is string => !!r);
+    await sendAction(async () => {
+      const isEveryone = data.targets.includes("Everyone");
+      const roles = isEveryone
+        ? undefined
+        : data.targets.map((t) => TARGET_ROLE_MAP[t]).filter((r): r is string => !!r);
 
-    const deptScoped = viewRole === "dlo" || data.targets.some((t) => t.includes("my department"));
+      const deptScoped = viewRole === "dlo" || data.targets.some((t) => t.includes("my department"));
 
-    const res = await apiClient.createAnnouncement({
-      title: data.title,
-      message: data.message,
-      priority: data.priority,
-      target_roles: roles,
-      target_department_id: deptScoped ? ((user as any)?.department_id ?? undefined) : undefined,
-      student_level: data.student_level,
-      term_type: data.term_type,
-      placement_status: data.placement_status,
-    });
+      const res = await apiClient.createAnnouncement({
+        title: data.title,
+        message: data.message,
+        priority: data.priority,
+        target_roles: roles,
+        target_department_id: deptScoped ? ((user as any)?.department_id ?? undefined) : undefined,
+        student_level: data.student_level,
+        term_type: data.term_type,
+        placement_status: data.placement_status,
+      });
 
-    if (res.success) {
-      toast.success("Announcement sent!");
-      setShowCompose(false);
-      load();
-    } else {
-      toast.error(res.message ?? "Failed to send announcement.");
-    }
+      if (res.success) { setShowCompose(false); load(); }
+      return res;
+    }, { successMessage: "Announcement sent!", errorMessage: "Failed to send announcement." });
   };
 
   const handleMarkRead = async (id: string) => {
@@ -220,7 +219,7 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
 
       {/* Compose modal */}
       {showCompose && (
-        <AnnouncementComposer viewRole={viewRole} onClose={() => setShowCompose(false)} onSend={handleSend} />
+        <AnnouncementComposer viewRole={viewRole} onClose={() => setShowCompose(false)} onSend={handleSend} isSending={isSending} />
       )}
 
       {/* Detail modal */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { X, Upload, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { apiClient } from "../../lib/api-client";
 import { toast } from "sonner";
@@ -34,6 +34,7 @@ export function CompanyAcceptanceModal({
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inFlightRef = useRef(false);
 
   const isValid = supervisorName.trim() && supervisorTitle.trim() && supervisorEmail.trim() &&
     supervisorPhone.trim() && confirmedStartDate && confirmedEndDate && studentRole.trim() &&
@@ -67,6 +68,7 @@ export function CompanyAcceptanceModal({
   };
 
   const handleSubmit = async () => {
+    if (inFlightRef.current) return;
     if (!isValid) {
       toast.error("Please fill in all required fields");
       return;
@@ -77,6 +79,7 @@ export function CompanyAcceptanceModal({
       return;
     }
 
+    inFlightRef.current = true;
     setIsSubmitting(true);
     try {
       const res = await apiClient.submitCompanyAcceptance(applicationId, {
@@ -103,6 +106,7 @@ export function CompanyAcceptanceModal({
       console.error("Submission error:", error);
       toast.error("An error occurred while submitting");
     } finally {
+      inFlightRef.current = false;
       setIsSubmitting(false);
     }
   };

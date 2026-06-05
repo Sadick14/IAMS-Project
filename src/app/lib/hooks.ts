@@ -143,12 +143,15 @@ import { toast } from "sonner";
 
 export function useToastAction() {
   const [loading, setLoading] = useState(false);
+  const inFlightRef = useRef(false);
 
   const execute = useCallback(
     async <T>(
       action: () => Promise<ApiResponse<T>>,
       options?: { successMessage?: string; errorMessage?: string }
     ): Promise<ApiResponse<T> | null> => {
+      if (inFlightRef.current) return null;
+      inFlightRef.current = true;
       setLoading(true);
       try {
         const result = await action();
@@ -162,6 +165,7 @@ export function useToastAction() {
         toast.error(options?.errorMessage || (err as Error).message);
         return null;
       } finally {
+        inFlightRef.current = false;
         setLoading(false);
       }
     },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, CheckCircle2 } from "lucide-react";
+import { X, CheckCircle2, Loader2 } from "lucide-react";
 import { VISITATION_CRITERIA, VisitationCriterionKey, VisitationCriterionRating } from "../../types/grading";
 
 interface CompleteVisitModalProps {
@@ -9,12 +9,14 @@ interface CompleteVisitModalProps {
     observations: string;
     ratings: Record<VisitationCriterionKey, VisitationCriterionRating>;
   }) => void;
+  isLoading?: boolean;
 }
 
 export function CompleteVisitModal({
   isOpen,
   onClose,
   onComplete,
+  isLoading = false,
 }: CompleteVisitModalProps) {
   const [completeForm, setCompleteForm] = useState<{
     observations: string;
@@ -133,11 +135,11 @@ export function CompleteVisitModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!completeForm.observations.trim()}
+            disabled={!completeForm.observations.trim() || isLoading}
             className="px-4 py-2 bg-[#0B5ED7] text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2 transition-opacity font-medium"
             style={{ fontSize: "0.85rem" }}
           >
-            <CheckCircle2 className="w-4 h-4" /> Lock & Submit Score
+            {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : <><CheckCircle2 className="w-4 h-4" /> Lock & Submit Score</>}
           </button>
         </div>
       </div>

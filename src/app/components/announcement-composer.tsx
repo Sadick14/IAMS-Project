@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Megaphone, Send, X, Mail, Bell, CheckCircle2, Bold, Italic, Link as LinkIcon } from "lucide-react";
+import { Megaphone, Send, X, Mail, Bell, CheckCircle2, Bold, Italic, Link as LinkIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ExtendedRole } from "../services/auth-service";
 
@@ -17,6 +17,7 @@ interface Props {
     term_type?: string;
     placement_status?: string;
   }) => void;
+  isSending?: boolean;
 }
 
 // UI label → backend role name
@@ -32,7 +33,7 @@ const TARGET_ROLE_MAP: Record<string, string> = {
   "Industry Supervisors":                  "industry_supervisor",
 };
 
-export function AnnouncementComposer({ viewRole, onClose, onSend }: Props) {
+export function AnnouncementComposer({ viewRole, onClose, onSend, isSending = false }: Props) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [priority, setPriority] = useState<"low" | "normal" | "high" | "urgent">("normal");
@@ -239,9 +240,9 @@ export function AnnouncementComposer({ viewRole, onClose, onSend }: Props) {
         {/* Footer */}
         <div className="flex justify-end gap-3 pt-3 border-t border-border">
           <button onClick={onClose} className="px-4 py-2 border border-border rounded-lg hover:bg-accent text-sm font-medium">Cancel</button>
-          <button onClick={handleSend}
-            className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-sm font-medium shadow-sm">
-            <Send className="w-4 h-4" /> Send Announcement
+          <button onClick={handleSend} disabled={isSending}
+            className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 text-sm font-medium shadow-sm">
+            {isSending ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : <><Send className="w-4 h-4" /> Send Announcement</>}
           </button>
         </div>
       </div>

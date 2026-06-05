@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { StatusBadge } from "../../components/status-badge";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import {
   Search, AlertTriangle, MessageSquare, Download, X,
-  Eye, BookMarked, MapPin, Clock, CheckCircle2, FileText, Award,
+  Eye, BookMarked, MapPin, Clock, CheckCircle2, FileText, Award, Flag,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ExtendedRole } from "../../services/auth-service";
@@ -20,6 +21,7 @@ function normalizeInternship(i: any) {
     id: String(i.id),
     studentName: i.student?.user?.name ?? "—",
     studentId:   i.student?.student_id ?? "—",
+    studentUserId: String(i.student?.user?.id ?? ""),
     companyName: i.company?.name ?? "—",
     department:  i.student?.department?.name ?? i.student?.department ?? "—",
     level:       i.student?.level ?? "—",
@@ -29,13 +31,21 @@ function normalizeInternship(i: any) {
   };
 }
 
+const ROLE_PATH: Record<string, string> = {
+  clo: "clo", dlo: "dlo", student: "student",
+  academic_supervisor: "academic", industry_supervisor: "supervisor", hod: "hod",
+};
+
 export function StudentsPage({ viewRole }: Props) {
   const { user } = useAppContext();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [missed3, setMissed3] = useState<string[]>([]);
+  const [missed7, setMissed7] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"overview" | "scoring">("overview");
 
@@ -62,7 +72,16 @@ export function StudentsPage({ viewRole }: Props) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchStudents(); }, [fetchStudents]);
+  const fetchMissed = useCallback(async () => {
+    const [r3, r7] = await Promise.all([
+      apiClient.getMissedAttendance(3),
+      apiClient.getMissedAttendance(7),
+    ]);
+    if (r3.success) setMissed3(r3.data.map((i: any) => String(i.id)));
+    if (r7.success) setMissed7(r7.data.map((i: any) => String(i.id)));
+  }, []);
+
+  useEffect(() => { fetchStudents(); fetchMissed(); }, [fetchStudents, fetchMissed]);
 
   // Load detail data when a student is selected
   useEffect(() => {
@@ -176,8 +195,30 @@ export function StudentsPage({ viewRole }: Props) {
     }
   };
 
+  const commPath = `/${ROLE_PATH[viewRole] ?? viewRole}/communications`;
+
   return (
     <div className="space-y-6">
+      {/* Missed check-in summary cards */}
+      {(missed3.length > 0 || missed7.length > 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-800">{missed3.length} student{missed3.length !== 1 ? "s" : ""}</p>
+              <p className="text-amber-700" style={{ fontSize: "0.75rem" }}>Missed check-in 3+ days</p>
+            </div>
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+            <div>
+              <p className="font-semibold text-red-800">{missed7.length} student{missed7.length !== 1 ? "s" : ""}</p>
+              <p className="text-red-700" style={{ fontSize: "0.75rem" }}>Missed check-in 7+ days</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -247,8 +288,22 @@ export function StudentsPage({ viewRole }: Props) {
                     className={`border-b border-border last:border-0 hover:bg-muted/20 cursor-pointer ${selectedStudent === s.id ? "bg-primary/5" : ""}`}
                     onClick={() => setSelectedStudent(s.id)}>
                     <td className="px-4 py-3">
-                      <p style={{ fontSize: "0.85rem" }}>{s.studentName}</p>
-                      <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground">{s.studentId}</p>
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <p style={{ fontSize: "0.85rem" }}>{s.studentName}</p>
+                          <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground">{s.studentId}</p>
+                        </div>
+                        {missed7.includes(s.id) && (
+                          <span className="px-1.5 py-0.5 rounded text-white bg-red-500 flex items-center gap-1 shrink-0" style={{ fontSize: "0.65rem" }}>
+                            <Flag className="w-2.5 h-2.5" /> 7d
+                          </span>
+                        )}
+                        {!missed7.includes(s.id) && missed3.includes(s.id) && (
+                          <span className="px-1.5 py-0.5 rounded text-amber-800 bg-amber-200 flex items-center gap-1 shrink-0" style={{ fontSize: "0.65rem" }}>
+                            <Flag className="w-2.5 h-2.5" /> 3d
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                     <td className="px-4 py-3" style={{ fontSize: "0.85rem" }}>{s.companyName}</td>
@@ -259,8 +314,10 @@ export function StudentsPage({ viewRole }: Props) {
                         className="p-1.5 rounded-md hover:bg-accent text-muted-foreground" title="View details">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button onClick={() => toast.info("Use Communications page to send messages.")}
-                        className="p-1.5 rounded-md hover:bg-accent text-muted-foreground" title="Message">
+                      <button
+                        onClick={() => navigate(`${commPath}?tab=messages&recipient=${s.studentUserId}`)}
+                        disabled={!s.studentUserId}
+                        className="p-1.5 rounded-md hover:bg-accent text-muted-foreground disabled:opacity-40" title="Message">
                         <MessageSquare className="w-4 h-4" />
                       </button>
                     </td>

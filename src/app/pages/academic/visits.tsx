@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { MapPin, Plus } from "lucide-react";
-import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
+import { useToastAction } from "../../lib/hooks";
 
 import { ScheduleVisitModal } from "../../components/academic/schedule-visit-modal";
 import { RescheduleVisitModal } from "../../components/academic/reschedule-visit-modal";
@@ -56,66 +56,70 @@ export function AcademicVisitsPage() {
     companyName: i.company?.name ?? "—",
   }));
 
+  const { execute: visitAction, loading: visitLoading } = useToastAction();
+
   const filtered = filter === "All" ? visits : visits.filter((v) => v.status === filter);
   const today = new Date().toISOString().split("T")[0];
   const upcoming = visits.filter((v) => v.status === "Scheduled" && v.date >= today);
   const completed = visits.filter((v) => v.status === "Completed");
 
   const handleScheduleVisit = async (newVisit: { studentId: string; date: string; time: string; notes: string }) => {
-    const res = await apiClient.createSiteVisitation({
-      internship_id: Number(newVisit.studentId),
-      visit_date: newVisit.date,
-      visit_time: newVisit.time || undefined,
-      visit_purpose: newVisit.notes || "Routine site visit",
-    });
-    if (res.success) {
-      toast.success("Site visit scheduled.");
-      setShowNewForm(false);
-      fetchData();
-    } else {
-      toast.error(res.message ?? "Failed to schedule visit.");
-    }
+    await visitAction(async () => {
+      const res = await apiClient.createSiteVisitation({
+        internship_id: Number(newVisit.studentId),
+        visit_date: newVisit.date,
+        visit_time: newVisit.time || undefined,
+        visit_purpose: newVisit.notes || "Routine site visit",
+      });
+      if (res.success) { setShowNewForm(false); fetchData(); }
+      return res;
+    }, { successMessage: "Site visit scheduled.", errorMessage: "Failed to schedule visit." });
   };
 
   const handleCompleteVisit = async (
     visitId: string,
     completeData: { observations: string; ratings: Record<string, number> }
   ) => {
-    const res = await apiClient.completeSiteVisitation(visitId, {
-      observations: completeData.observations,
-      student_performance_notes: completeData.observations,
-    });
-    if (!res.success) { toast.error(res.message ?? "Failed to complete visit."); return; }
+    await visitAction(async () => {
+      const res = await apiClient.completeSiteVisitation(visitId, {
+        observations: completeData.observations,
+        student_performance_notes: completeData.observations,
+      });
+      if (!res.success) return res;
 
-    // Submit the visitation score (rubric)
-    const score = Object.values(completeData.ratings ?? {}).reduce((a, b) => a + Number(b), 0);
-    await apiClient.submitSiteVisitationScore(visitId, {
-      score,
-      max_score: 30,
-      comments: completeData.observations,
-      criteria_breakdown: completeData.ratings,
-    });
+      const score = Object.values(completeData.ratings ?? {}).reduce((a, b) => a + Number(b), 0);
+      await apiClient.submitSiteVisitationScore(visitId, {
+        score,
+        max_score: 30,
+        comments: completeData.observations,
+        criteria_breakdown: completeData.ratings,
+      });
 
-    toast.success("Visit completed and score submitted.");
-    setShowCompleteForm(null);
-    fetchData();
+      setShowCompleteForm(null);
+      fetchData();
+      return res;
+    }, { successMessage: "Visit completed and score submitted.", errorMessage: "Failed to complete visit." });
   };
 
   const handleCancelVisit = async (visitId: string) => {
-    const res = await apiClient.cancelSiteVisitation(visitId);
-    if (res.success) { toast.success("Visit cancelled."); fetchData(); }
-    else toast.error(res.message ?? "Failed to cancel visit.");
+    await visitAction(async () => {
+      const res = await apiClient.cancelSiteVisitation(visitId);
+      if (res.success) fetchData();
+      return res;
+    }, { successMessage: "Visit cancelled.", errorMessage: "Failed to cancel visit." });
   };
 
   const handleRescheduleVisit = async (rescheduleForm: { date: string; time: string; reason: string }) => {
     if (!rescheduleVisitId) return;
-    const res = await apiClient.updateSiteVisitation(rescheduleVisitId, {
-      visit_date: rescheduleForm.date,
-      visit_time: rescheduleForm.time,
-      visit_purpose: rescheduleForm.reason || undefined,
-    });
-    if (res.success) { toast.success("Visit rescheduled."); setRescheduleVisitId(null); fetchData(); }
-    else toast.error(res.message ?? "Failed to reschedule.");
+    await visitAction(async () => {
+      const res = await apiClient.updateSiteVisitation(rescheduleVisitId, {
+        visit_date: rescheduleForm.date,
+        visit_time: rescheduleForm.time,
+        visit_purpose: rescheduleForm.reason || undefined,
+      });
+      if (res.success) { setRescheduleVisitId(null); fetchData(); }
+      return res;
+    }, { successMessage: "Visit rescheduled.", errorMessage: "Failed to reschedule." });
   };
 
   const selectedRescheduleVisit = visits.find((v) => v.id === rescheduleVisitId);
@@ -151,7 +155,7 @@ export function AcademicVisitsPage() {
         </div>
       </div>
 
-      <ScheduleVisitModal isOpen={showNewForm} onClose={() => setShowNewForm(false)} assignedStudents={assignedStudents} onSchedule={handleScheduleVisit} />
+      <ScheduleVisitModal isOpen={showNewForm} onClose={() => setShowNewForm(false)} assignedStudents={assignedStudents} onSchedule={handleScheduleVisit} isLoading={visitLoading} />
 
       {/* Filter Tabs */}
       <div className="flex gap-1.5">
@@ -164,8 +168,8 @@ export function AcademicVisitsPage() {
         ))}
       </div>
 
-      <RescheduleVisitModal isOpen={!!rescheduleVisitId} onClose={() => setRescheduleVisitId(null)} visit={selectedRescheduleVisit} onReschedule={handleRescheduleVisit} />
-      <CompleteVisitModal isOpen={!!showCompleteForm} onClose={() => setShowCompleteForm(null)} onComplete={(d) => showCompleteForm && handleCompleteVisit(showCompleteForm, d)} />
+      <RescheduleVisitModal isOpen={!!rescheduleVisitId} onClose={() => setRescheduleVisitId(null)} visit={selectedRescheduleVisit} onReschedule={handleRescheduleVisit} isLoading={visitLoading} />
+      <CompleteVisitModal isOpen={!!showCompleteForm} onClose={() => setShowCompleteForm(null)} onComplete={(d) => showCompleteForm && handleCompleteVisit(showCompleteForm, d)} isLoading={visitLoading} />
 
       {/* Visits List */}
       {filtered.length === 0 ? (

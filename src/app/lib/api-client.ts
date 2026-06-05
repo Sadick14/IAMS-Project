@@ -814,8 +814,11 @@ export const apiClient = {
     );
   },
 
-  async getMissedAttendance(): Promise<ApiResponse<any[]>> {
-    const response = await requestApi<unknown>(API_ENDPOINTS.ATTENDANCE_MISSED, { method: "GET" });
+  async getMissedAttendance(days?: number): Promise<ApiResponse<any[]>> {
+    const response = await requestApi<unknown>(
+      API_ENDPOINTS.ATTENDANCE_MISSED,
+      { method: "GET", query: days && days > 1 ? { days } : undefined }
+    );
     return {
       success: response.success,
       data: response.success ? extractCollection<any>(response, "internships") : [],

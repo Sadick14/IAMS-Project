@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Bell, MessageSquare, Megaphone } from "lucide-react";
 import { apiClient } from "../../lib/api-client";
 import { NotificationsPanel } from "./comms/notifications-panel";
@@ -13,7 +14,11 @@ interface Props {
 }
 
 export function CommunicationsPage({ viewRole }: Props) {
-  const [activeTab, setActiveTab] = useState<CommTab>("notifications");
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as CommTab) ?? "notifications";
+  const recipientParam = searchParams.get("recipient") ?? undefined;
+
+  const [activeTab, setActiveTab] = useState<CommTab>(initialTab);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const unreadMsgs = 0;
 
@@ -70,7 +75,7 @@ export function CommunicationsPage({ viewRole }: Props) {
 
       {/* Tab Content */}
       {activeTab === "notifications" && <NotificationsPanel />}
-      {activeTab === "messages" && <MessagesPanel />}
+      {activeTab === "messages" && <MessagesPanel preselectedRecipientId={recipientParam} />}
       {activeTab === "announcements" && <AnnouncementsPanel viewRole={viewRole} canCompose={canComposeAnnouncements} />}
     </div>
   );

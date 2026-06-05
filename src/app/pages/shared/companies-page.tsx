@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../../components/status-badge";
 import { apiClient } from "../../lib/api-client";
+import { useToastAction } from "../../lib/hooks";
 import * as Tabs from "@radix-ui/react-tabs";
 
 interface Props {
@@ -42,6 +43,7 @@ export function CompaniesPage({ viewRole }: Props) {
   });
   const [branchLoading, setBranchLoading] = useState(false);
   const [defaultBranchTab, setDefaultBranchTab] = useState(false);
+  const { execute: saveAction, loading: saving } = useToastAction();
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -81,38 +83,46 @@ export function CompaniesPage({ viewRole }: Props) {
     companies.find((c: any) => (c.name ?? "").toLowerCase() === name.toLowerCase());
 
   const handleApproveCompany = async (id: string) => {
-    const r = await apiClient.approveCompany(id);
-    if (r.success) { toast.success(r.message ?? "Company approved."); fetchCompanies(); }
-    else toast.error(r.message ?? "Failed.");
+    await saveAction(async () => {
+      const r = await apiClient.approveCompany(id);
+      if (r.success) fetchCompanies();
+      return r;
+    }, { successMessage: "Company approved.", errorMessage: "Failed to approve company." });
   };
 
   const handleRejectSubmit = async () => {
     if (!rejectModal) return;
     if (!rejectReason.trim()) { toast.error("Please provide a rejection reason."); return; }
-    const r = await apiClient.rejectCompany(rejectModal.id, rejectReason);
-    if (r.success) {
-      toast.success(r.message ?? "Company rejected.");
-      setRejectModal(null); setRejectReason(""); fetchCompanies();
-    } else toast.error(r.message ?? "Failed.");
+    await saveAction(async () => {
+      const r = await apiClient.rejectCompany(rejectModal.id, rejectReason);
+      if (r.success) { setRejectModal(null); setRejectReason(""); fetchCompanies(); }
+      return r;
+    }, { successMessage: "Company rejected.", errorMessage: "Failed to reject company." });
   };
 
   const handleAddCompany = async () => {
-    const payload: Record<string, unknown> = {
-      name: companyForm.name,
-      email: companyForm.contactEmail,
-      phone: companyForm.phone,
-      address: companyForm.address,
-      city: companyForm.city,
-      region: companyForm.region,
-      country: companyForm.country,
-      contact_person_name: companyForm.contactPerson,
-      industry: companyForm.industry || undefined,
-    };
-    const r = await apiClient.createCompany(payload);
-    if (r.success) {
-      toast.success(r.message ?? "Company submitted for approval.");
-      closeAddCompany(); fetchCompanies();
-    } else toast.error(r.message ?? "Failed to create company.");
+    // Hard guard — recheck at submit time in case state drifted
+    const dupAtSubmit = findCompanyByName(companyForm.name);
+    if (dupAtSubmit) {
+      toast.error(`"${companyForm.name}" already exists. Select it from the list to add a branch instead.`);
+      return;
+    }
+    await saveAction(async () => {
+      const payload: Record<string, unknown> = {
+        name: companyForm.name,
+        email: companyForm.contactEmail,
+        phone: companyForm.phone,
+        address: companyForm.address,
+        city: companyForm.city,
+        region: companyForm.region,
+        country: companyForm.country,
+        contact_person_name: companyForm.contactPerson,
+        industry: companyForm.industry || undefined,
+      };
+      const r = await apiClient.createCompany(payload);
+      if (r.success) { closeAddCompany(); fetchCompanies(); }
+      return r;
+    }, { successMessage: "Company submitted for approval.", errorMessage: "Failed to create company." });
   };
 
   const closeAddCompany = () => {
@@ -368,8 +378,8 @@ export function CompaniesPage({ viewRole }: Props) {
                   </button>
                   {approvalStatus === "pending" && (
                     <>
-                      <button onClick={() => handleApproveCompany(companyId)}
-                        className="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg hover:opacity-90 flex items-center justify-center gap-1 transition-opacity"
+                      <button onClick={() => handleApproveCompany(companyId)} disabled={saving}
+                        className="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1 transition-opacity"
                         style={{ fontSize: "0.8rem" }}>
                         <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                       </button>
@@ -620,13 +630,13 @@ export function CompaniesPage({ viewRole }: Props) {
 
             {selected.approval_status === "pending" && (
               <div className="border-t border-border p-4 flex gap-2">
-                <button onClick={() => handleApproveCompany(String(selected.id))}
-                  className="flex-1 py-2 bg-emerald-600 text-white rounded-lg hover:opacity-90 flex items-center justify-center gap-1"
+                <button onClick={() => handleApproveCompany(String(selected.id))} disabled={saving}
+                  className="flex-1 py-2 bg-emerald-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1"
                   style={{ fontSize: "0.8rem" }}>
                   <CheckCircle2 className="w-4 h-4" /> Approve
                 </button>
-                <button onClick={() => setRejectModal({ id: String(selected.id) })}
-                  className="flex-1 py-2 border border-destructive text-destructive rounded-lg hover:bg-red-50 flex items-center justify-center gap-1"
+                <button onClick={() => setRejectModal({ id: String(selected.id) })} disabled={saving}
+                  className="flex-1 py-2 border border-destructive text-destructive rounded-lg hover:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-1"
                   style={{ fontSize: "0.8rem" }}>
                   <XCircle className="w-4 h-4" /> Reject
                 </button>
@@ -650,7 +660,7 @@ export function CompaniesPage({ viewRole }: Props) {
               style={{ fontSize: "0.85rem" }} />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setRejectModal(null)} className="px-4 py-2 border border-border rounded-lg hover:bg-accent" style={{ fontSize: "0.85rem" }}>Cancel</button>
-              <button onClick={handleRejectSubmit} className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90" style={{ fontSize: "0.85rem" }}>Reject</button>
+              <button onClick={handleRejectSubmit} disabled={saving} className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90 disabled:opacity-50" style={{ fontSize: "0.85rem" }}>Reject</button>
             </div>
           </div>
         </div>
@@ -703,11 +713,18 @@ export function CompaniesPage({ viewRole }: Props) {
                     <p className="text-muted-foreground italic" style={{ fontSize: "0.75rem" }}>No matches found.</p>
                   )}
                   {!exactNameMatch && (
-                    <button type="button" onClick={() => setCommittedNew(true)}
-                      className="w-full p-2.5 rounded-lg border-2 border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 text-primary flex items-center justify-center gap-2"
-                      style={{ fontSize: "0.85rem" }}>
-                      <Plus className="w-4 h-4" /> Register "{companyNameQuery}" as new
-                    </button>
+                    <div className="space-y-2">
+                      {companyNameMatches.length > 0 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800" style={{ fontSize: "0.75rem" }}>
+                          <strong>Warning:</strong> {companyNameMatches.length} similar compan{companyNameMatches.length === 1 ? "y" : "ies"} found above. Only proceed if this is genuinely a different company.
+                        </div>
+                      )}
+                      <button type="button" onClick={() => setCommittedNew(true)}
+                        className="w-full p-2.5 rounded-lg border-2 border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 text-primary flex items-center justify-center gap-2"
+                        style={{ fontSize: "0.85rem" }}>
+                        <Plus className="w-4 h-4" /> Register "{companyNameQuery}" as new
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
@@ -744,7 +761,7 @@ export function CompaniesPage({ viewRole }: Props) {
 
             <div className="flex gap-2 justify-end pt-2 border-t border-border">
               <button onClick={closeAddCompany} className="px-4 py-2 border border-border rounded-lg hover:bg-accent" style={{ fontSize: "0.85rem" }}>Cancel</button>
-              <button onClick={handleAddCompany} disabled={!committedNew || !!exactNameMatch}
+              <button onClick={handleAddCompany} disabled={!committedNew || !!exactNameMatch || saving}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
                 style={{ fontSize: "0.85rem" }}>
                 <Plus className="w-4 h-4" /> Submit
