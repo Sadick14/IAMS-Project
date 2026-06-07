@@ -85,9 +85,19 @@ export function StudentHistoryPage() {
     try {
       const res = await apiClient.getInternshipLogbooks(internshipId, { per_page: 100 });
       if (res.success) {
-        setLogbookMap((prev) => ({ ...prev, [internshipId]: res.data ?? [] }));
+        const logbooks = Array.isArray(res.data) ? res.data : res.data?.logbooks ?? [];
+        console.log(`Loaded ${logbooks.length} logbooks for internship ${internshipId}:`, logbooks);
+        // Sort by date descending
+        const sorted = [...logbooks].sort((a, b) =>
+          new Date(b.entry_date || b.created_at).getTime() - new Date(a.entry_date || a.created_at).getTime()
+        );
+        setLogbookMap((prev) => ({ ...prev, [internshipId]: sorted }));
+      } else {
+        console.warn("Failed to load logbooks:", res.message);
+        toast.error("Failed to load logbook entries: " + (res.message || "Unknown error"));
       }
     } catch (error) {
+      console.error("Logbook load error:", error);
       toast.error("Failed to load logbook entries");
     } finally {
       setLoadingMap(prev => ({
@@ -280,32 +290,45 @@ export function StudentHistoryPage() {
 
               {/* Logbooks Tab */}
               {currentTab === "logbooks" && (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                <div className="space-y-2">
                   {loadingMap[id]?.logbooks ? (
-                    <p className="text-muted-foreground text-xs text-center py-3">Loading...</p>
+                    <p className="text-muted-foreground text-xs text-center py-3">Loading logbooks...</p>
                   ) : logbookMap[id] && logbookMap[id].length > 0 ? (
-                    <>
-                      {logbookMap[id].map((entry) => (
-                        <div key={entry.id} className="p-2 bg-card rounded border border-border/50">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="text-xs font-medium">
-                              {new Date(entry.entry_date).toLocaleDateString()}
-                            </span>
-                            <StatusBadge status={entry.status} />
+                    <div className="space-y-2">
+                      <div className="max-h-[350px] overflow-y-auto space-y-2">
+                        {logbookMap[id].map((entry) => (
+                          <div key={entry.id} className="p-3 bg-card rounded border border-border/50">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-xs font-medium">
+                                {new Date(entry.entry_date || entry.created_at).toLocaleDateString()}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                entry.status === "approved"  ? "bg-emerald-100 text-emerald-700" :
+                                entry.status === "rejected"  ? "bg-red-100 text-red-700" :
+                                entry.status === "submitted" ? "bg-blue-100 text-blue-700" :
+                                entry.status === "revision_requested" ? "bg-orange-100 text-orange-700" :
+                                                                       "bg-amber-100 text-amber-700"
+                              }`}>
+                                {entry.status || "draft"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-foreground line-clamp-2">{entry.activities_description}</p>
                           </div>
-                          <p className="text-xs text-foreground line-clamp-2">{entry.activities_description}</p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                       <button
                         onClick={() => handleExport(id)}
-                        className="w-full mt-2 px-3 py-2 bg-primary text-primary-foreground rounded text-xs font-medium flex items-center justify-center gap-2"
+                        className="w-full px-3 py-2 bg-primary text-primary-foreground rounded text-xs font-medium flex items-center justify-center gap-2"
                       >
                         <Download className="w-3 h-3" />
-                        Export Logbook
+                        Export All Logbooks
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <p className="text-muted-foreground text-xs text-center py-3">No logbook entries</p>
+                    <div className="text-center py-6">
+                      <p className="text-muted-foreground text-xs mb-1">No logbook entries found</p>
+                      <p className="text-[10px] text-muted-foreground">Try reloading or check another internship</p>
+                    </div>
                   )}
                 </div>
               )}
