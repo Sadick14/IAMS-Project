@@ -1,5 +1,5 @@
 import { GraduationCap, BookMarked, Calendar, Eye } from "lucide-react";
-import { getStudentLogbook } from "../../services/logbook-service";
+import type { LogbookEntryResponse } from "../../types/api";
 
 interface Student {
   id: string;
@@ -14,10 +14,11 @@ interface Student {
 
 interface StudentListReviewProps {
   assignedStudents: Student[];
+  logbookEntriesByStudent: Record<string, LogbookEntryResponse[]>;
   onReviewStudent: (studentId: string) => void;
 }
 
-export function StudentListReview({ assignedStudents, onReviewStudent }: StudentListReviewProps) {
+export function StudentListReview({ assignedStudents, logbookEntriesByStudent, onReviewStudent }: StudentListReviewProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -45,11 +46,14 @@ export function StudentListReview({ assignedStudents, onReviewStudent }: Student
             </div>
           ) : (
             assignedStudents.map((s) => {
-              const logs = getStudentLogbook(s.studentId);
-              const pending = logs.filter((l) => l.approvalStatus === "Pending").length;
-              const lastLog = logs.sort((a, b) => b.date.localeCompare(a.date))[0];
+              const logs = logbookEntriesByStudent[s.studentId] ?? [];
+              const pending = logs.filter((l) => {
+                const status = (l.status ?? "").toLowerCase();
+                return status === "draft" || status === "submitted";
+              }).length;
+              const lastLog = [...logs].sort((a, b) => b.entry_date.localeCompare(a.entry_date))[0];
               const daysSince = lastLog
-                ? Math.floor((Date.now() - new Date(lastLog.date).getTime()) / (1000 * 60 * 60 * 24))
+                ? Math.floor((Date.now() - new Date(lastLog.entry_date).getTime()) / (1000 * 60 * 60 * 24))
                 : 999;
               const isFlagged = daysSince >= 3;
 

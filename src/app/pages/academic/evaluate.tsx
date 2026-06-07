@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppContext } from "../../lib/context";
-import { getStudentLogbook } from "../../services/logbook-service";
-import { getAttendanceRecords } from "../../services/attendance-service";
+import { apiClient } from "../../lib/api-client";
 import { getCompiledGrade, getActiveConfig } from "../../services/grading-service";
 import { updateApplication, addNotification, addAuditLog } from "../../lib/store";
 import { GradeBreakdownCard } from "../../components/grading/grade-breakdown-card";
 import { ChevronLeft, Building2, ClipboardCheck, BookMarked, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import type { AttendanceResponse, LogbookEntryResponse } from "../../types/api";
 
 import { StudentListReview } from "../../components/academic/student-list-review";
 import { StudentLogbookView } from "../../components/academic/student-logbook-view";
@@ -70,6 +70,9 @@ export function AcademicEvaluatePage() {
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("logbook");
   const [evaluation, setEvaluation] = useState<EvaluationForm>({ ...defaultEvaluation });
+  const [logbookEntriesByStudent, setLogbookEntriesByStudent] = useState<Record<string, LogbookEntryResponse[]>>({});
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceResponse[]>([]);
+  const [isLoadingRecords, setIsLoadingRecords] = useState(false);
   const [siteVisitNotes, setSiteVisitNotes] = useState<SiteVisitNote[]>([
     {
       id: "sv1",
@@ -88,18 +91,84 @@ export function AcademicEvaluatePage() {
       (a.supervisorAssigned === user?.name || a.department === user?.department ||
        a.student?.department?.name === user?.department);
   });
+  const assignedStudentIdsKey = assignedStudents.map((student) => student.studentId).join("|");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStudentData = async () => {
+      if (assignedStudents.length === 0) {
+        setLogbookEntriesByStudent({});
+        setAttendanceRecords([]);
+        return;
+      }
+
+      setIsLoadingRecords(true);
+      try {
+        const logbookEntries = await Promise.all(
+          assignedStudents.map(async (student) => {
+            const res = await apiClient.getLogbookEntries({
+              studentId: student.studentId,
+              per_page: 200,
+            });
+            return [student.studentId, res.success ? res.data ?? [] : []] as const;
+          })
+        );
+
+        const attendanceRes = await apiClient.getAttendance({ per_page: 500 });
+        const rawAttendance = attendanceRes.success && Array.isArray(attendanceRes.data) ? attendanceRes.data : [];
+
+        if (cancelled) return;
+        setLogbookEntriesByStudent(Object.fromEntries(logbookEntries));
+        setAttendanceRecords(rawAttendance);
+      } finally {
+        if (!cancelled) setIsLoadingRecords(false);
+      }
+    };
+
+    loadStudentData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assignedStudentIdsKey]);
 
   const student = assignedStudents.find((s) => s.id === selectedStudent);
-  const logbookEntries = student ? getStudentLogbook(student.studentId) : [];
-  const attendanceRecords = student ? getAttendanceRecords({ studentId: student.studentId }) : [];
+  const logbookEntries = student ? (logbookEntriesByStudent[student.studentId] ?? []) : [];
+  const selectedAttendanceRecords = student
+    ? attendanceRecords.filter((record) => attendanceBelongsToStudent(record, student.studentId))
+    : [];
+  const attendanceViewRecords = selectedAttendanceRecords.map((record) => {
+    const anyRecord = record as any;
+    const hasGps = anyRecord.gps_check_in_lat != null && anyRecord.gps_check_in_lng != null;
+    return {
+      id: record.id,
+      date: record.date,
+      checkInTime: record.check_in_time ?? "—",
+      checkInType: hasGps ? "gps" : "manual",
+      location: hasGps
+        ? `${anyRecord.gps_check_in_lat}, ${anyRecord.gps_check_in_lng}`
+        : record.notes ?? "—",
+      verificationStatus: anyRecord.verified_by ? "Verified" : "Pending Verification",
+    };
+  });
+  const logbookViewRecords = logbookEntries.map((entry) => ({
+    id: entry.id,
+    date: entry.entry_date,
+    activities: entry.activities_description,
+    skills: entry.skills_learned ?? "",
+    challenges: entry.challenges_faced ?? "",
+    approvalStatus: mapLogbookStatus(entry.status),
+    createdAt: entry.created_at,
+  }));
 
   // Logbook stats
-  const approvedCount = logbookEntries.filter((l) => l.approvalStatus === "Approved").length;
-  const pendingCount = logbookEntries.filter((l) => l.approvalStatus === "Pending").length;
-  const revisionCount = logbookEntries.filter((l) => l.approvalStatus === "Revision Requested").length;
+  const approvedCount = logbookEntries.filter((l) => l.status === "approved").length;
+  const pendingCount = logbookEntries.filter((l) => l.status === "draft" || l.status === "submitted").length;
+  const revisionCount = logbookEntries.filter((l) => l.status === "revision_requested").length;
 
   // Attendance stats
-  const verifiedAttendance = attendanceRecords.filter((r) => r.verificationStatus === "Verified").length;
+  const verifiedAttendance = selectedAttendanceRecords.filter((r) => (r as any).verified_by).length;
 
   // Evaluation total
   const totalScore = criteria.reduce((sum, c) => sum + (evaluation[c.key] || 0), 0);
@@ -236,7 +305,7 @@ export function AcademicEvaluatePage() {
         </div>
         <div className="bg-card border border-border rounded-xl p-3.5 text-center">
           <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>Attendance</p>
-          <p style={{ fontSize: "1.5rem", lineHeight: 1.2 }} className="font-semibold">{attendanceRecords.length}</p>
+          <p style={{ fontSize: "1.5rem", lineHeight: 1.2 }} className="font-semibold">{selectedAttendanceRecords.length}</p>
           <p className="text-muted-foreground" style={{ fontSize: "0.65rem" }}>
             {verifiedAttendance} verified
           </p>
@@ -274,12 +343,12 @@ export function AcademicEvaluatePage() {
 
       {/* ── TAB: LOGBOOK ── */}
       {activeTab === "logbook" && (
-        <StudentLogbookView logbookEntries={logbookEntries} />
+        <StudentLogbookView logbookEntries={logbookViewRecords} />
       )}
 
       {/* ── TAB: ATTENDANCE ── */}
       {activeTab === "attendance" && (
-        <StudentAttendanceView attendanceRecords={attendanceRecords} />
+        <StudentAttendanceView attendanceRecords={attendanceViewRecords} />
       )}
 
       {/* ── TAB: SITE VISITS ── */}
@@ -331,4 +400,28 @@ export function AcademicEvaluatePage() {
       })()}
     </div>
   );
+}
+
+function attendanceBelongsToStudent(record: AttendanceResponse, studentId: string) {
+  const value = record as any;
+  const recordStudentId =
+    value.internship?.student?.student_id ??
+    value.internship?.student?.studentId ??
+    value.student?.student_id ??
+    value.student?.studentId ??
+    "";
+  return recordStudentId === studentId;
+}
+
+function mapLogbookStatus(status: string | undefined) {
+  switch ((status ?? "").toLowerCase()) {
+    case "approved":
+      return "Approved";
+    case "revision_requested":
+      return "Revision Requested";
+    case "submitted":
+    case "draft":
+    default:
+      return "Pending";
+  }
 }
