@@ -19,31 +19,31 @@ export function StudentDashboard() {
   const refreshDashboard = async () => {
     setRefreshing(true);
     try {
-      const [dashRes, visRes, appsRes, internshipRes] = await Promise.all([
+      const [dashRes, appsRes, internshipRes] = await Promise.all([
         apiClient.getDashboard("student"),
-        apiClient.getSiteVisitations(),
         apiClient.getApplications(),
         apiClient.getInternships(), // Fetch internship data to get approved applications
       ]);
       if (dashRes.success) {
         setDashboard(dashRes.data);
 
-        // Fetch real attendance data for active internship
+        // Fetch real attendance data for active internship (within internship period only)
         const activeInternship = dashRes.data?.active_internship;
         if (activeInternship?.id) {
-          // Fetch without date filters to show all attendance records
-          const attRes = await apiClient.getInternshipAttendance(String(activeInternship.id), { per_page: 100 });
+          const filters: any = { per_page: 100 };
+          if (activeInternship.start_date) filters.from_date = activeInternship.start_date;
+          if (activeInternship.end_date) filters.to_date = activeInternship.end_date;
+
+          const attRes = await apiClient.getInternshipAttendance(String(activeInternship.id), filters);
           if (attRes.success) {
             const records = Array.isArray(attRes.data) ? attRes.data : [];
             const present = records.filter((r: any) => r.status === "present").length;
             const total = records.length;
             const rate = total > 0 ? Math.round((present / total) * 100) : 0;
             setAttendanceData({ present, total, rate });
-            console.log(`Dashboard attendance: ${present}/${total} (${rate}%)`);
           }
         }
       }
-      if (visRes.success) setVisitations(visRes.data);
       if (appsRes.success && appsRes.data) {
         const apps = Array.isArray(appsRes.data) ? appsRes.data : appsRes.data.applications || [];
         // Show pending, approved, or rejected applications (don't show completed)

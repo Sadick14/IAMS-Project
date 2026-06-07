@@ -243,12 +243,29 @@ export function StudentAttendancePage() {
         </div>
 
         {attendanceRecords.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-blue-300 dark:border-blue-700 bg-blue-50/30 dark:bg-blue-950/20 p-6 text-center">
-            <Calendar className="w-8 h-8 text-blue-500 mx-auto mb-2 opacity-60" />
-            <h4 className="font-medium text-blue-800 dark:text-blue-200">No attendance records yet</h4>
-            <p className="text-xs text-blue-600 dark:text-blue-300 mt-1 max-w-md mx-auto">
-              Attendance will appear here once you start checking in during your internship period.
-            </p>
+          <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-6">
+            <div className="flex gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 text-sm mb-2">No Attendance Records</h4>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
+                  Attendance records only appear within your internship active period.
+                </p>
+                <div className="bg-white dark:bg-slate-900 rounded p-3 space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-blue-600 dark:text-blue-400 font-medium">Start Date:</span>
+                    <span className="font-semibold">{internshipInfo?.start_date ? new Date(internshipInfo.start_date).toLocaleDateString() : "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-600 dark:text-blue-400 font-medium">End Date:</span>
+                    <span className="font-semibold">{internshipInfo?.end_date ? new Date(internshipInfo.end_date).toLocaleDateString() : "—"}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-3">
+                  Check-ins outside this period won't be recorded. If you believe this is incorrect, contact your coordinator.
+                </p>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">
