@@ -817,12 +817,15 @@ export const apiClient = {
 
   async getInternshipAttendance(
     internshipId: string,
-    filters?: { from_date?: string; to_date?: string }
-  ): Promise<ApiResponse<any>> {
-    return requestApi<any>(
-      replacePathParams(API_ENDPOINTS.ATTENDANCE_BY_INTERNSHIP, { internshipId }),
-      { method: "GET", query: filters }
+    filters?: { from_date?: string; to_date?: string; per_page?: number }
+  ): Promise<ApiResponse<any[]>> {
+    // Use general attendance endpoint with internship_id filter
+    const response = await requestApi<unknown>(
+      "/api/v1/attendance",
+      { method: "GET", query: { ...filters, internship_id: internshipId } }
     );
+    const attendance = response.success ? extractCollection<any>(response, "attendance") : [];
+    return { success: response.success, data: attendance, message: response.message };
   },
 
   async getMissedAttendance(days?: number): Promise<ApiResponse<any[]>> {
@@ -1221,40 +1224,12 @@ export const apiClient = {
   },
 
   async getInternshipLogbooks(internshipId: string, filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
-    // Try the internship-specific endpoint first
+    // Use general logbooks endpoint with internship_id filter (internship-specific endpoint doesn't work)
     const response = await requestApi<unknown>(
-      replacePathParams(API_ENDPOINTS.INTERNSHIP_LOGBOOKS, { internshipId }),
-      { method: "GET", query: filters }
+      "/api/v1/logbooks",
+      { method: "GET", query: { ...filters, internship_id: internshipId } }
     );
-
-    let logbooks = response.success ? extractCollection<any>(response, "logbooks") : [];
-
-    console.log(`[API] getInternshipLogbooks(${internshipId}):`, {
-      endpoint: replacePathParams(API_ENDPOINTS.INTERNSHIP_LOGBOOKS, { internshipId }),
-      success: response.success,
-      message: response.message,
-      rawResponse: response.data,
-      extractedLogbooks: logbooks
-    });
-
-    // If internship endpoint returns nothing, try general logbooks endpoint with filter
-    if (logbooks.length === 0 && response.success) {
-      console.log(`[API] Trying fallback endpoint /api/v1/logbooks with internship_id filter...`);
-      const fallbackResponse = await requestApi<unknown>(
-        "/api/v1/logbooks",
-        { method: "GET", query: { ...filters, internship_id: internshipId } }
-      );
-      const fallbackLogbooks = fallbackResponse.success ? extractCollection<any>(fallbackResponse, "logbooks") : [];
-      console.log(`[API] Fallback result:`, {
-        success: fallbackResponse.success,
-        logbooksFound: fallbackLogbooks.length,
-        data: fallbackLogbooks
-      });
-      if (fallbackLogbooks.length > 0) {
-        logbooks = fallbackLogbooks;
-      }
-    }
-
+    const logbooks = response.success ? extractCollection<any>(response, "logbooks") : [];
     return { success: response.success, data: logbooks, message: response.message };
   },
 
