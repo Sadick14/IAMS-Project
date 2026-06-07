@@ -5,6 +5,7 @@ import { ApplicationStatus } from "./application-status";
 import { ApplicationActions } from "./application-actions";
 import { ApplicationHistory } from "./application-history";
 import { openPlacementLetter } from "../../lib/generate-placement-letter";
+import { openCompanyAcceptanceForm } from "../../lib/generate-company-acceptance-form";
 import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
 
@@ -131,6 +132,25 @@ export function ApplicationTracker({
     });
   };
 
+  const handleDownloadAcceptanceForm = () => {
+    const companyName = typeof myApp.company?.name === "string" ? myApp.company.name : (typeof myApp.companyName === "string" ? myApp.companyName : "Company");
+    const companyAddress = typeof myApp.company?.address === "string" ? myApp.company.address : undefined;
+    const opened = openCompanyAcceptanceForm({
+      studentName: myApp.student?.user?.name ?? myApp.studentName ?? "Student",
+      studentId: myApp.student?.student_id ?? myApp.studentId ?? "____________________",
+      department: myApp.student?.department?.name ?? myApp.student?.department ?? myApp.department ?? "____________________",
+      level: myApp.student?.level ?? myApp.level ?? "____________________",
+      companyName,
+      companyAddress,
+      startDate: myApp.proposed_start_date,
+      endDate: myApp.proposed_end_date,
+    });
+
+    if (!opened) {
+      toast.error("Please allow popups to download the company acceptance form.");
+    }
+  };
+
   const handleCancelApplication = async () => {
     if (!myApp?.id) return;
     try {
@@ -159,6 +179,7 @@ export function ApplicationTracker({
       <ApplicationActions
         status={myApp.status}
         onDownloadLetter={handleDownloadLetter}
+        onDownloadAcceptanceForm={handleDownloadAcceptanceForm}
         onSubmitAcceptance={() => setAcceptanceModalOpen(true)}
         onRejectCompany={handleCancelApplication}
       />
@@ -174,6 +195,11 @@ export function ApplicationTracker({
         }}
         applicationId={myApp.id}
         companyName={companyName}
+        studentName={myApp.student?.user?.name ?? myApp.studentName ?? "Student"}
+        studentId={myApp.student?.student_id ?? myApp.studentId}
+        department={myApp.student?.department?.name ?? myApp.student?.department ?? myApp.department}
+        level={myApp.student?.level ?? myApp.level}
+        companyAddress={typeof myApp.company?.address === "string" ? myApp.company.address : undefined}
         proposedStartDate={proposedStartDate}
         proposedEndDate={proposedEndDate}
       />

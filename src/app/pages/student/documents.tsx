@@ -399,6 +399,11 @@ export function DocumentsPage() {
           }}
           applicationId={myApp.id}
           companyName={typeof myApp.company?.name === "string" ? myApp.company.name : (typeof myApp.companyName === "string" ? myApp.companyName : "Company")}
+          studentName={myApp.student?.user?.name ?? myApp.studentName ?? user?.name ?? "Student"}
+          studentId={myApp.student?.student_id ?? myApp.studentId ?? user?.studentId}
+          department={myApp.student?.department?.name ?? myApp.student?.department ?? myApp.department ?? user?.department}
+          level={myApp.student?.level ?? myApp.level}
+          companyAddress={typeof myApp.company?.address === "string" ? myApp.company.address : undefined}
           proposedStartDate={myApp.proposed_start_date}
           proposedEndDate={myApp.proposed_end_date}
         />

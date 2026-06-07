@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
-import { X, Upload, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { X, Upload, AlertCircle, CheckCircle2, Loader2, Download } from "lucide-react";
 import { apiClient } from "../../lib/api-client";
+import { openCompanyAcceptanceForm } from "../../lib/generate-company-acceptance-form";
 import { toast } from "sonner";
 
 interface Props {
@@ -9,6 +10,11 @@ interface Props {
   onSuccess: () => void;
   applicationId: string;
   companyName: string;
+  studentName?: string;
+  studentId?: string;
+  department?: string;
+  level?: string;
+  companyAddress?: string;
   proposedStartDate?: string;
   proposedEndDate?: string;
 }
@@ -19,6 +25,11 @@ export function CompanyAcceptanceModal({
   onSuccess,
   applicationId,
   companyName,
+  studentName,
+  studentId,
+  department,
+  level,
+  companyAddress,
   proposedStartDate,
   proposedEndDate,
 }: Props) {
@@ -39,6 +50,23 @@ export function CompanyAcceptanceModal({
   const isValid = supervisorName.trim() && supervisorTitle.trim() && supervisorEmail.trim() &&
     supervisorPhone.trim() && confirmedStartDate && confirmedEndDate && studentRole.trim() &&
     placementDepartment.trim();
+
+  const handleDownloadForm = () => {
+    const opened = openCompanyAcceptanceForm({
+      studentName: studentName ?? "Student",
+      studentId: studentId ?? "____________________",
+      department: department ?? "____________________",
+      level: level ?? "____________________",
+      companyName,
+      companyAddress,
+      startDate: proposedStartDate,
+      endDate: proposedEndDate,
+    });
+
+    if (!opened) {
+      toast.error("Please allow popups to download the company acceptance form.");
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
@@ -129,9 +157,19 @@ export function CompanyAcceptanceModal({
               Fill in company details and upload the signed acceptance form
             </p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-accent">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadForm}
+              className="px-3 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 font-medium flex items-center gap-2"
+              style={{ fontSize: "0.8rem" }}
+            >
+              <Download className="w-4 h-4" />
+              Download Form
+            </button>
+            <button onClick={onClose} className="p-1 rounded-md hover:bg-accent">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}

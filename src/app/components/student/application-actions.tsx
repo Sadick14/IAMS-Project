@@ -4,6 +4,7 @@ import { Download, CheckSquare, AlertTriangle } from "lucide-react";
 interface ApplicationActionsProps {
   status: string;
   onDownloadLetter: () => void;
+  onDownloadAcceptanceForm: () => void;
   onSubmitAcceptance: () => void;
   onRejectCompany: () => void;
 }
@@ -11,6 +12,7 @@ interface ApplicationActionsProps {
 export function ApplicationActions({
   status,
   onDownloadLetter,
+  onDownloadAcceptanceForm,
   onSubmitAcceptance,
   onRejectCompany,
 }: ApplicationActionsProps) {
@@ -65,6 +67,14 @@ export function ApplicationActions({
         >
           <Download className="w-4 h-4" />
           Download Placement Letter
+        </button>
+        <button
+          onClick={onDownloadAcceptanceForm}
+          className="flex items-center justify-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 font-medium"
+          style={{ fontSize: "0.85rem" }}
+        >
+          <Download className="w-4 h-4" />
+          Download Acceptance Form
         </button>
         <button
           onClick={onSubmitAcceptance}
