@@ -73,7 +73,7 @@ export function LogbookPage() {
           // Fall back to API
           const attRes = await apiClient.getInternshipAttendance(String(id), { from_date: today, to_date: today });
           if (attRes.success) {
-            const records = Array.isArray(attRes.data) ? attRes.data : attRes.data?.attendance ?? [];
+            const records = Array.isArray(attRes.data) ? attRes.data : [];
             setCheckedInToday(records.some(isCheckedInAttendanceRecord));
           }
         }
