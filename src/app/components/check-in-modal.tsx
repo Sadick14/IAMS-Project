@@ -168,14 +168,22 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
 
     inFlightRef.current = true;
     setIsSubmitting(true);
-    const now = new Date().toTimeString().slice(0, 8);
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const timeStr = now.toTimeString().slice(0, 8);
+    const checkInDateTime = `${today}T${timeStr}`;
+
     const res = await apiClient.checkIn({
       internship_id: internshipId,
-      check_in_time: now,
+      check_in_time: checkInDateTime,
+      attendance_date: today,
+      latitude: lat ?? undefined,
+      longitude: lng ?? undefined,
       gps_check_in_lat: lat ?? undefined,
       gps_check_in_lng: lng ?? undefined,
+      location_details: locationDetails || undefined,
+      notes: locationDetails || undefined,
       status: "present",
-      notes: checkInType === "manual" ? locationDetails : undefined,
     });
     inFlightRef.current = false;
     setIsSubmitting(false);

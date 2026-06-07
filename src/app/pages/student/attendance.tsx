@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
-import { Calendar, MapPin, Clock, TrendingUp, AlertCircle, CheckCircle2, User, BarChart3 } from "lucide-react";
+import { Calendar, MapPin, Clock, TrendingUp, AlertCircle, CheckCircle2, User, BarChart3, RefreshCw } from "lucide-react";
 import { Card } from "../../components/ui/card";
 
 export function StudentAttendancePage() {
@@ -16,10 +16,20 @@ export function StudentAttendancePage() {
   });
   const [internshipInfo, setInternshipInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAttendanceData();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(loadAttendanceData, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await loadAttendanceData();
+    setRefreshing(false);
+  };
 
   const loadAttendanceData = async () => {
     try {
@@ -113,13 +123,23 @@ export function StudentAttendancePage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Attendance</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {internshipInfo?.company?.name
-            ? `${internshipInfo.company.name}`
-            : "View your records"}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Attendance</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {internshipInfo?.company?.name
+              ? `${internshipInfo.company.name}`
+              : "View your records"}
+          </p>
+        </div>
+        <button
+          onClick={handleManualRefresh}
+          disabled={refreshing}
+          className="p-2 rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50"
+          title="Refresh attendance data"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
       {!internshipInfo ? (
