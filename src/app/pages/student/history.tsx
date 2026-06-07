@@ -151,10 +151,13 @@ export function StudentHistoryPage() {
     try {
       const res = await apiClient.getGrade(internshipId);
       if (res.success && res.data) {
+        console.log(`Loaded grades for internship ${internshipId}:`, res.data);
         setGradeMap((prev) => ({ ...prev, [internshipId]: res.data }));
+      } else {
+        console.warn("No grades data:", res.message);
       }
     } catch (error) {
-      console.warn("Failed to load grades");
+      console.error("Failed to load grades:", error);
     } finally {
       setLoadingMap(prev => ({
         ...prev,
@@ -171,12 +174,22 @@ export function StudentHistoryPage() {
       [internshipId]: { ...prev[internshipId], evaluation: true }
     }));
     try {
-      const res = await apiClient.getIndustrialAssessments({ internship_id: internshipId });
+      // Try fetching without filter first (permission issue with filters)
+      const res = await apiClient.getIndustrialAssessments();
       if (res.success && res.data && res.data.length > 0) {
-        setAssessmentMap((prev) => ({ ...prev, [internshipId]: res.data[0] }));
+        // Filter client-side for this internship
+        const filtered = res.data.filter((a: any) => String(a.internship_id) === internshipId);
+        if (filtered.length > 0) {
+          console.log(`Loaded ${filtered.length} assessments for internship ${internshipId}:`, filtered[0]);
+          setAssessmentMap((prev) => ({ ...prev, [internshipId]: filtered[0] }));
+        } else {
+          console.log(`No assessments found for internship ${internshipId}`);
+        }
+      } else {
+        console.warn("No assessments data:", res.message);
       }
     } catch (error) {
-      console.warn("Failed to load assessment");
+      console.error("Failed to load assessment:", error);
     } finally {
       setLoadingMap(prev => ({
         ...prev,
@@ -416,7 +429,10 @@ export function StudentHistoryPage() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground text-xs text-center py-3">No grades available</p>
+                    <div className="text-center py-6">
+                      <p className="text-muted-foreground text-xs mb-1">Grades not yet available</p>
+                      <p className="text-[10px] text-muted-foreground">Grades are calculated after internship completion</p>
+                    </div>
                   )}
                 </div>
               )}
@@ -470,7 +486,10 @@ export function StudentHistoryPage() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground text-xs text-center py-3">No evaluation data</p>
+                    <div className="text-center py-6">
+                      <p className="text-muted-foreground text-xs mb-1">Evaluation not yet available</p>
+                      <p className="text-[10px] text-muted-foreground">Supervisor evaluation appears after internship review</p>
+                    </div>
                   )}
                 </div>
               )}
