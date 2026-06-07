@@ -122,16 +122,27 @@ export function LogbookPage() {
   const handleNewEntry = () => {
     if (!isLogbookActive) return;
     if (!internshipId) return;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // 👉 If an entry for today already exists, edit that entry instead of creating a new one
+    const existingToday = entries.find((e) => e.entry_date === today);
+    if (existingToday) {
+      handleEditEntry(existingToday);
+      return;
+    }
+
     setEditingEntry(null);
     setForm({
-      entry_date: new Date().toISOString().split("T")[0],
+      entry_date: today,
       activities_description: "",
       skills_learned: "",
       challenges_faced: "",
     });
     setAttachedFileName("");
     setAttachedFileUrl("");
-    // If not checked in, open check-in modal. Otherwise open form directly
+
+    // 👉 Only show check‑in modal when the user hasn't checked‑in yet
     if (!checkedInToday) {
       setCheckInModalOpen(true);
     } else {
@@ -687,18 +698,20 @@ export function LogbookPage() {
       )}
 
       <CheckInModal
-        isOpen={checkInModalOpen}
-        onClose={() => setCheckInModalOpen(false)}
-        onSuccess={() => {
-          setCheckInModalOpen(false);
-          loadData().then(() => {
-            // After loading data, open the form if checked in
-            setTimeout(() => setShowForm(true), 100);
-          });
-        }}
-        internshipId={internshipId ?? undefined}
-        internshipStatus={internshipStatus ?? undefined}
-      />
+    isOpen={checkInModalOpen}
+    onClose={() => setCheckInModalOpen(false)}
+    onSuccess={() => {
+      // user is now checked‑in for today
+      setCheckedInToday(true);
+      // reload data (entries, attendance, etc.)
+      loadData().then(() => {
+        // open the entry form after data is fresh
+        setTimeout(() => setShowForm(true), 100);
+      });
+    }}
+    internshipId={internshipId ?? undefined}
+    internshipStatus={internshipStatus ?? undefined}
+  />
     </div>
   );
 }
