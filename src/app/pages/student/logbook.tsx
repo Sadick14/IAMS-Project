@@ -59,13 +59,23 @@ export function LogbookPage() {
         setEntries(sorted);
       }
 
-      // Check today's attendance from API
+      // Check today's attendance from localStorage first, then API
       if (isActiveInternshipStatus(status)) {
         const today = new Date().toISOString().split("T")[0];
-        const attRes = await apiClient.getInternshipAttendance(String(id), { from_date: today, to_date: today });
-        if (attRes.success) {
-          const records = Array.isArray(attRes.data) ? attRes.data : attRes.data?.attendance ?? [];
-          setCheckedInToday(records.some(isCheckedInAttendanceRecord));
+
+        // Check localStorage first for immediate feedback
+        const localKey = `check_in_${id}_${today}`;
+        const localData = localStorage.getItem(localKey);
+        if (localData) {
+          console.log("Logbook: Found local check-in data");
+          setCheckedInToday(true);
+        } else {
+          // Fall back to API
+          const attRes = await apiClient.getInternshipAttendance(String(id), { from_date: today, to_date: today });
+          if (attRes.success) {
+            const records = Array.isArray(attRes.data) ? attRes.data : attRes.data?.attendance ?? [];
+            setCheckedInToday(records.some(isCheckedInAttendanceRecord));
+          }
         }
       }
     } catch (error) {
@@ -75,6 +85,17 @@ export function LogbookPage() {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  // Listen for check-in updates from modal
+  useEffect(() => {
+    const handleCheckInUpdate = () => {
+      console.log("Logbook: Check-in detected, reloading data");
+      loadData();
+    };
+
+    window.addEventListener("checkInUpdated", handleCheckInUpdate);
+    return () => window.removeEventListener("checkInUpdated", handleCheckInUpdate);
   }, [loadData]);
 
   const isLogbookActive = isActiveInternshipStatus(internshipStatus);
