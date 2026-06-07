@@ -5,7 +5,7 @@ import { ApplicationStatus } from "./application-status";
 import { ApplicationActions } from "./application-actions";
 import { ApplicationHistory } from "./application-history";
 import { openPlacementLetter } from "../../lib/generate-placement-letter";
-import { openCompanyAcceptanceForm } from "../../lib/generate-company-acceptance-form";
+import { downloadCompanyAcceptanceFormPDF } from "../../lib/generate-company-acceptance-form";
 import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
 
@@ -158,22 +158,43 @@ export function ApplicationTracker({
     });
   };
 
-  const handleDownloadAcceptanceForm = () => {
-    const companyName = typeof myApp.company?.name === "string" ? myApp.company.name : (typeof myApp.companyName === "string" ? myApp.companyName : "Company");
-    const companyAddress = typeof myApp.company?.address === "string" ? myApp.company.address : undefined;
-    const opened = openCompanyAcceptanceForm({
-      studentName: myApp.student?.user?.name ?? myApp.studentName ?? "Student",
-      studentId: myApp.student?.student_id ?? myApp.studentId ?? "____________________",
-      department: myApp.student?.department?.name ?? myApp.student?.department ?? myApp.department ?? "____________________",
-      level: myApp.student?.level ?? myApp.level ?? "____________________",
-      companyName,
-      companyAddress,
-      startDate: myApp.proposed_start_date,
-      endDate: myApp.proposed_end_date,
-    });
+  // ✅ UPDATED: Uses direct PDF download, no popup
+  const handleDownloadAcceptanceForm = async () => {
+    if (!myApp) return;
 
-    if (!opened) {
-      toast.error("Please allow popups to download the company acceptance form.");
+    const companyName = typeof myApp.company?.name === "string"
+      ? myApp.company.name
+      : (typeof myApp.companyName === "string" ? myApp.companyName : "Company");
+
+    const companyAddress = typeof myApp.company?.address === "string"
+      ? myApp.company.address
+      : undefined;
+
+    const toastId = toast.loading("Generating PDF...");
+
+    try {
+      const success = await downloadCompanyAcceptanceFormPDF({
+        studentName: myApp.student?.user?.name ?? myApp.studentName ?? "Student",
+        studentId: myApp.student?.student_id ?? myApp.studentId ?? "____________________",
+        department: myApp.student?.department?.name ?? myApp.student?.department ?? myApp.department ?? "____________________",
+        level: myApp.student?.level ?? myApp.level ?? "____________________",
+        companyName,
+        companyAddress,
+        startDate: myApp.proposed_start_date,
+        endDate: myApp.proposed_end_date,
+      });
+
+      toast.dismiss(toastId);
+
+      if (success) {
+        toast.success("Company acceptance form PDF downloaded!");
+      } else {
+        toast.error("Failed to generate PDF. Please try again.");
+      }
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error("PDF generation error:", error);
+      toast.error("An error occurred while generating the PDF.");
     }
   };
 

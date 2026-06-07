@@ -1,7 +1,4 @@
-/**
- * Generate and open a print-ready company acceptance form.
- * The browser print dialog lets the student save the form as a PDF.
- */
+import html2pdf from 'html2pdf.js';
 
 export interface CompanyAcceptanceFormData {
   studentName: string;
@@ -14,6 +11,8 @@ export interface CompanyAcceptanceFormData {
   endDate?: string;
   universityName?: string;
 }
+
+
 
 function escapeHtml(value: string | undefined): string {
   return (value ?? "")
@@ -29,7 +28,10 @@ function displayValue(value: string | undefined, fallback = "___________________
   return trimmed ? escapeHtml(trimmed) : fallback;
 }
 
-export function openCompanyAcceptanceForm(data: CompanyAcceptanceFormData): boolean {
+/**
+ * Generate the form HTML as a string.
+ */
+function generateFormHTML(data: CompanyAcceptanceFormData): string {
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-GB", {
     year: "numeric",
@@ -37,12 +39,11 @@ export function openCompanyAcceptanceForm(data: CompanyAcceptanceFormData): bool
     day: "numeric",
   });
 
-  const html = `
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Company Acceptance Form</title>
   <style>
     * {
@@ -56,15 +57,6 @@ export function openCompanyAcceptanceForm(data: CompanyAcceptanceFormData): bool
       color: #222;
       background: white;
       padding: 0.5in;
-    }
-    @media print {
-      body {
-        margin: 0.75in;
-        padding: 0;
-      }
-      .no-print {
-        display: none !important;
-      }
     }
     .container {
       max-width: 8.5in;
@@ -87,17 +79,6 @@ export function openCompanyAcceptanceForm(data: CompanyAcceptanceFormData): bool
       color: #555;
       font-style: italic;
       margin-top: 0.04in;
-    }
-    .print-button {
-      display: inline-block;
-      margin-bottom: 0.25in;
-      padding: 0.18in 0.35in;
-      background: #1e3a5f;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
     }
     .meta {
       display: flex;
@@ -168,10 +149,6 @@ export function openCompanyAcceptanceForm(data: CompanyAcceptanceFormData): bool
 </head>
 <body>
   <div class="container">
-    <div class="no-print" style="text-align: center;">
-      <button class="print-button" onclick="window.print()">Print / Save as PDF</button>
-    </div>
-
     <div class="letterhead">
       <div class="letterhead-title">${displayValue(data.universityName, "Ho Technical University")}</div>
       <div class="letterhead-subtitle">Department of Industrial Attachment & Mentoring</div>
@@ -238,14 +215,47 @@ export function openCompanyAcceptanceForm(data: CompanyAcceptanceFormData): bool
   </div>
 </body>
 </html>
-`;
+  `;
+}
 
-  const win = window.open("", "_blank");
-  if (!win) {
-    console.error("Failed to open new window for company acceptance form");
+/**
+ * Generate and directly download a PDF of the company acceptance form.
+ * Returns true if PDF generation started successfully.
+ */
+export async function downloadCompanyAcceptanceFormPDF(data: CompanyAcceptanceFormData): Promise<boolean> {
+  try {
+    const html = generateFormHTML(data);
+    // Create a temporary container and render the HTML
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    document.body.appendChild(container);
+
+    const element = container.firstElementChild as HTMLElement;
+    if (!element) {
+      document.body.removeChild(container);
+      throw new Error('Failed to create form element');
+    }
+
+    // Options for html2pdf (adjust as needed)
+
+const opt: any = {
+  margin: [0.5, 0.5, 0.5, 0.5],          // mutable tuple ✔
+  filename: 'receipt.pdf',
+  image: { type: 'jpeg', quality: 0.95 },
+  html2canvas: { scale: 2, letterRendering: true },
+  jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+};
+
+    await html2pdf().set(opt).from(element).save();
+
+    // Clean up
+    document.body.removeChild(container);
+    return true;
+  } catch (error) {
+    console.error('PDF generation failed:', error);
     return false;
   }
-  win.document.write(html);
-  win.document.close();
-  return true;
 }

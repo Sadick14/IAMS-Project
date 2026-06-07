@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { openPlacementLetter } from "../../lib/generate-placement-letter";
-import { openCompanyAcceptanceForm } from "../../lib/generate-company-acceptance-form";
+import { downloadCompanyAcceptanceFormPDF } from "../../lib/generate-company-acceptance-form";
 import { exportLogbookToPDF } from "../../lib/logbook-export";
 import { CompanyAcceptanceModal } from "../../components/student/company-acceptance-modal";
 import { DocumentUploadModal } from "../../components/student/document-upload-modal";
@@ -93,7 +93,7 @@ export function DocumentsPage() {
     if (!myApp) return;
     const companyName = typeof myApp.company?.name === "string" ? myApp.company.name : (typeof myApp.companyName === "string" ? myApp.companyName : "Company");
     const companyAddress = typeof myApp.company?.address === "string" ? myApp.company.address : undefined;
-    const opened = openCompanyAcceptanceForm({
+    const opened = downloadCompanyAcceptanceFormPDF({
       studentName: myApp.student?.user?.name ?? myApp.studentName ?? user?.name ?? "Student",
       studentId: myApp.student?.student_id ?? myApp.studentId ?? user?.studentId ?? "____________________",
       department: myApp.student?.department?.name ?? myApp.student?.department ?? myApp.department ?? user?.department ?? "____________________",

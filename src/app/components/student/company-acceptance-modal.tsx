@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { X, Upload, AlertCircle, CheckCircle2, Loader2, Download } from "lucide-react";
 import { apiClient } from "../../lib/api-client";
-import { openCompanyAcceptanceForm } from "../../lib/generate-company-acceptance-form";
+import { downloadCompanyAcceptanceFormPDF } from "../../lib/generate-company-acceptance-form";
 import { toast } from "sonner";
 
 interface Props {
@@ -52,7 +52,7 @@ export function CompanyAcceptanceModal({
     placementDepartment.trim();
 
   const handleDownloadForm = () => {
-    const opened = openCompanyAcceptanceForm({
+    const opened = downloadCompanyAcceptanceFormPDF({
       studentName: studentName ?? "Student",
       studentId: studentId ?? "____________________",
       department: department ?? "____________________",
