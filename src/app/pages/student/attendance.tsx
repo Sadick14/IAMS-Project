@@ -175,7 +175,7 @@ export function StudentAttendancePage() {
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Department</p>
-                <p className="font-medium">{internshipInfo?.student?.department ?? "—"}</p>
+                <p className="font-medium">{internshipInfo?.student?.department?.name ?? "—"}</p>
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Status</p>
