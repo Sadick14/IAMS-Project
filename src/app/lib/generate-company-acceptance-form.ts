@@ -10,8 +10,10 @@ export interface CompanyAcceptanceFormData {
   universityName?: string;
 }
 
-function escapeHtml(value: string | undefined): string {
-  return (value ?? "")
+function escapeHtml(value: any): string {
+  // Force conversion to a string safely
+  const str = value !== null && value !== undefined ? String(value) : "";
+  return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -19,10 +21,23 @@ function escapeHtml(value: string | undefined): string {
     .replace(/'/g, "&#39;");
 }
 
-function displayValue(value: string | undefined, fallback = "____________________"): string {
-  const trimmed = value?.trim();
+function displayValue(value: any, fallback = "____________________"): string {
+  // 1. If it's null or undefined, return fallback immediately
+  if (value === null || value === undefined) return fallback;
+
+  // 2. If it's a nested object accidentally passed through, extract its name or stringify it
+  if (typeof value === "object") {
+    value = value.name || value.title || JSON.stringify(value);
+  }
+
+  // 3. Safely convert to string and trim
+  const trimmed = String(value).trim();
+  
+  // 4. Return trimmed string if it has length, otherwise fallback
   return trimmed ? escapeHtml(trimmed) : fallback;
 }
+
+
 
 /**
  * Generate and open a print-ready company acceptance form in a new window/tab.
