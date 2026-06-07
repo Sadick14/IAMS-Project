@@ -10,6 +10,7 @@ import { apiClient } from "../lib/api-client";
 import { useState, useEffect, useSyncExternalStore, useRef } from "react";
 import type { ExtendedRole } from "../services/auth-service";
 import { getSettings, updateSettings, subscribeSettings } from "../lib/settings-store";
+import { setNotifications } from "../lib/store";
 import { getOverdueWeeklyRubrics } from "../services/grading-service";
 import { CheckInModal } from "./check-in-modal";
 import { hasCheckedInToday, subscribeAttendance } from "../services/attendance-service";
@@ -183,7 +184,7 @@ export function DashboardLayout() {
   }
 
   const nav = getNavForRole(user.role);
-  const unread = store.notifications.filter((n) => !n.read).length;
+  const unread = store.notifications.filter((n) => !n.read).length + (store.announcementUnread ?? 0);
 
   // Per-role nav badges. Recomputed on every store change because `store` is reactive.
   const navBadges: Record<NonNullable<NavItem["badgeKey"]>, number> = {
@@ -385,23 +386,53 @@ export function DashboardLayout() {
                   className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] bg-popover border border-border rounded-2xl z-50 overflow-hidden"
                   style={{ boxShadow: "0 4px 24px rgba(11,94,215,0.08), 0 1px 4px rgba(0,0,0,0.04)" }}
                 >
-                  <div className="p-4 border-b border-border">
-                    <h4>Notifications</h4>
+                  <div className="p-3 border-b border-border flex items-center justify-between">
+                    <h4 className="text-sm font-semibold">Notifications {unread > 0 && <span className="ml-1 text-xs text-primary">({unread} unread)</span>}</h4>
+                    {unread > 0 && (
+                      <button
+                        onClick={async () => {
+                          await apiClient.markAllNotificationsRead();
+                          setNotifications(store.notifications.map((n) => ({ ...n, read: true })));
+                        }}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Mark all read
+                      </button>
+                    )}
                   </div>
                   <div className="max-h-72 overflow-y-auto">
-                    {store.notifications.slice(0, 8).map((n) => (
+                    {store.notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-muted-foreground text-sm">No notifications</div>
+                    ) : store.notifications.slice(0, 8).map((n) => (
                       <div
                         key={n.id}
-                        className={`px-4 py-3 border-b border-border last:border-0 transition-colors duration-150 hover:bg-card ${!n.read ? "bg-card/60" : ""}`}
+                        className={`px-4 py-3 border-b border-border last:border-0 transition-colors hover:bg-accent/50 cursor-pointer ${!n.read ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
+                        onClick={async () => {
+                          if (!n.read) {
+                            await apiClient.markNotificationRead(n.id);
+                            setNotifications(store.notifications.map((x) => x.id === n.id ? { ...x, read: true } : x));
+                          }
+                        }}
                       >
-                        <p style={{ fontSize: "0.85rem" }} className="text-foreground">
-                          {n.title}
-                        </p>
-                        <p style={{ fontSize: "0.75rem" }} className="text-muted-foreground mt-0.5">
-                          {n.message}
+                        <div className="flex items-start justify-between gap-2">
+                          <p style={{ fontSize: "0.82rem" }} className="text-foreground font-medium leading-snug">{n.title}</p>
+                          {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />}
+                        </div>
+                        <p style={{ fontSize: "0.72rem" }} className="text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                        <p style={{ fontSize: "0.65rem" }} className="text-muted-foreground mt-1">
+                          {new Date(n.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
                     ))}
+                  </div>
+                  <div className="p-2 border-t border-border">
+                    <NavLink
+                      to={`/${user.role === "clo" ? "clo" : user.role === "dlo" ? "dlo" : user.role === "hod" ? "hod" : user.role === "supervisor" ? "supervisor" : user.role === "academic" ? "academic" : "student"}/communications`}
+                      onClick={() => setNotifOpen(false)}
+                      className="block w-full text-center text-xs text-primary hover:underline py-1"
+                    >
+                      View all notifications →
+                    </NavLink>
                   </div>
                 </div>
               </>

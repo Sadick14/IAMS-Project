@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { Bell, MessageSquare, Megaphone } from "lucide-react";
-import { useAppContext } from "../../lib/context";
+import { apiClient } from "../../lib/api-client";
 import { NotificationsPanel } from "./comms/notifications-panel";
 import { MessagesPanel } from "./comms/messages-panel";
 import { AnnouncementsPanel } from "./comms/announcements-panel";
@@ -13,11 +14,19 @@ interface Props {
 }
 
 export function CommunicationsPage({ viewRole }: Props) {
-  const { store } = useAppContext();
-  const [activeTab, setActiveTab] = useState<CommTab>("notifications");
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as CommTab) ?? "notifications";
+  const recipientParam = searchParams.get("recipient") ?? undefined;
 
-  const unreadNotifs = store.notifications.filter((n) => !n.read).length;
+  const [activeTab, setActiveTab] = useState<CommTab>(initialTab);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
   const unreadMsgs = 0;
+
+  useEffect(() => {
+    apiClient.getNotifications({ per_page: 50 }).then((res) => {
+      if (res.success) setUnreadNotifs(res.data.filter((n: any) => !n.is_read).length);
+    });
+  }, []);
 
   // Only CLO/DLO can compose announcements; all roles can view them
   const canComposeAnnouncements = viewRole === "clo" || viewRole === "dlo";
@@ -66,7 +75,7 @@ export function CommunicationsPage({ viewRole }: Props) {
 
       {/* Tab Content */}
       {activeTab === "notifications" && <NotificationsPanel />}
-      {activeTab === "messages" && <MessagesPanel />}
+      {activeTab === "messages" && <MessagesPanel preselectedRecipientId={recipientParam} />}
       {activeTab === "announcements" && <AnnouncementsPanel viewRole={viewRole} canCompose={canComposeAnnouncements} />}
     </div>
   );

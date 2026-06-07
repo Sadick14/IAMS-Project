@@ -28,7 +28,11 @@ interface NewConversationForm {
   message: string;
 }
 
-export function MessagesPanel() {
+interface MessagesPanelProps {
+  preselectedRecipientId?: string;
+}
+
+export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
   const { user } = useAppContext();
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
@@ -40,6 +44,7 @@ export function MessagesPanel() {
   const [newForm, setNewForm] = useState<NewConversationForm>({ recipientId: "", subject: "", message: "" });
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const preselectedHandledRef = useRef(false);
 
   const userId = String(user?.id || "");
 
@@ -77,6 +82,22 @@ export function MessagesPanel() {
       if (res.success) setContacts(res.data.filter((u: any) => String(u.id) !== userId));
     });
   }, [userId]);
+
+  // When arriving from the students page with a pre-selected recipient
+  useEffect(() => {
+    if (!preselectedRecipientId || contacts.length === 0 || preselectedHandledRef.current) return;
+    preselectedHandledRef.current = true;
+
+    const existingThread = threads.find((t) =>
+      t.participants?.some((p: any) => String(p.id) === preselectedRecipientId)
+    );
+    if (existingThread) {
+      setSelectedThread(String(existingThread.id));
+    } else {
+      setNewForm((f) => ({ ...f, recipientId: preselectedRecipientId }));
+      setShowNewConversation(true);
+    }
+  }, [preselectedRecipientId, contacts, threads]);
 
   useEffect(() => {
     if (selectedThread) {

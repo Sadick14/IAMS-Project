@@ -208,7 +208,7 @@ export function ApplicationsPage({ viewRole }: Props) {
                 {viewRole === "clo" && (
                   <p className="text-muted-foreground" style={{ fontSize: "0.78rem" }}>{deptName}</p>
                 )}
-                {(viewRole === "dlo" && (app.status === "submitted" || app.status === "approved")) && (
+                {(viewRole === "dlo" && (app.status === "submitted" || app.status === "approved" || app.status === "company_accepted")) && (
                   <div className="flex gap-2 pt-2 border-t border-border" onClick={(e) => e.stopPropagation()}>
                     {app.status === "submitted" && (
                       <>
@@ -220,7 +220,7 @@ export function ApplicationsPage({ viewRole }: Props) {
                         </button>
                       </>
                     )}
-                    {app.status === "approved" && (
+                    {(app.status === "approved" || app.status === "company_accepted") && (
                       <div className="relative w-full">
                         <button
                           onClick={() => setShowAssign(showAssign === appId ? null : appId)}
@@ -299,7 +299,7 @@ export function ApplicationsPage({ viewRole }: Props) {
                                 </button>
                               </>
                             )}
-                            {app.status === "approved" && (
+                            {(app.status === "approved" || app.status === "company_accepted") && (
                               <div className="relative">
                                 <button
                                   onClick={() => setShowAssign(showAssign === appId ? null : appId)}
@@ -387,6 +387,32 @@ export function ApplicationsPage({ viewRole }: Props) {
                         Reject Application
                       </button>
                     </>
+                  )}
+                  {viewRole === "dlo" && (detail.status === "approved" || detail.status === "company_accepted") && (
+                    <div className="relative">
+                      <button
+                        onClick={() => { setShowAssign(showAssign === String(detail.id) ? null : String(detail.id)); }}
+                        className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                        style={{ fontSize: "0.85rem" }}
+                      >
+                        <UserPlus className="w-4 h-4" /> Assign Academic Supervisor
+                      </button>
+                      {showAssign === String(detail.id) && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowAssign(null)} />
+                          <div className="absolute left-0 bottom-full mb-1 w-full bg-card border border-border rounded-lg shadow-xl z-50 p-2">
+                            <p className="text-muted-foreground px-2 py-1" style={{ fontSize: "0.75rem" }}>Select Supervisor</p>
+                            {academicSupervisors.length === 0 && <p className="px-2 py-1.5 text-muted-foreground" style={{ fontSize: "0.8rem" }}>No supervisors available</p>}
+                            {academicSupervisors.map((sup) => (
+                              <button key={sup.id} onClick={() => { handleAssignSupervisor(String(detail.id), sup.id); setSelectedApp(null); }}
+                                className="w-full text-left px-2 py-2 rounded hover:bg-accent" style={{ fontSize: "0.82rem" }}>
+                                {sup.name}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

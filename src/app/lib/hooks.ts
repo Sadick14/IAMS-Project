@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ApiResponse } from "../types/api";
 import { apiClient } from "./api-client";
-import { setNotifications } from "./store";
+import { setNotifications, setAnnouncementUnread } from "./store";
 import { toast } from "sonner";
 
 // ── useAsync: Generic async operation hook ──
@@ -143,12 +143,15 @@ import { toast } from "sonner";
 
 export function useToastAction() {
   const [loading, setLoading] = useState(false);
+  const inFlightRef = useRef(false);
 
   const execute = useCallback(
     async <T>(
       action: () => Promise<ApiResponse<T>>,
       options?: { successMessage?: string; errorMessage?: string }
     ): Promise<ApiResponse<T> | null> => {
+      if (inFlightRef.current) return null;
+      inFlightRef.current = true;
       setLoading(true);
       try {
         const result = await action();
@@ -162,6 +165,7 @@ export function useToastAction() {
         toast.error(options?.errorMessage || (err as Error).message);
         return null;
       } finally {
+        inFlightRef.current = false;
         setLoading(false);
       }
     },
@@ -208,11 +212,31 @@ export function usePolling(
   }, [intervalMs, enabled]);
 }
 
-// ── useNotifications: Poll API → sync store → fire toasts for new items ──
+// ── useNotifications: Poll API → sync store → fire toasts + browser push ──
+
+function requestPushPermission() {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+function firePushNotification(title: string, body: string) {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission !== "granted") return;
+  try {
+    new Notification(title, { body, icon: "/favicon.ico", badge: "/favicon.ico" });
+  } catch {
+    // Some environments block new Notification() — ignore
+  }
+}
 
 export function useNotifications(enabled = true) {
   const seenIdsRef = useRef<Set<string>>(new Set());
   const isFirstFetchRef = useRef(true);
+
+  // Request browser permission once on mount
+  useEffect(() => { if (enabled) requestPushPermission(); }, [enabled]);
 
   const fetchAndSync = useCallback(async () => {
     try {
@@ -237,19 +261,25 @@ export function useNotifications(enabled = true) {
       // Update the store (this triggers badge + panel reactivity)
       setNotifications(normalised);
 
-      // Fire toast for each new unread item — but skip on first load
+      // Fire toast + browser push for each new unread item — skip on first load
       if (!isFirstFetchRef.current && newUnread.length > 0) {
         newUnread.slice(0, 3).forEach((n) => {
           const toastFn = n.type === "escalation" ? toast.error : toast;
-          toastFn(n.title, {
-            description: n.message,
-            duration: 5000,
-          });
+          toastFn(n.title, { description: n.message, duration: 5000 });
+          firePushNotification(n.title, n.message);
         });
         if (newUnread.length > 3) {
           toast(`+${newUnread.length - 3} more notifications`, { duration: 4000 });
         }
       }
+
+      // Also poll announcement unread count and sync to store
+      try {
+        const annRes = await apiClient.getAnnouncementUnreadCount();
+        if (annRes.success && annRes.data) {
+          setAnnouncementUnread((annRes.data as any).unread_count ?? 0);
+        }
+      } catch { /* silent */ }
 
       // Mark all current IDs as seen
       seenIdsRef.current = new Set(normalised.map((n) => n.id));
@@ -261,7 +291,5 @@ export function useNotifications(enabled = true) {
 
   usePolling(fetchAndSync, 30_000, enabled);
 
-  return {
-    refetch: fetchAndSync,
-  };
+  return { refetch: fetchAndSync };
 }

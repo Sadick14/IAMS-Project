@@ -148,22 +148,32 @@ export function CompanyBranchSelector({
 
               {/* Register as new company */}
               {!exactDup ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateForm({
-                      companyChoice: "new",
-                      selectedCompanyId: "",
-                      newCompanyName: companySearch,
-                      branchChoice: "new",
-                    })
-                  }
-                  className="w-full p-4 rounded-xl border-2 border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-primary bg-card"
-                  style={{ fontSize: "0.85rem" }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Register "{companySearch}" as a new company
-                </button>
+                <div className="space-y-2">
+                  {matches.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                      <p className="text-amber-800" style={{ fontSize: "0.8rem" }}>
+                        <strong>Warning:</strong> {matches.length} similar compan{matches.length === 1 ? "y" : "ies"} found above. Only proceed if this is genuinely a different company.
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateForm({
+                        companyChoice: "new",
+                        selectedCompanyId: "",
+                        newCompanyName: companySearch,
+                        branchChoice: "new",
+                      })
+                    }
+                    className="w-full p-4 rounded-xl border-2 border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-primary bg-card"
+                    style={{ fontSize: "0.85rem" }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Register "{companySearch}" as a new company
+                  </button>
+                </div>
               ) : (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
@@ -356,13 +366,13 @@ export function CompanyBranchSelector({
                   value={form.newCompanyName}
                   onChange={(e) => updateForm({ newCompanyName: e.target.value })}
                   placeholder="e.g., Accra Digital Centre"
-                  className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                  className={`w-full mt-1 px-3 py-2 border rounded-lg bg-background ${newCompanyDup ? "border-red-400" : "border-border"}`}
                   style={{ fontSize: "0.85rem" }}
                 />
                 {newCompanyDup && (
-                  <p className="text-amber-700 mt-1 flex items-center gap-1" style={{ fontSize: "0.75rem" }}>
+                  <p className="text-red-600 mt-1 flex items-center gap-1" style={{ fontSize: "0.75rem" }}>
                     <AlertCircle className="w-3.5 h-3.5" />
-                    "{typeof newCompanyDup.name === "string" ? newCompanyDup.name : "Company"}" already exists. Please go back and select it instead.
+                    "{typeof newCompanyDup.name === "string" ? newCompanyDup.name : "Company"}" already exists — go back and select it instead. Submission is blocked.
                   </p>
                 )}
               </div>

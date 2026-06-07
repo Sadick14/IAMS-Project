@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Megaphone, Send, X, Users, Mail, Bell, CheckCircle2, ChevronDown, Bold, Italic, Link as LinkIcon } from "lucide-react";
+import { Megaphone, Send, X, Mail, Bell, CheckCircle2, Bold, Italic, Link as LinkIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ExtendedRole } from "../services/auth-service";
 
@@ -9,93 +9,68 @@ interface Props {
   onSend: (data: {
     title: string;
     message: string;
-    priority: "Normal" | "Urgent";
+    priority: "low" | "normal" | "high" | "urgent";
     sendEmail: boolean;
     sendInApp: boolean;
     targets: string[];
-    filters: Record<string, string>;
+    student_level?: number;
+    term_type?: string;
+    placement_status?: string;
   }) => void;
+  isSending?: boolean;
 }
 
-export function AnnouncementComposer({ viewRole, onClose, onSend }: Props) {
+// UI label → backend role name
+const TARGET_ROLE_MAP: Record<string, string> = {
+  "Everyone":                              "",
+  "Students":                              "student",
+  "Students in my department":             "student",
+  "DLOs":                                  "dlo",
+  "HODs":                                  "hod",
+  "HOD of my department":                  "hod",
+  "Academic Supervisors":                  "academic_supervisor",
+  "Academic Supervisors in my department": "academic_supervisor",
+  "Industry Supervisors":                  "industry_supervisor",
+};
+
+export function AnnouncementComposer({ viewRole, onClose, onSend, isSending = false }: Props) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [priority, setPriority] = useState<"Normal" | "Urgent">("Normal");
+  const [priority, setPriority] = useState<"low" | "normal" | "high" | "urgent">("normal");
   const [sendEmail, setSendEmail] = useState(false);
   const [sendInApp, setSendInApp] = useState(true);
-
-  const insertFormat = (format: 'bold' | 'italic' | 'link') => {
-    const textarea = document.getElementById("announcement-message") as HTMLTextAreaElement;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = message;
-    const selectedText = text.substring(start, end);
-
-    let newText = "";
-    let newCursorPos = start;
-
-    if (format === 'bold') {
-      newText = text.substring(0, start) + `**${selectedText || 'bold text'}**` + text.substring(end);
-      newCursorPos = selectedText ? end + 4 : start + 2;
-    } else if (format === 'italic') {
-      newText = text.substring(0, start) + `*${selectedText || 'italic text'}*` + text.substring(end);
-      newCursorPos = selectedText ? end + 2 : start + 1;
-    } else if (format === 'link') {
-      newText = text.substring(0, start) + `[${selectedText || 'link text'}](url)` + text.substring(end);
-      newCursorPos = selectedText ? end + 3 : start + 1;
-    }
-
-    setMessage(newText);
-
-    setTimeout(() => {
-      textarea.focus();
-      if (!selectedText) {
-        if (format === 'bold') textarea.setSelectionRange(start + 2, start + 11);
-        if (format === 'italic') textarea.setSelectionRange(start + 1, start + 12);
-        if (format === 'link') textarea.setSelectionRange(start + 1, start + 10);
-      } else {
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 0);
-  };
-
-  // Hierarchy Selection
-  // DLOs can broadcast to: Students, Academic Supervisors, Industry Supervisors
-  // CLO can do everything.
-  const baseTargetOptions = viewRole === "clo" 
-    ? ["All Institutions", "All DLOs", "Academic Supervisors", "Industry Supervisors", "Students"]
-    : ["Students", "Academic Supervisors", "Industry Supervisors"];
-    
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
 
-  // Filters (Mainly for students)
-  const [filters, setFilters] = useState({
-    batch: "",
-    term: "",
-    company: "",
-    region: "",
-    placementStatus: ""
-  });
+  // Student filters
+  const [studentLevel, setStudentLevel] = useState("");
+  const [termType, setTermType] = useState("");
+  const [placementStatus, setPlacementStatus] = useState("");
 
-  const toggleTarget = (t: string) => {
-    setSelectedTargets(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+  const baseTargetOptions = viewRole === "clo"
+    ? ["Everyone", "Students", "DLOs", "HODs", "Academic Supervisors", "Industry Supervisors"]
+    : ["Students in my department", "Academic Supervisors in my department", "Industry Supervisors", "HOD of my department"];
+
+  const showStudentFilters = selectedTargets.some((t) => t.toLowerCase().includes("student"));
+
+  const toggleTarget = (t: string) =>
+    setSelectedTargets((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
+
+  const insertFormat = (format: "bold" | "italic" | "link") => {
+    const ta = document.getElementById("ann-message") as HTMLTextAreaElement;
+    if (!ta) return;
+    const { selectionStart: s, selectionEnd: e } = ta;
+    const sel = message.substring(s, e);
+    const wrap = format === "bold" ? `**${sel || "bold"}**`
+      : format === "italic" ? `*${sel || "italic"}*`
+      : `[${sel || "link text"}](url)`;
+    setMessage(message.substring(0, s) + wrap + message.substring(e));
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + 2, s + wrap.length - 2); }, 0);
   };
 
   const handleSend = () => {
-    if (!title.trim() || !message.trim()) {
-      toast.error("Title and message are required.");
-      return;
-    }
-    if (selectedTargets.length === 0) {
-      toast.error("Select at least one target audience.");
-      return;
-    }
-    if (!sendEmail && !sendInApp) {
-      toast.error("Select at least one delivery method (Email or In-App).");
-      return;
-    }
+    if (!title.trim() || !message.trim()) { toast.error("Title and message are required."); return; }
+    if (selectedTargets.length === 0) { toast.error("Select at least one target audience."); return; }
+    if (!sendEmail && !sendInApp) { toast.error("Select at least one delivery method."); return; }
 
     onSend({
       title,
@@ -104,16 +79,23 @@ export function AnnouncementComposer({ viewRole, onClose, onSend }: Props) {
       sendEmail,
       sendInApp,
       targets: selectedTargets,
-      filters
+      student_level: studentLevel ? Number(studentLevel) : undefined,
+      term_type: termType || undefined,
+      placement_status: placementStatus || undefined,
     });
   };
 
-  const showFilters = selectedTargets.includes("Students");
+  const priorityConfig = [
+    { key: "normal" as const, label: "Normal", cls: "bg-primary/10 text-primary border-primary/20" },
+    { key: "urgent" as const, label: "Urgent", cls: "bg-red-50 text-red-700 border-red-200" },
+  ];
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto space-y-6" onClick={(e) => e.stopPropagation()}>
-        
+      <div
+        className="bg-card border border-border rounded-xl p-6 w-full max-w-lg max-h-[88vh] overflow-y-auto space-y-5"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center gap-2">
@@ -122,201 +104,150 @@ export function AnnouncementComposer({ viewRole, onClose, onSend }: Props) {
             </div>
             <h2 className="font-semibold text-lg">Compose Announcement</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="space-y-4">
-          {/* Title & Message */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Announcement Title *</label>
-              <input 
-                type="text" 
-                value={title} 
-                onChange={(e) => setTitle(e.target.value)} 
-                placeholder="E.g., Submission Deadline Extended" 
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm" 
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium">Message Body *</label>
-                <div className="flex items-center gap-1 bg-muted/50 border border-border rounded-lg p-0.5">
-                  <button type="button" onClick={() => insertFormat('bold')} className="p-1 rounded hover:bg-accent text-muted-foreground transition-colors" title="Bold">
-                    <Bold className="w-3.5 h-3.5" />
-                  </button>
-                  <button type="button" onClick={() => insertFormat('italic')} className="p-1 rounded hover:bg-accent text-muted-foreground transition-colors" title="Italic">
-                    <Italic className="w-3.5 h-3.5" />
-                  </button>
-                  <button type="button" onClick={() => insertFormat('link')} className="p-1 rounded hover:bg-accent text-muted-foreground transition-colors" title="Link">
-                    <LinkIcon className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-              <textarea 
-                id="announcement-message"
-                value={message} 
-                onChange={(e) => setMessage(e.target.value)} 
-                placeholder="Write the full announcement details here... (Markdown supported)" 
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm min-h-[120px] resize-y" 
-              />
-            </div>
-          </div>
+        {/* Title */}
+        <div>
+          <label className="block text-sm font-medium mb-1.5">Title *</label>
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g., Application Deadline Reminder"
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm" />
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* Priority */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Priority</label>
-              <div className="flex gap-2">
-                {(["Normal", "Urgent"] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPriority(p)}
-                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      priority === p
-                        ? p === "Urgent" 
-                          ? "bg-red-50 text-red-700 border-red-200" 
-                          : "bg-primary/10 text-primary border-primary/20"
-                        : "border-border hover:bg-accent text-muted-foreground"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Delivery Methods */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Delivery Method *</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSendInApp(!sendInApp)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                    sendInApp ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent text-muted-foreground"
-                  }`}
-                >
-                  <Bell className="w-3.5 h-3.5" /> In-App
-                </button>
-                <button
-                  onClick={() => setSendEmail(!sendEmail)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                    sendEmail ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent text-muted-foreground"
-                  }`}
-                >
-                  <Mail className="w-3.5 h-3.5" /> Email
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-border pt-4">
-            <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" /> Target Audience *
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {baseTargetOptions.map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => toggleTarget(opt)}
-                  className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                    selectedTargets.includes(opt) 
-                      ? "bg-primary text-primary-foreground border-primary" 
-                      : "bg-background border-border hover:bg-accent text-muted-foreground"
-                  }`}
-                >
-                  {selectedTargets.includes(opt) && <CheckCircle2 className="w-3 h-3" />}
-                  {opt}
+        {/* Message with formatting */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-sm font-medium">Message *</label>
+            <div className="flex items-center gap-1 bg-muted/50 border border-border rounded-lg p-0.5">
+              {(["bold", "italic", "link"] as const).map((f) => (
+                <button key={f} type="button" onClick={() => insertFormat(f)}
+                  className="p-1 rounded hover:bg-accent text-muted-foreground" title={f}>
+                  {f === "bold" ? <Bold className="w-3.5 h-3.5" />
+                    : f === "italic" ? <Italic className="w-3.5 h-3.5" />
+                    : <LinkIcon className="w-3.5 h-3.5" />}
                 </button>
               ))}
             </div>
           </div>
+          <textarea id="ann-message" value={message} onChange={(e) => setMessage(e.target.value)}
+            placeholder="Write announcement details… (Markdown supported)"
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm min-h-[110px] resize-y" />
+        </div>
 
-          {/* Detailed Filters (Show if Students selected) */}
-          {showFilters && (
-            <div className="bg-muted/30 rounded-xl p-4 border border-border space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Student Filters (Optional)</label>
+        {/* Priority + Delivery */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Priority</label>
+            <div className="flex gap-2">
+              {priorityConfig.map((p) => (
+                <button key={p.key} onClick={() => setPriority(p.key)}
+                  className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${priority === p.key ? p.cls : "border-border hover:bg-accent text-muted-foreground"}`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Delivery *</label>
+            <div className="flex gap-2">
+              <button onClick={() => setSendInApp(!sendInApp)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${sendInApp ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent text-muted-foreground"}`}>
+                <Bell className="w-3.5 h-3.5" /> In-App
+              </button>
+              <button onClick={() => setSendEmail(!sendEmail)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${sendEmail ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent text-muted-foreground"}`}>
+                <Mail className="w-3.5 h-3.5" /> Email
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Target Audience */}
+        <div className="border-t border-border pt-4">
+          <label className="block text-sm font-medium mb-2">Target Audience *</label>
+          <div className="flex gap-2 flex-wrap">
+            {baseTargetOptions.map((opt) => (
+              <button key={opt} onClick={() => toggleTarget(opt)}
+                className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                  selectedTargets.includes(opt)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border hover:bg-accent text-muted-foreground"
+                }`}>
+                {selectedTargets.includes(opt) && <CheckCircle2 className="w-3 h-3" />}
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Student Filters — shown when any "Students" target is selected */}
+        {showStudentFilters && (
+          <div className="bg-muted/30 rounded-xl p-4 border border-border space-y-3">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Student Filters <span className="font-normal normal-case">(optional — leave blank for all students)</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Level */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Level (Batch)</label>
+                <select value={studentLevel} onChange={(e) => setStudentLevel(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-sm">
+                  <option value="">All Levels</option>
+                  <option value="100">L100 (1st Year)</option>
+                  <option value="200">L200 (2nd Year)</option>
+                  <option value="300">L300 (3rd Year)</option>
+                  <option value="400">L400 (4th Year)</option>
+                </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <select 
-                  value={filters.batch} 
-                  onChange={(e) => setFilters({...filters, batch: e.target.value})}
-                  className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-sm"
-                >
-                  <option value="">All Batches</option>
-                  <option value="2024">Class of 2024</option>
-                  <option value="2025">Class of 2025</option>
-                  <option value="2026">Class of 2026</option>
-                </select>
-                
-                <select 
-                  value={filters.term} 
-                  onChange={(e) => setFilters({...filters, term: e.target.value})}
-                  className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-sm"
-                >
+              {/* Term type */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Term Type</label>
+                <select value={termType} onChange={(e) => setTermType(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-sm">
                   <option value="">All Terms</option>
-                  <option value="Semestrial">Semestrial</option>
-                  <option value="Vacation">Vacation</option>
+                  <option value="regular">Semestrial</option>
+                  <option value="short_term">Vacation</option>
                 </select>
-
-                <select 
-                  value={filters.placementStatus} 
-                  onChange={(e) => setFilters({...filters, placementStatus: e.target.value})}
-                  className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-sm"
-                >
-                  <option value="">Any Placement Status</option>
-                  <option value="Placed">Placed</option>
-                  <option value="Unplaced">Unplaced</option>
-                  <option value="Pending">Pending Approval</option>
-                </select>
-                
-                <select 
-                  value={filters.company} 
-                  onChange={(e) => setFilters({...filters, company: e.target.value})}
-                  className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-sm"
-                >
-                  <option value="">All Companies</option>
-                  <option value="TechHub Ghana">TechHub Ghana</option>
-                  <option value="DataFlow Solutions">DataFlow Solutions</option>
-                  <option value="Green Energy Corp">Green Energy Corp</option>
-                </select>
-                
-                <select 
-                  value={filters.region} 
-                  onChange={(e) => setFilters({...filters, region: e.target.value})}
-                  className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-sm"
-                >
-                  <option value="">All Regions</option>
-                  <option value="Greater Accra">Greater Accra</option>
-                  <option value="Volta">Volta</option>
-                  <option value="Ashanti">Ashanti</option>
+              </div>
+              {/* Placement status */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Placement</label>
+                <select value={placementStatus} onChange={(e) => setPlacementStatus(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-sm">
+                  <option value="">Any Status</option>
+                  <option value="active">Active Internship</option>
+                  <option value="pending">Application Pending</option>
+                  <option value="none">Not Placed</option>
                 </select>
               </div>
             </div>
-          )}
-        </div>
+            {(studentLevel || termType || placementStatus) && (
+              <p className="text-xs text-primary mt-1">
+                Will send to: {[
+                  studentLevel ? `L${studentLevel}` : null,
+                  termType ? (termType === "regular" ? "Semestrial term" : "Vacation term") : null,
+                  placementStatus === "active" ? "active internship" : placementStatus === "pending" ? "pending application" : placementStatus === "none" ? "not placed" : null,
+                ].filter(Boolean).join(", ")} students
+                {viewRole === "dlo" ? " in your department" : ""}.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-border">
-          <button 
-            onClick={onClose} 
-            className="px-4 py-2 border border-border rounded-lg hover:bg-accent text-sm font-medium transition-colors"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={handleSend} 
-            className="flex items-center gap-2 px-5 py-2 bg-[#0B5ED7] text-white rounded-lg hover:opacity-90 text-sm font-medium transition-opacity shadow-sm"
-          >
-            <Send className="w-4 h-4" /> Send Announcement
+        <div className="flex justify-end gap-3 pt-3 border-t border-border">
+          <button onClick={onClose} className="px-4 py-2 border border-border rounded-lg hover:bg-accent text-sm font-medium">Cancel</button>
+          <button onClick={handleSend} disabled={isSending}
+            className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 text-sm font-medium shadow-sm">
+            {isSending ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : <><Send className="w-4 h-4" /> Send Announcement</>}
           </button>
         </div>
-
       </div>
     </div>
   );
 }
+
+export { TARGET_ROLE_MAP };

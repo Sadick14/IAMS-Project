@@ -814,8 +814,11 @@ export const apiClient = {
     );
   },
 
-  async getMissedAttendance(): Promise<ApiResponse<any[]>> {
-    const response = await requestApi<unknown>(API_ENDPOINTS.ATTENDANCE_MISSED, { method: "GET" });
+  async getMissedAttendance(days?: number): Promise<ApiResponse<any[]>> {
+    const response = await requestApi<unknown>(
+      API_ENDPOINTS.ATTENDANCE_MISSED,
+      { method: "GET", query: days && days > 1 ? { days } : undefined }
+    );
     return {
       success: response.success,
       data: response.success ? extractCollection<any>(response, "internships") : [],
@@ -1025,6 +1028,77 @@ export const apiClient = {
 
   async markAllNotificationsRead(): Promise<ApiResponse<null>> {
     return requestApi<null>(API_ENDPOINTS.NOTIFICATIONS_READ_ALL, { method: "POST" });
+  },
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ANNOUNCEMENTS (dedicated table)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  async getAnnouncements(filters?: { unread_only?: boolean; per_page?: number }): Promise<ApiResponse<any[]>> {
+    const response = await requestApi<unknown>(API_ENDPOINTS.ANNOUNCEMENTS, {
+      method: "GET",
+      query: filters as Record<string, unknown>,
+    });
+    return {
+      success: response.success,
+      data: response.success ? extractCollection<any>(response, "announcements") : [],
+      message: response.message,
+    };
+  },
+
+  async getAnnouncementUnreadCount(): Promise<ApiResponse<{ unread_count: number } | null>> {
+    return requestApi<{ unread_count: number } | null>(API_ENDPOINTS.ANNOUNCEMENT_UNREAD_COUNT, { method: "GET" });
+  },
+
+  async createAnnouncement(data: {
+    title: string;
+    message: string;
+    priority?: "low" | "normal" | "high" | "urgent";
+    target_roles?: string[];
+    target_department_id?: number;
+    student_level?: number;
+    term_type?: string;
+    placement_status?: string;
+  }): Promise<ApiResponse<any | null>> {
+    return requestApi<any | null>(API_ENDPOINTS.ANNOUNCEMENTS, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async markAnnouncementRead(id: string): Promise<ApiResponse<null>> {
+    return requestApi<null>(
+      replacePathParams(API_ENDPOINTS.ANNOUNCEMENT_READ, { id }),
+      { method: "POST" }
+    );
+  },
+
+  async pinAnnouncement(id: string): Promise<ApiResponse<{ pinned: boolean } | null>> {
+    return requestApi<{ pinned: boolean } | null>(
+      replacePathParams(API_ENDPOINTS.ANNOUNCEMENT_PIN, { id }),
+      { method: "PATCH" }
+    );
+  },
+
+  async deleteAnnouncement(id: string): Promise<ApiResponse<null>> {
+    return requestApi<null>(
+      replacePathParams(API_ENDPOINTS.ANNOUNCEMENT_DELETE, { id }),
+      { method: "DELETE" }
+    );
+  },
+
+  async broadcastNotification(data: {
+    title: string;
+    message: string;
+    type?: string;
+    priority?: "normal" | "urgent";
+    roles?: string[];
+    department_id?: number;
+  }): Promise<ApiResponse<{ recipients: number } | null>> {
+    return requestApi<{ recipients: number } | null>("/api/v1/notifications/broadcast", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━

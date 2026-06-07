@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MapPin, X, CheckCircle2, Clock, AlertCircle, Loader2 } from "lucide-react";
 import { apiClient } from "../lib/api-client";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
   const [checkInTime, setCheckInTime] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
 
   // Check if internship is active for check-in
   const isInternshipActive = internshipStatus === "active" || internshipStatus === "approved";
@@ -151,6 +152,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
   };
 
   const handleCheckIn = async () => {
+    if (inFlightRef.current) return;
     if (!canCheckIn) {
       toast.error("Check-in only available during active internship.");
       return;
@@ -164,6 +166,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
       return;
     }
 
+    inFlightRef.current = true;
     setIsSubmitting(true);
     const now = new Date().toTimeString().slice(0, 8);
     const res = await apiClient.checkIn({
@@ -174,6 +177,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
       status: "present",
       notes: checkInType === "manual" ? locationDetails : undefined,
     });
+    inFlightRef.current = false;
     setIsSubmitting(false);
 
     if (res.success) {
