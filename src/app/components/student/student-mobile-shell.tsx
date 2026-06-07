@@ -1,17 +1,19 @@
 import { useState } from "react";
-import { Menu, Bell } from "lucide-react";
+import { Menu, Bell, X } from "lucide-react";
 import { Outlet, useNavigate } from "react-router";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { CheckInModal } from "../check-in-modal";
 import { MobileNavDrawer } from "./mobile-nav-drawer";
 import { useStudentCheckIn } from "../../hooks/use-student-check-in";
+import { NotificationsPanel } from "../../pages/shared/comms/notifications-panel";
 
 export function StudentMobileShell() {
   const { user, store } = useAppContext();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const {
     activeInternship,
     checkedInToday,
@@ -53,7 +55,10 @@ export function StudentMobileShell() {
         </button>
 
         {/* Notifications bell */}
-        <button className="relative p-2 hover:bg-accent rounded-lg transition-colors">
+        <button
+          onClick={() => setNotifOpen(!notifOpen)}
+          className="relative p-2 hover:bg-accent rounded-lg transition-colors"
+        >
           <Bell className="w-5 h-5" />
           {notificationCount > 0 && (
             <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
@@ -94,6 +99,24 @@ export function StudentMobileShell() {
         internshipId={activeInternship?.id}
         internshipStatus={activeInternship?.status}
       />
+
+      {/* Notifications panel - mobile overlay */}
+      {notifOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <h3 className="font-semibold">Notifications</h3>
+            <button
+              onClick={() => setNotifOpen(false)}
+              className="p-2 hover:bg-accent rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <NotificationsPanel />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
