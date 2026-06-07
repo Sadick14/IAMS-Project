@@ -104,10 +104,19 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
           to_date: today,
         });
 
+        if (!res.success) {
+          console.warn("Failed to fetch existing check-in:", res.message);
+          setIsLoadingExisting(false);
+          return;
+        }
+
         const records = Array.isArray(res.data) ? res.data : res.data?.attendance ?? [];
         const existing = records.find(isCheckedInAttendanceRecord);
 
-        if (!existing) return;
+        if (!existing) {
+          setIsLoadingExisting(false);
+          return;
+        }
 
         setCheckInType(existing.gps_check_in_lat != null && existing.gps_check_in_lng != null ? "gps" : "manual");
         setLat(existing.gps_check_in_lat ?? null);
@@ -132,6 +141,8 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
               }
             : null
         );
+      } catch (error) {
+        console.error("Error hydrating existing check-in:", error);
       } finally {
         setIsLoadingExisting(false);
       }
@@ -225,7 +236,7 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
 
     try {
       const res = await apiClient.checkIn({
-        internship_id: internshipId,
+        internship_id: internshipId!,
         check_in_time: checkInDateTime,
         gps_check_in_lat: lat ?? undefined,
         gps_check_in_lng: lng ?? undefined,
@@ -233,18 +244,22 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
         status: "present",
       });
 
-      if (res.success) {
-        toast.success("Checked in successfully!");
-        setLocationDetails("");
-        setLat(null);
-        setLng(null);
-        setCheckInTime("");
-        setLocationData(null);
-        onSuccess?.();
-        onClose();
-      } else {
+      if (!res.success) {
         toast.error(res.message ?? "Check-in failed.");
+        return;
       }
+
+      toast.success("Checked in successfully!");
+      setLocationDetails("");
+      setLat(null);
+      setLng(null);
+      setCheckInTime("");
+      setLocationData(null);
+      onSuccess?.();
+      onClose();
+    } catch (error) {
+      console.error("Check-in error:", error);
+      toast.error("An unexpected error occurred during check-in");
     } finally {
       inFlightRef.current = false;
       setIsSubmitting(false);

@@ -9,10 +9,11 @@ import {
 } from "lucide-react";
 import { CheckInModal } from "../../components/check-in-modal";
 import { toast } from "sonner";
-import { isActiveInternshipStatus, isCheckedInAttendanceRecord } from "../../hooks/use-student-check-in";
+import { isActiveInternshipStatus, isCheckedInAttendanceRecord, useStudentCheckIn } from "../../hooks/use-student-check-in";
 
 export function LogbookPage() {
   const { user } = useAppContext();
+  const { refresh: refreshCheckInStatus } = useStudentCheckIn(user?.role === "student");
 
   const [internshipId, setInternshipId] = useState<number | null>(null);
   const [internshipStatus, setInternshipStatus] = useState<string | null>(null);
@@ -69,14 +70,25 @@ export function LogbookPage() {
       setEntries(sorted);
     }
 
-    // Check today's attendance
+    // Check today's attendance via API
     if (isActiveInternshipStatus(status)) {
       const today = new Date().toISOString().split("T")[0];
-      const attRes = await apiClient.getInternshipAttendance(String(id), { from_date: today, to_date: today });
-      if (attRes.success) {
-        const records = Array.isArray(attRes.data) ? attRes.data : attRes.data?.attendance ?? [];
-        setCheckedInToday(records.some(isCheckedInAttendanceRecord));
+      try {
+        const attRes = await apiClient.getInternshipAttendance(String(id), { from_date: today, to_date: today });
+        if (attRes.success) {
+          const records = Array.isArray(attRes.data) ? attRes.data : attRes.data?.attendance ?? [];
+          const isCheckedIn = records.some(isCheckedInAttendanceRecord);
+          setCheckedInToday(isCheckedIn);
+        } else {
+          console.warn("Failed to fetch attendance:", attRes.message);
+          setCheckedInToday(false);
+        }
+      } catch (error) {
+        console.error("Error fetching attendance:", error);
+        setCheckedInToday(false);
       }
+    } else {
+      setCheckedInToday(false);
     }
   }, []);
 
@@ -703,6 +715,8 @@ export function LogbookPage() {
     onSuccess={() => {
       // user is now checked‑in for today
       setCheckedInToday(true);
+      // refresh the global check-in state in the header
+      refreshCheckInStatus();
       // reload data (entries, attendance, etc.)
       loadData().then(() => {
         // open the entry form after data is fresh
