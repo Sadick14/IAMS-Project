@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { MapPin, X, CheckCircle2, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { MapPin, X, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { apiClient } from "../lib/api-client";
 import { toast } from "sonner";
-import { isCheckedInAttendanceRecord } from "../hooks/use-student-check-in";
 
 interface CheckInModalProps {
   isOpen: boolean;
@@ -12,199 +11,54 @@ interface CheckInModalProps {
   internshipStatus?: string;
 }
 
-interface LocationData {
-  address?: string;
-  street?: string;
-  city?: string;
-  company?: string;
-  area?: string;
-}
-
 export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, internshipStatus }: CheckInModalProps) {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
-  const [checkInType, setCheckInType] = useState<"gps" | "manual">("gps");
   const [locationDetails, setLocationDetails] = useState("");
-  const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
-  const [checkInTime, setCheckInTime] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
-  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+  const [checkedInTime, setCheckedInTime] = useState<string | null>(null);
   const inFlightRef = useRef(false);
 
-  // Check if internship is active for check-in
   const isInternshipActive = internshipStatus === "active" || internshipStatus === "approved";
   const canCheckIn = !!internshipId && isInternshipActive;
+  const isCheckedIn = !!checkedInTime && !!locationDetails;
 
-  // Reverse geocode coordinates to get address
-  const reverseGeocodeLocation = async (latitude: number, longitude: number) => {
-    setIsReverseGeocoding(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-      );
-      const data = await response.json();
-
-      if (data && data.address) {
-        const addr = data.address;
-        const locationInfo: LocationData = {
-          address: data.display_name,
-          street: addr.road || addr.street || "",
-          city: addr.city || addr.town || addr.village || "",
-          company: addr.building || addr.amenity || "",
-          area: addr.suburb || addr.district || addr.county || "",
-        };
-        setLocationData(locationInfo);
-
-        const parts = [];
-        if (locationInfo.company) parts.push(locationInfo.company);
-        if (locationInfo.street) parts.push(locationInfo.street);
-        if (locationInfo.area) parts.push(locationInfo.area);
-        if (locationInfo.city) parts.push(locationInfo.city);
-
-        const readableLocation = parts.length > 0
-          ? parts.join(", ")
-          : `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-
-        setLocationDetails(readableLocation);
-        toast.success("Location identified!");
-      }
-    } catch (error) {
-      console.error("Reverse geocoding failed:", error);
-      setLocationDetails(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-      setLocationData({ address: "Location retrieved via GPS" });
-      toast.info("Using GPS coordinates");
-    } finally {
-      setIsReverseGeocoding(false);
-    }
-  };
-
-  const handleClose = () => {
-    setLocationDetails("");
-    setLat(null);
-    setLng(null);
-    setCheckInTime("");
-    setLocationData(null);
-    setCheckInType("gps");
-    setGpsError(null);
-    onClose();
-  };
-
+  // Load existing check-in on modal open
   useEffect(() => {
-    const hydrateExistingCheckIn = async () => {
-      if (!isOpen || !canCheckIn || !internshipId) return;
+    if (!isOpen || !internshipId) return;
 
-      setIsLoadingExisting(true);
+    const loadCheckInStatus = async () => {
       try {
         const today = new Date().toISOString().split("T")[0];
-
-        // Check local storage first for faster feedback
-        const localCheckIns = JSON.parse(localStorage.getItem("local_check_ins") || "{}");
-        const localCheckIn = localCheckIns[`internship_${internshipId}_${today}`];
-
-        if (localCheckIn) {
-          console.log("Loading check-in from local storage:", localCheckIn);
-          setCheckInType(localCheckIn.gps_check_in_lat != null ? "gps" : "manual");
-          setLat(localCheckIn.gps_check_in_lat ?? null);
-          setLng(localCheckIn.gps_check_in_lng ?? null);
-          // Display time in HH:MM AM/PM format for local storage data
-          setCheckInTime(
-            localCheckIn.check_in_time
-              ? (() => {
-                  const [hours, minutes] = localCheckIn.check_in_time.split(":");
-                  const hour = parseInt(hours, 10);
-                  const ampm = hour >= 12 ? "PM" : "AM";
-                  const displayHour = hour % 12 || 12;
-                  return `${String(displayHour).padStart(2, "0")}:${minutes} ${ampm}`;
-                })()
-              : ""
-          );
-          setLocationDetails(localCheckIn.notes ?? "");
-          setLocationData(
-            localCheckIn.gps_check_in_lat != null
-              ? { address: localCheckIn.notes ?? "Location retrieved via GPS" }
-              : null
-          );
-          setIsLoadingExisting(false);
-          return;
-        }
-
-        // Fall back to API if not in local storage
         const res = await apiClient.getInternshipAttendance(String(internshipId), {
           from_date: today,
           to_date: today,
         });
 
-        if (!res.success) {
-          console.warn("Failed to fetch existing check-in:", res.message);
-          setIsLoadingExisting(false);
-          return;
-        }
+        if (!res.success) return;
 
         const records = Array.isArray(res.data) ? res.data : res.data?.attendance ?? [];
-        const existing = records.find(isCheckedInAttendanceRecord);
+        const todayRecord = records.find((r: any) => r.status === "present" || r.status === "late" || r.status === "half_day");
 
-        if (!existing) {
-          setIsLoadingExisting(false);
-          return;
+        if (todayRecord) {
+          setCheckedInTime(todayRecord.check_in_time);
+          setLocationDetails(todayRecord.notes || "");
+          setLat(todayRecord.gps_check_in_lat || null);
+          setLng(todayRecord.gps_check_in_lng || null);
         }
-
-        setCheckInType(existing.gps_check_in_lat != null && existing.gps_check_in_lng != null ? "gps" : "manual");
-        setLat(existing.gps_check_in_lat ?? null);
-        setLng(existing.gps_check_in_lng ?? null);
-        // Handle both ISO datetime and HH:MM time formats
-        setCheckInTime(
-          existing.check_in_time
-            ? existing.check_in_time.includes("T")
-              ? new Date(existing.check_in_time).toLocaleTimeString("en-US", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                })
-              : (() => {
-                  // Convert HH:MM to HH:MM AM/PM
-                  const [hours, minutes] = existing.check_in_time.split(":");
-                  const hour = parseInt(hours, 10);
-                  const ampm = hour >= 12 ? "PM" : "AM";
-                  const displayHour = hour % 12 || 12;
-                  return `${String(displayHour).padStart(2, "0")}:${minutes} ${ampm}`;
-                })()
-            : ""
-        );
-        setLocationDetails(existing.notes ?? "");
-        setLocationData(
-          existing.gps_check_in_lat != null && existing.gps_check_in_lng != null
-            ? {
-                address: existing.notes ?? "Location retrieved via GPS",
-              }
-            : null
-        );
       } catch (error) {
-        console.error("Error hydrating existing check-in:", error);
-      } finally {
-        setIsLoadingExisting(false);
+        console.error("Error loading check-in status:", error);
       }
     };
 
-    hydrateExistingCheckIn();
-  }, [canCheckIn, internshipId, isOpen]);
-
-  if (!isOpen) return null;
+    loadCheckInStatus();
+  }, [isOpen, internshipId]);
 
   const handleGetLocation = () => {
     setIsGettingLocation(true);
     setGpsError(null);
-
-    const now = new Date();
-    const timeString = now.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    });
-    setCheckInTime(timeString);
 
     if (!("geolocation" in navigator)) {
       setGpsError("Geolocation is not supported by your browser");
@@ -216,33 +70,28 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        console.log("GPS Location captured:", latitude, longitude);
         setLat(latitude);
         setLng(longitude);
-        setGpsError(null);
-        toast.success("GPS captured!");
-        reverseGeocodeLocation(latitude, longitude);
+        setLocationDetails(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        toast.success("GPS location captured!");
         setIsGettingLocation(false);
       },
       (error) => {
         setIsGettingLocation(false);
-        let errorMessage = "Unable to get location. Try manual entry.";
-
+        let errorMessage = "Unable to get location";
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = "Location permission denied. Enable location in browser settings.";
+            errorMessage = "Location permission denied";
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = "Location information unavailable. Try manual entry.";
+            errorMessage = "Location information unavailable";
             break;
           case error.TIMEOUT:
-            errorMessage = "Location request timed out. Check internet and try again.";
+            errorMessage = "Location request timed out";
             break;
         }
-
         setGpsError(errorMessage);
         toast.error(errorMessage);
-        setCheckInType("manual");
       },
       {
         enableHighAccuracy: true,
@@ -255,123 +104,102 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
   const handleCheckIn = async () => {
     if (inFlightRef.current) return;
     if (!canCheckIn) {
-      toast.error("Check-in only available during active internship.");
+      toast.error("Check-in only available during active internship");
       return;
     }
-    if (!locationDetails && checkInType === "gps") {
-      toast.error("Please capture GPS location first.");
-      return;
-    }
-    if (checkInType === "manual" && !locationDetails.trim()) {
-      toast.error("Please enter your location.");
+    if (!locationDetails.trim()) {
+      toast.error("Please enter or capture your location");
       return;
     }
 
     inFlightRef.current = true;
     setIsSubmitting(true);
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
-    // API expects time in HH:MM format (e.g., "08:30")
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const checkInTime = `${hours}:${minutes}`;
-
-    const checkInData = {
-      internship_id: internshipId!,
-      check_in_time: checkInTime,
-      gps_check_in_lat: lat ?? undefined,
-      gps_check_in_lng: lng ?? undefined,
-      notes: locationDetails || undefined,
-      status: "present" as const,
-    };
 
     try {
-      // Store locally immediately for instant UI feedback
-      const localCheckIns = JSON.parse(localStorage.getItem("local_check_ins") || "{}");
-      localCheckIns[`internship_${internshipId}_${today}`] = {
-        ...checkInData,
-        local_id: `${internshipId}_${today}_${Date.now()}`,
-        synced: false,
-        created_at: new Date().toISOString(),
-      };
-      localStorage.setItem("local_check_ins", JSON.stringify(localCheckIns));
-      console.log("Check-in data stored locally:", checkInData);
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const timeStr = `${hours}:${minutes}`;
 
-      // Show success immediately
+      // Save to localStorage first for immediate UI feedback
+      const today = now.toISOString().split("T")[0];
+      const localKey = `check_in_${internshipId}_${today}`;
+      localStorage.setItem(localKey, JSON.stringify({
+        time: timeStr,
+        location: locationDetails,
+        lat,
+        lng,
+        timestamp: new Date().toISOString(),
+      }));
+
+      // Call API
+      const res = await apiClient.checkIn({
+        internship_id: internshipId!,
+        check_in_time: timeStr,
+        gps_check_in_lat: lat ?? undefined,
+        gps_check_in_lng: lng ?? undefined,
+        notes: locationDetails || undefined,
+        status: "present",
+      });
+
+      if (!res.success) {
+        toast.error(res.message ?? "Check-in failed");
+        inFlightRef.current = false;
+        setIsSubmitting(false);
+        return;
+      }
+
+      setCheckedInTime(timeStr);
       toast.success("Checked in successfully!");
-      setLocationDetails("");
-      setLat(null);
-      setLng(null);
-      setCheckInTime("");
-      setLocationData(null);
       onSuccess?.();
-      onClose();
 
-      // Push to backend asynchronously
-      setTimeout(async () => {
-        try {
-          const res = await apiClient.checkIn(checkInData);
-          if (res.success) {
-            // Mark as synced in localStorage
-            const updated = JSON.parse(localStorage.getItem("local_check_ins") || "{}");
-            if (updated[`internship_${internshipId}_${today}`]) {
-              updated[`internship_${internshipId}_${today}`].synced = true;
-            }
-            localStorage.setItem("local_check_ins", JSON.stringify(updated));
-            console.log("Check-in synced with backend successfully");
-          } else {
-            console.warn("Failed to sync check-in with backend:", res.message);
-            toast.error("Check-in stored locally but failed to sync with server: " + (res.message ?? "Unknown error"));
-          }
-        } catch (error) {
-          console.error("Background sync error:", error);
-          toast.error("Check-in stored locally but failed to sync: Network error");
-        }
-      }, 100);
+      // Close after a brief delay to show success
+      setTimeout(() => {
+        onClose();
+      }, 500);
     } catch (error) {
       console.error("Check-in error:", error);
-      toast.error("An unexpected error occurred during check-in");
+      toast.error("An error occurred during check-in");
       inFlightRef.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const hasLocationData = !!(locationDetails && lat != null && lng != null);
-  const alreadyCheckedIn = hasLocationData && !!checkInTime;
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4" onClick={handleClose}>
-      <div className="bg-card border border-border rounded-t-2xl md:rounded-2xl w-full md:max-w-md shadow-2xl max-h-[70vh] md:max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-t-2xl md:rounded-2xl w-full md:max-w-md shadow-2xl max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="border-b border-border p-6 flex items-start justify-between">
           <div>
             <h2 className="text-xl font-bold text-foreground">Daily Check-in</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {checkInTime ? `Checked in at ${checkInTime}` : "Record your attendance"}
+              {isCheckedIn ? `Checked in at ${checkedInTime}` : "Record your attendance"}
             </p>
           </div>
-          <button onClick={handleClose} className="p-1.5 hover:bg-accent rounded-lg transition-colors text-muted-foreground">
+          <button onClick={onClose} className="p-1.5 hover:bg-accent rounded-lg transition-colors text-muted-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-4 space-y-3">
-          {alreadyCheckedIn ? (
-            <div className="space-y-3">
-              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 flex items-center justify-center gap-3 animate-in fade-in duration-300">
+        <div className="p-6 space-y-4">
+          {isCheckedIn ? (
+            <>
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 flex items-center justify-center gap-3">
                 <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                 <div className="text-center">
                   <p className="font-semibold text-emerald-700 dark:text-emerald-300">Checked In</p>
                   <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
-                    {checkInTime ? `Recorded at ${checkInTime}` : "You're all set for today"}
+                    At {checkedInTime}
                   </p>
                 </div>
               </div>
 
               <div className="rounded-lg border border-border bg-background p-3 text-sm space-y-2">
-                <p className="font-medium text-foreground">Captured location</p>
-                <p className="text-muted-foreground">{locationDetails || "No location details available"}</p>
-                {lat != null && lng != null && (
+                <p className="font-medium text-foreground">Location</p>
+                <p className="text-muted-foreground">{locationDetails}</p>
+                {lat && lng && (
                   <p className="text-xs text-muted-foreground">
                     {lat.toFixed(4)}, {lng.toFixed(4)}
                   </p>
@@ -379,49 +207,45 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
               </div>
 
               <button
-                onClick={handleClose}
-                className="w-full py-2.5 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={onClose}
+                className="w-full py-2.5 rounded-lg font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 text-sm"
               >
                 <CheckCircle2 className="w-4 h-4" /> Close
               </button>
-            </div>
+            </>
           ) : (
             <>
-              {/* GPS Capture Button */}
+              {/* Location Input */}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-2 block">Location *</label>
+                <input
+                  type="text"
+                  value={locationDetails}
+                  onChange={(e) => setLocationDetails(e.target.value)}
+                  placeholder="Enter location manually or use GPS below"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                />
+              </div>
+
+              {/* GPS Button */}
               <button
                 onClick={handleGetLocation}
-                disabled={isGettingLocation || isLoadingExisting || !canCheckIn || hasLocationData}
+                disabled={isGettingLocation || isSubmitting || !canCheckIn}
                 className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
-                  hasLocationData
+                  lat && lng
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
                     : "bg-primary text-primary-foreground hover:opacity-90"
-                } ${(isGettingLocation || isLoadingExisting) ? "opacity-75" : ""} ${!canCheckIn ? "opacity-50 cursor-not-allowed" : ""}`}
+                } ${isGettingLocation ? "opacity-75" : ""} ${!canCheckIn ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                {isLoadingExisting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Loading check-in...</>
-                ) : isGettingLocation ? (
+                {isGettingLocation ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Getting location...</>
-                ) : hasLocationData ? (
+                ) : lat && lng ? (
                   <><CheckCircle2 className="w-4 h-4" /> Location captured</>
                 ) : (
                   <><MapPin className="w-4 h-4" /> Capture GPS Location</>
                 )}
               </button>
-
-              {/* Manual Entry */}
-              {!hasLocationData && (
-                <input
-                  type="text"
-                  value={locationDetails}
-                  onChange={(e) => {
-                    setCheckInType("manual");
-                    setLocationDetails(e.target.value);
-                  }}
-                  placeholder="Or enter location manually"
-                  disabled={!canCheckIn}
-                  className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-                />
-              )}
 
               {/* GPS Error */}
               {gpsError && (
@@ -432,12 +256,12 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
               )}
 
               {/* Check-in Button */}
-                <button
-                  onClick={handleCheckIn}
-                  disabled={isSubmitting || !locationDetails || !canCheckIn}
-                  className={`w-full py-2.5 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm ${
-                    isSubmitting || !locationDetails || !canCheckIn
-                      ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+              <button
+                onClick={handleCheckIn}
+                disabled={isSubmitting || !locationDetails.trim() || !canCheckIn}
+                className={`w-full py-2.5 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm ${
+                  isSubmitting || !locationDetails.trim() || !canCheckIn
+                    ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                     : "bg-primary text-primary-foreground hover:opacity-90"
                 }`}
               >
@@ -449,8 +273,9 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
               </button>
 
               <button
-                onClick={handleClose}
-                className="w-full py-2 border border-border rounded-lg hover:bg-accent font-medium text-sm transition-colors"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="w-full py-2 border border-border rounded-lg hover:bg-accent font-medium text-sm transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
