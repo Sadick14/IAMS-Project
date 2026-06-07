@@ -4,7 +4,8 @@ import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
 import {
   Plus, BookMarked, Calendar, CheckCircle2, Clock, AlertTriangle,
-  X, AlertCircle, Upload, Eye, FileText, ChevronDown, ChevronUp, Check, ExternalLink
+  X, AlertCircle, Upload, Eye, FileText, ChevronDown, ChevronUp, Check, ExternalLink,
+  Edit2, Trash2
 } from "lucide-react";
 import { CheckInModal } from "../../components/check-in-modal";
 import { toast } from "sonner";
@@ -21,7 +22,8 @@ export function LogbookPage() {
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [checkInModalOpen, setCheckInModalOpen] = useState(false);
-  
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
+
   // Weekly collapsible state
   const [collapsedWeeks, setCollapsedWeeks] = useState<Record<number, boolean>>({});
 
@@ -119,7 +121,44 @@ export function LogbookPage() {
     if (!isLogbookActive) return;
     if (!internshipId) return;
     if (!checkedInToday) { setCheckInModalOpen(true); return; }
+    setEditingEntry(null);
+    setForm({
+      entry_date: new Date().toISOString().split("T")[0],
+      activities_description: "",
+      skills_learned: "",
+      challenges_faced: "",
+    });
+    setAttachedFileName("");
+    setAttachedFileUrl("");
     setShowForm(true);
+  };
+
+  const handleEditEntry = (entry: any) => {
+    if (entry.status && entry.status !== "draft") {
+      toast.error("Can only edit draft entries");
+      return;
+    }
+    setEditingEntry(entry);
+    setForm({
+      entry_date: entry.entry_date,
+      activities_description: entry.activities_description,
+      skills_learned: entry.skills_learned || "",
+      challenges_faced: entry.challenges_faced || "",
+    });
+    setAttachedFileName(entry.attachment_name || "");
+    setAttachedFileUrl(entry.attachment_url || "");
+    setShowForm(true);
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!window.confirm("Delete this entry? This cannot be undone.")) return;
+    const res = await apiClient.deleteLogbookEntry(entryId);
+    if (res.success) {
+      toast.success("Entry deleted");
+      loadData();
+    } else {
+      toast.error("Failed to delete entry");
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,20 +177,26 @@ export function LogbookPage() {
   const handleSubmit = async () => {
     if (!isLogbookActive) return;
     if (!internshipId) return;
-    if (!checkedInToday) { setCheckInModalOpen(true); return; }
 
     await submitLogEntry(async () => {
-      // Include attachment data dynamically in submission
-      const res = await apiClient.submitLogbook({
+      const payload = {
         internship_id: internshipId,
         entry_date: form.entry_date,
         activities_description: form.activities_description,
         skills_learned: form.skills_learned || undefined,
         challenges_faced: form.challenges_faced || undefined,
-        // Pass custom attachment fields which the mock backend persists inside data
         attachment_name: attachedFileName || undefined,
         attachment_url: attachedFileUrl || undefined,
-      } as any);
+      } as any;
+
+      let res;
+      if (editingEntry) {
+        // Update existing entry
+        res = await apiClient.updateLogbookEntry(editingEntry.id, payload);
+      } else {
+        // Create new entry
+        res = await apiClient.submitLogbook(payload);
+      }
 
       if (res.success) {
         setForm({
@@ -162,12 +207,13 @@ export function LogbookPage() {
         });
         setAttachedFileName("");
         setAttachedFileUrl("");
+        setEditingEntry(null);
         setShowForm(false);
         loadData();
       }
       return res;
     }, {
-      successMessage: "Logbook entry submitted successfully!",
+      successMessage: editingEntry ? "Entry updated successfully!" : "Logbook entry submitted successfully!",
       errorMessage: "Failed to submit logbook entry.",
     });
   };
@@ -327,14 +373,34 @@ export function LogbookPage() {
                               {new Date(entry.entry_date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                             </p>
                           </div>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            entry.status === "approved"  ? "bg-emerald-100 text-emerald-700" :
-                            entry.status === "rejected"  ? "bg-red-100 text-red-700" :
-                            entry.status === "submitted" ? "bg-blue-100 text-blue-700" :
-                                                           "bg-amber-100 text-amber-700"
-                          }`}>
-                            {entry.status || "draft"}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              entry.status === "approved"  ? "bg-emerald-100 text-emerald-700" :
+                              entry.status === "rejected"  ? "bg-red-100 text-red-700" :
+                              entry.status === "submitted" ? "bg-blue-100 text-blue-700" :
+                                                             "bg-amber-100 text-amber-700"
+                            }`}>
+                              {entry.status || "draft"}
+                            </span>
+                            {(!entry.status || entry.status === "draft") && (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleEditEntry(entry)}
+                                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Edit entry"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteEntry(entry.id)}
+                                  className="p-1 rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
+                                  title="Delete entry"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div>
@@ -409,8 +475,8 @@ export function LogbookPage() {
             )}
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between pb-2 border-b">
-                <h3 className="font-bold text-lg">New Logbook Entry</h3>
-                <button type="button" onClick={() => setShowForm(false)} className="p-1 rounded-md hover:bg-accent text-muted-foreground transition-colors">
+                <h3 className="font-bold text-lg">{editingEntry ? "Edit Logbook Entry" : "New Logbook Entry"}</h3>
+                <button type="button" onClick={() => { setShowForm(false); setEditingEntry(null); }} className="p-1 rounded-md hover:bg-accent text-muted-foreground transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -540,9 +606,10 @@ export function LogbookPage() {
         onClose={() => setCheckInModalOpen(false)}
         onSuccess={() => {
           setCheckInModalOpen(false);
-          setCheckedInToday(true);
-          setShowForm(true);
-          loadData();
+          loadData().then(() => {
+            // After loading data, open the form if checked in
+            setTimeout(() => setShowForm(true), 100);
+          });
         }}
         internshipId={internshipId ?? undefined}
         internshipStatus={internshipStatus ?? undefined}
