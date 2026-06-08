@@ -351,10 +351,12 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                   <button
                     onClick={handleSend}
                     disabled={!messageText.trim()}
-                    className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2 shrink-0"
+                    className="px-3 sm:px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 sm:gap-2 shrink-0"
                     style={{ fontSize: "0.85rem" }}
+                    title="Send message"
                   >
                     <Send className="w-4 h-4" />
+                    <span className="hidden sm:inline">Send</span>
                   </button>
                 </div>
               </div>
