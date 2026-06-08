@@ -3,17 +3,36 @@
   <html lang="en">
     <head>
       <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Digital Industrial Attachment System</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+      <meta name="description" content="Industrial Attachment Management System for Ho Technical University - Track applications, logbooks, attendance, and assessments">
+      <title>HTU IAMS - Industrial Attachment System</title>
       <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
 
       <!-- PWA Meta Tags -->
+      <meta name="theme-color" content="#0B5ED7">
+      <meta name="color-scheme" content="light dark">
       <meta name="mobile-web-app-capable" content="yes">
       <meta name="apple-mobile-web-app-capable" content="yes">
       <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-      <meta name="theme-color" content="#4F46E5">
+      <meta name="apple-mobile-web-app-title" content="IAMS">
+
+      <!-- Manifest -->
       <link rel="manifest" href="/manifest.json">
-      <link rel="apple-touch-icon" href="/vite.svg">
+
+      <!-- Icons -->
+      <link rel="icon" type="image/x-icon" href="/favicon.ico">
+      <link rel="apple-touch-icon" href="/logo-192.png">
+      <link rel="icon" type="image/png" sizes="192x192" href="/logo-192.png">
+      <link rel="icon" type="image/png" sizes="512x512" href="/logo-512.png">
+
+      <!-- Service Worker -->
+      <script>
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            console.log('[PWA] Service Workers available:', registrations.length);
+          });
+        }
+      </script>
     </head>
 
     <body>

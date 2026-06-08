@@ -1,33 +1,96 @@
 {
-  "name": "IAMS Student Portal",
+  "name": "HTU Industrial Attachment Management System",
   "short_name": "IAMS",
-  "description": "Industrial Attachment Management System - Student Portal",
-  "start_url": "/student",
+  "description": "Industrial Attachment Management System for Ho Technical University - Track applications, logbooks, attendance, and assessments",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#4F46E5",
+  "theme_color": "#0B5ED7",
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/vite.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
     {
-      "src": "/vite.svg",
+      "src": "/logo-540.png",
       "sizes": "540x720",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "form_factor": "narrow"
+    },
+    {
+      "src": "/logo-1280.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ],
   "categories": ["education", "productivity"],
-  "screenshots_android": [
+  "shortcuts": [
     {
-      "src": "/vite.svg",
-      "sizes": "540x720"
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your dashboard",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/logo-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Logbook",
+      "short_name": "Logbook",
+      "description": "View your daily logbook",
+      "url": "/student/logbook",
+      "icons": [
+        {
+          "src": "/logo-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "short_name": "Attendance",
+      "description": "Check your attendance",
+      "url": "/student/attendance",
+      "icons": [
+        {
+          "src": "/logo-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

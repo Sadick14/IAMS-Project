@@ -1,9 +1,12 @@
+import { useEffect } from "react";
 import { RouterProvider } from "react-router";
 import { router } from "./routes";
 import { AppProvider } from "./lib/context";
 import { Toaster } from "sonner";
 import { NotificationPoller } from "./components/notification-poller";
 import { ErrorBoundary } from "./components/error-boundary";
+import { InstallPrompt } from "./components/install-prompt";
+import { registerServiceWorker } from "./lib/pwa-utils";
 
 // Suppress a known recharts 2.15.x dev-only warning where its internal
 // CategoricalChartWrapper renders children with duplicate `null` keys.
@@ -26,10 +29,16 @@ if (typeof window !== "undefined") {
 }
 
 export default function App() {
+  useEffect(() => {
+    // Register service worker for PWA functionality
+    registerServiceWorker();
+  }, []);
+
   return (
     <ErrorBoundary>
       <AppProvider>
         <NotificationPoller />
+        <InstallPrompt />
         <Toaster position="top-right" richColors />
         <RouterProvider router={router} />
       </AppProvider>
