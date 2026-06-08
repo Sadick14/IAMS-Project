@@ -160,7 +160,16 @@ export function DashboardLayout() {
 
   if (!user) return null;
 
-  const nav = getNavForRole(user.role);
+  let nav = getNavForRole(user.role);
+
+  // For students with active internship, hide Applications and show only track (Internship History)
+  if (user.role === "student" && activeInternship) {
+    nav = nav.filter((item) => item.label !== "Applications");
+  } else if (user.role === "student" && !activeInternship) {
+    // Hide Internship History when no active internship (user hasn't applied yet)
+    nav = nav.filter((item) => item.label !== "Internship History");
+  }
+
   const unread = store.notifications.filter((n) => !n.read).length + (store.announcementUnread ?? 0);
 
   // Per-role nav badges. Recomputed on every store change because `store` is reactive.
