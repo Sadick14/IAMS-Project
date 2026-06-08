@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router";
 import { Bell, X, CheckCheck, Trash2, Loader2 } from "lucide-react";
 import { apiClient } from "../lib/api-client";
 import { useAppContext } from "../lib/context";
@@ -7,6 +8,7 @@ import type { NotificationResponse } from "../types/api";
 
 export function NotificationBell() {
   const { user } = useAppContext();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -214,12 +216,15 @@ export function NotificationBell() {
           {/* Footer */}
           {notifications.length > 0 && (
             <div className="px-4 py-3 border-t border-border text-center">
-              <a
-                href={`/${user?.role}/communications?tab=notifications`}
-                className="text-xs text-primary hover:underline font-medium"
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate(`/${user?.role}/communications?tab=notifications`);
+                }}
+                className="text-xs text-primary hover:underline font-medium cursor-pointer bg-transparent border-0 p-0"
               >
                 View all notifications
-              </a>
+              </button>
             </div>
           )}
         </div>
