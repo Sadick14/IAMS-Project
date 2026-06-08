@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../../lib/api-client";
+import { SkeletonList } from "../../components/skeleton";
 import { Download, FileText, TrendingUp, BarChart3, Users, GraduationCap, Building2, RefreshCw } from "lucide-react";
 import { exportToCSV } from "../../lib/csv-export";
 import {
@@ -108,6 +109,8 @@ export function ReportsPage({ viewRole }: Props) {
     { key: "grades",     label: "Grades",      icon: FileText },
     { key: "companies",  label: "Companies",   icon: Building2 },
   ];
+
+  if (loading) return <SkeletonList count={5} />;
 
   return (
     <div className="space-y-6">

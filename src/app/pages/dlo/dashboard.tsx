@@ -3,6 +3,7 @@ import { StatCard } from "../../components/stat-card";
 import { StatusBadge } from "../../components/status-badge";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
+import { SkeletonDashboard } from "../../components/skeleton";
 import {
   Building2, FileText, GraduationCap, Clock, AlertTriangle, UserPlus,
   ArrowRight, TrendingUp, CheckCircle2, BarChart3
@@ -27,6 +28,7 @@ export function DLODashboard() {
   const [dashboardCounts, setDashboardCounts] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [pendingAssignments, setPendingAssignments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +45,7 @@ export function DLODashboard() {
       if (dashRes.success)    setDashboardCounts(dashRes.data);
       if (notifRes.success)   setNotifications(notifRes.data);
       if (assignRes.success)  setPendingAssignments(assignRes.data);
+      setLoading(false);
     };
 
     void load();
@@ -76,6 +79,8 @@ export function DLODashboard() {
     { id: "completed", name: "Completed", value: completedStudents, color: "#8B5CF6" },
     { id: "approved",  name: "Approved",  value: applications.filter((a) => a.status === "approved").length, color: "#10B981" },
   ].filter((d) => d.value > 0);
+
+  if (loading) return <SkeletonDashboard statCount={4} />;
 
   return (
     <div className="space-y-6">

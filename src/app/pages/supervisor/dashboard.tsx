@@ -4,6 +4,7 @@ import { StatusBadge } from "../../components/status-badge";
 import { StatCard } from "../../components/stat-card";
 import { AssessmentChecklistCard } from "../../components/supervisor/assessment-checklist-card";
 import { apiClient } from "../../lib/api-client";
+import { SkeletonDashboard } from "../../components/skeleton";
 import {
   GraduationCap, BookMarked, ClipboardCheck, AlertTriangle,
   MapPin, TrendingUp, Calendar, CheckCircle2, Shield
@@ -21,6 +22,7 @@ export function SupervisorDashboard() {
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [pendingLogs, setPendingLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +35,7 @@ export function SupervisorDashboard() {
       if (cancelled) return;
       if (dashRes.success)  setDashboard(dashRes.data);
       if (logsRes.success)  setPendingLogs(logsRes.data);
+      setLoading(false);
     };
 
     void load();
@@ -56,6 +59,8 @@ export function SupervisorDashboard() {
       : "unknown";
     return { ...i, pendingLogCount: logs.length, todayRecord, activityStatus };
   });
+
+  if (loading) return <SkeletonDashboard statCount={3} />;
 
   return (
     <div className="space-y-6">

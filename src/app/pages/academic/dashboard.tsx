@@ -3,6 +3,7 @@ import { useAppContext } from "../../lib/context";
 import { StatCard } from "../../components/stat-card";
 import { StatusBadge } from "../../components/status-badge";
 import { apiClient } from "../../lib/api-client";
+import { SkeletonDashboard } from "../../components/skeleton";
 import {
   GraduationCap, BookMarked, ClipboardCheck, AlertTriangle, MapPin,
   BarChart3, ArrowRight, Calendar, Clock, CheckCircle2, Eye
@@ -21,6 +22,7 @@ export function AcademicDashboard() {
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,6 +33,7 @@ export function AcademicDashboard() {
       if (cancelled) return;
       if (dashRes.success)  setDashboard(dashRes.data);
       if (notifRes.success) setNotifications(notifRes.data);
+      setLoading(false);
     });
     return () => { cancelled = true; };
   }, []);
@@ -44,6 +47,8 @@ export function AcademicDashboard() {
   const completedCount   = internships.filter((i) => i.status === "completed").length;
   const pendingLogsCount = pendingLogbooks.length;
   const pendingEvals     = internships.filter((i) => i.status === "active").length;
+
+  if (loading) return <SkeletonDashboard statCount={4} />;
 
   return (
     <div className="space-y-6">

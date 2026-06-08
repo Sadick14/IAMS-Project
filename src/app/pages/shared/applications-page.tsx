@@ -109,6 +109,8 @@ export function ApplicationsPage({ viewRole }: Props) {
 
   const detail = selectedApp ? applications.find((a) => String(a.id) === selectedApp) : null;
 
+  if (loading) return <SkeletonTableRows count={5} />;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">

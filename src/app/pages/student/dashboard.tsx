@@ -5,6 +5,7 @@ import { StatusBadge } from "../../components/status-badge";
 import { BookMarked, Clock, Award, ArrowRight, Calendar, MapPin, Mail, User, AlertCircle, CheckCircle2, Zap, FileText, MessageSquare, Briefcase, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { SkeletonDashboard } from "../../components/skeleton";
 
 export function StudentDashboard() {
   const { user } = useAppContext();
@@ -13,6 +14,7 @@ export function StudentDashboard() {
   const [visitations, setVisitations] = useState<any[]>([]);
   const [pendingApplication, setPendingApplication] = useState<any>(null);
   const [attendanceData, setAttendanceData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const prevStatusRef = useRef<string | null>(null);
 
@@ -22,7 +24,7 @@ export function StudentDashboard() {
       const [dashRes, appsRes, internshipRes] = await Promise.all([
         apiClient.getDashboard("student"),
         apiClient.getApplications(),
-        apiClient.getInternships(), // Fetch internship data to get approved applications
+        apiClient.getInternships(),
       ]);
       if (dashRes.success) {
         setDashboard(dashRes.data);
@@ -88,6 +90,7 @@ export function StudentDashboard() {
       // internshipRes is fetched to update dashboard with approved internship data
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   };
 
@@ -109,6 +112,8 @@ export function StudentDashboard() {
   const companyName = activeInternship?.company?.name ?? "N/A";
   const appStatus = activeInternship?.status ?? "none";
   const supervisorName = activeInternship?.academic_supervisor?.user?.name ?? activeInternship?.academicSupervisor?.user?.name ?? null;
+
+  if (loading) return <SkeletonDashboard statCount={3} />;
 
   return (
     <div className="space-y-6">

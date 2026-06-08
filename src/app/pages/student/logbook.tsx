@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
+import { SkeletonList } from "../../components/skeleton";
 import {
   Plus, BookMarked, Calendar, CheckCircle2, Clock, AlertTriangle,
   X, Upload, Eye, FileText, ChevronDown, ChevronUp, ExternalLink,
@@ -15,6 +16,7 @@ export function LogbookPage() {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string | null>(null);
   const [checkedInToday, setCheckedInToday] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [entries, setEntries] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -80,6 +82,8 @@ export function LogbookPage() {
       }
     } catch (error) {
       console.error("Error loading logbook data:", error);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -318,6 +322,8 @@ export function LogbookPage() {
     }
     return <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-semibold">Submitted</span>;
   };
+
+  if (loading) return <SkeletonList rows={5} />;
 
   return (
     <div className="space-y-4">
