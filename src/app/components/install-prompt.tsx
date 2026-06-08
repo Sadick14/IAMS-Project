@@ -58,16 +58,6 @@ export function InstallPrompt() {
     setShowPrompt(false);
   };
 
-  const handleReset = () => {
-    localStorage.removeItem("pwa_install_dismissed");
-    setShowPrompt(true);
-    setShowDebug(false);
-    console.log("[PWA] Dismissed flag cleared - popup should show on next page load");
-  };
-
-  // Show debug info if PWA event hasn't fired yet
-  const shouldShowDebug = showDebug || (!deferredPrompt && showPrompt === false);
-
   // Main install prompt
   if (showPrompt && deferredPrompt) {
     return (
