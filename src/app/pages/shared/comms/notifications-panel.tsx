@@ -178,16 +178,17 @@ export function NotificationsPanel() {
       </div>
 
       {/* Notification List */}
-      {filtered.length === 0 ? (
-        <div className="bg-card border border-border rounded-xl p-12 text-center">
-          <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3>No notifications</h3>
-          <p className="text-muted-foreground mt-1" style={{ fontSize: "0.85rem" }}>
-            {search ? "No notifications match your search." : "You're all caught up!"}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
+      <div className="max-h-[600px] overflow-y-auto">
+        {filtered.length === 0 ? (
+          <div className="bg-card border border-border rounded-xl p-12 text-center">
+            <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3>No notifications</h3>
+            <p className="text-muted-foreground mt-1" style={{ fontSize: "0.85rem" }}>
+              {search ? "No notifications match your search." : "You're all caught up!"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
           {Object.entries(grouped).map(([dateLabel, items]) => (
             <div key={dateLabel}>
               <p className="text-muted-foreground mb-2 px-1" style={{ fontSize: "0.75rem" }}>
@@ -236,7 +237,8 @@ export function NotificationsPanel() {
             </div>
           ))}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
