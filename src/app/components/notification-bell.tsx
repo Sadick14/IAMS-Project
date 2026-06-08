@@ -125,7 +125,7 @@ export function NotificationBell() {
 
       {/* Dropdown Popover */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-full sm:w-96 bg-card border border-border rounded-xl shadow-2xl z-50 flex flex-col max-h-[600px] overflow-hidden max-w-[calc(100vw-2rem)] sm:max-w-none">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-card border border-border rounded-xl shadow-2xl z-50 flex flex-col max-h-[600px] overflow-hidden max-w-[calc(100vw-2rem)]">
           {/* Header */}
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h3 className="font-semibold text-sm">Notifications</h3>
@@ -215,7 +215,7 @@ export function NotificationBell() {
           {notifications.length > 0 && (
             <div className="px-4 py-3 border-t border-border text-center">
               <a
-                href={`/${user?.role}/communications`}
+                href={`/${user?.role}/communications?tab=notifications`}
                 className="text-xs text-primary hover:underline font-medium"
               >
                 View all notifications
