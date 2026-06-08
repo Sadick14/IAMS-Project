@@ -7,7 +7,7 @@ import { toast } from "sonner";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (supervisorDetails?: { name: string; email: string; phone?: string; title?: string }) => void;
   applicationId: string;
   companyName: string;
   studentName?: string;
@@ -125,7 +125,12 @@ export function CompanyAcceptanceModal({
 
       if (res.success) {
         toast.success("Company acceptance submitted successfully! Your internship is now active.");
-        onSuccess();
+        onSuccess({
+          name: supervisorName,
+          email: supervisorEmail,
+          phone: supervisorPhone,
+          title: supervisorTitle,
+        });
         onClose();
       } else {
         toast.error(res.message ?? "Failed to submit acceptance");

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { openPlacementLetter } from "../../lib/generate-placement-letter";
@@ -6,9 +6,10 @@ import { downloadCompanyAcceptanceFormPDF } from "../../lib/generate-company-acc
 import { exportLogbookToPDF } from "../../lib/logbook-export";
 import { CompanyAcceptanceModal } from "../../components/student/company-acceptance-modal";
 import { DocumentUploadModal } from "../../components/student/document-upload-modal";
+import { InviteSupervisorModal } from "../../components/student/invite-supervisor-modal";
 import {
   Upload, FileText, Download, CheckCircle2, Clock, X, Eye,
-  File, AlertTriangle, Link2, Send
+  File, AlertTriangle, Send
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ export function DocumentsPage() {
   // Modals state
   const [isAcceptanceOpen, setIsAcceptanceOpen] = useState(false);
   const [isReportUploadOpen, setIsReportUploadOpen] = useState(false);
+  const [isInviteSupervisorOpen, setIsInviteSupervisorOpen] = useState(false);
 
   // Loading state for download button feedback
   const [isDownloadingForm, setIsDownloadingForm] = useState(false);
@@ -55,18 +57,13 @@ export function DocumentsPage() {
     fetchApplicationData();
   }, []);
 
-  // Supervisor magic link form
-  const [supervisorName, setSupervisorName] = useState("");
-  const [supervisorEmail, setSupervisorEmail] = useState("");
-  const [supervisorPhone, setSupervisorPhone] = useState("");
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  // Supervisor details from uploaded form
+  const [uploadedSupervisorName, setUploadedSupervisorName] = useState<string>("");
+  const [uploadedSupervisorEmail, setUploadedSupervisorEmail] = useState<string>("");
+  const [uploadedSupervisorPhone, setUploadedSupervisorPhone] = useState<string>("");
+  const [uploadedSupervisorTitle, setUploadedSupervisorTitle] = useState<string>("");
+  const [supervisorInviteSent, setSupervisorInviteSent] = useState(false);
 
-  useEffect(() => {
-    if (!myApp) return;
-    setSupervisorName((current) => current || myApp.industry_supervisor_name || "");
-    setSupervisorEmail((current) => current || myApp.industry_supervisor_email || "");
-    setSupervisorPhone((current) => current || myApp.industry_supervisor_phone || "");
-  }, [myApp]);
 
   const isApproved = !!(myApp?.status && ["approved", "active", "completed", "company accepted", "company_accepted"].includes(myApp.status.toLowerCase()));
   const isActive = myApp?.status?.toLowerCase() === "active";
@@ -208,27 +205,41 @@ export function DocumentsPage() {
     },
   ];
 
-  const handleSendMagicLink = async () => {
-    if (!supervisorName.trim() || !supervisorEmail.trim()) {
-      toast.error("Please provide supervisor name and email.");
-      return;
+  const sendSupervisorInvite = async (name: string, email: string, phone?: string, title?: string) => {
+    if (!name.trim() || !email.trim()) {
+      return false;
     }
+
     const companyName = typeof myApp?.company?.name === "string" ? myApp.company.name : (typeof myApp?.companyName === "string" ? myApp.companyName : undefined);
     const studentName = myApp?.student?.user?.name ?? myApp?.studentName ?? user?.name;
-    const res = await apiClient.requestMagicLink(supervisorEmail, {
-      role: "industry_supervisor",
-      name: supervisorName,
-      phone: supervisorPhone || undefined,
-      job_title: myApp?.industry_supervisor_title || undefined,
-      application_id: myApp?.id,
-      company_name: companyName,
-      student_name: studentName,
-    });
-    if (res.success) {
-      setMagicLinkSent(true);
-      toast.success(`Magic link sent to ${supervisorEmail}. Your supervisor can now access the system.`);
-    } else {
-      toast.error(res.message ?? "Failed to send magic link.");
+
+    try {
+      const res = await apiClient.requestMagicLink(email, {
+        role: "industry_supervisor",
+        name,
+        phone: phone || undefined,
+        job_title: title || undefined,
+        application_id: myApp?.id,
+        company_name: companyName,
+        student_name: studentName,
+      });
+
+      if (res.success) {
+        setUploadedSupervisorName(name);
+        setUploadedSupervisorEmail(email);
+        setUploadedSupervisorPhone(phone || "");
+        setUploadedSupervisorTitle(title || "");
+        setSupervisorInviteSent(true);
+        toast.success(`Supervisor invite sent to ${email}!`);
+        return true;
+      } else {
+        toast.error(res.message ?? "Failed to send supervisor invite.");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error sending supervisor invite:", error);
+      toast.error("Failed to send supervisor invite.");
+      return false;
     }
   };
 
@@ -333,9 +344,7 @@ export function DocumentsPage() {
                     <Download className="w-3 h-3" /> {isDownloadingForm ? "Downloading..." : "Download Form"}
                   </button>
                   <button
-                    onClick={() => {
-                      document.querySelector("[data-invite-supervisor-section]")?.scrollIntoView({ behavior: "smooth" });
-                    }}
+                    onClick={() => setIsInviteSupervisorOpen(true)}
                     className="px-2.5 py-1.5 border border-blue-300 text-blue-600 hover:bg-blue-50 rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                   >
                     <Send className="w-3 h-3" /> Invite Supervisor
@@ -388,58 +397,31 @@ export function DocumentsPage() {
         ))}
       </div>
 
-      {/* Industry Supervisor Magic Link Section */}
-      {(needsAcceptance || isActive) && (
-        <div className="bg-card border border-border rounded-lg p-4 space-y-3" data-invite-supervisor-section>
-          <div className="flex items-center gap-2">
-            <Link2 className="w-4 h-4 text-primary" />
-            <h3 className="font-semibold text-sm">Supervisor Access</h3>
+      {/* Supervisor Invitation Status */}
+      {supervisorInviteSent && uploadedSupervisorName && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-emerald-900 text-sm">Supervisor Invited</h3>
+              <p className="text-emerald-700 text-xs mt-1">
+                <span className="font-medium">{uploadedSupervisorName}</span> ({uploadedSupervisorEmail})
+              </p>
+              <p className="text-emerald-600 text-xs mt-2">
+                Access link sent. Link expires in 30 days.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                if (uploadedSupervisorEmail && uploadedSupervisorName) {
+                  sendSupervisorInvite(uploadedSupervisorName, uploadedSupervisorEmail, uploadedSupervisorPhone, uploadedSupervisorTitle);
+                }
+              }}
+              className="ml-auto px-3 py-1.5 text-emerald-600 hover:bg-emerald-100 rounded text-xs font-medium whitespace-nowrap shrink-0 transition-colors"
+            >
+              Resend Invite
+            </button>
           </div>
-          <p className="text-muted-foreground text-xs">
-            Send a magic link to your supervisor for system access.
-          </p>
-
-          {magicLinkSent ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-emerald-800 text-xs font-medium">Link sent</p>
-                <p className="text-emerald-700 text-xs mt-0.5">
-                  {supervisorName} can access the system. Link expires in 30 days.
-                </p>
-              </div>
-              <button
-                onClick={() => { setMagicLinkSent(false); setSupervisorName(""); setSupervisorEmail(""); setSupervisorPhone(""); }}
-                className="ml-auto text-emerald-600 hover:underline text-xs font-medium shrink-0"
-              >
-                Resend
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium">Name *</label>
-                <input type="text" value={supervisorName} onChange={(e) => setSupervisorName(e.target.value)}
-                  placeholder="Supervisor name" className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm" />
-              </div>
-              <div>
-                <label className="text-xs font-medium">Email *</label>
-                <input type="email" value={supervisorEmail} onChange={(e) => setSupervisorEmail(e.target.value)}
-                  placeholder="supervisor@company.com" className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm" />
-              </div>
-              <div>
-                <label className="text-xs font-medium">Phone</label>
-                <input type="tel" value={supervisorPhone} onChange={(e) => setSupervisorPhone(e.target.value)}
-                  placeholder="+233..." className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm" />
-              </div>
-              <button
-                onClick={handleSendMagicLink}
-                className="w-full px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center justify-center gap-2 text-sm font-medium"
-              >
-                <Send className="w-4 h-4" /> Send Link
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -448,8 +430,16 @@ export function DocumentsPage() {
         <CompanyAcceptanceModal
           isOpen={isAcceptanceOpen}
           onClose={() => setIsAcceptanceOpen(false)}
-          onSuccess={() => {
+          onSuccess={async (supervisorDetails) => {
             fetchApplicationData();
+            if (supervisorDetails?.name && supervisorDetails?.email) {
+              await sendSupervisorInvite(
+                supervisorDetails.name,
+                supervisorDetails.email,
+                supervisorDetails.phone,
+                supervisorDetails.title
+              );
+            }
           }}
           applicationId={myApp.id}
           companyName={typeof myApp.company?.name === "string" ? myApp.company.name : (typeof myApp.companyName === "string" ? myApp.companyName : "Company")}
@@ -469,6 +459,18 @@ export function DocumentsPage() {
         onSuccess={handleFinalReportSuccess}
         title="Upload Final Report"
         description="Select your comprehensive internship report to upload (PDF, DOCX, or DOC formats allowed. Max 10MB)."
+      />
+
+      {/* Invite Supervisor Modal */}
+      <InviteSupervisorModal
+        isOpen={isInviteSupervisorOpen}
+        onClose={() => setIsInviteSupervisorOpen(false)}
+        applicationId={myApp?.id}
+        initialName={supervisorName}
+        initialEmail={supervisorEmail}
+        initialPhone={supervisorPhone}
+        studentName={myApp?.student?.user?.name ?? myApp?.studentName ?? user?.name ?? "Student"}
+        companyName={typeof myApp?.company?.name === "string" ? myApp.company.name : (typeof myApp?.companyName === "string" ? myApp.companyName : "Company")}
       />
 
     </div>
