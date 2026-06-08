@@ -1,0 +1,50 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle (optional, can be removed) -->
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0B5ED7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#084298;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Main icon: Briefcase with graduation cap and document -->
+  <g>
+    <!-- Briefcase body -->
+    <rect x="40" y="70" width="120" height="80" rx="8" fill="#0B5ED7" opacity="0.1"/>
+    <path d="M 50 85 L 50 145 Q 50 155 60 155 L 140 155 Q 150 155 150 145 L 150 85 Z" fill="#0B5ED7"/>
+
+    <!-- Briefcase handle -->
+    <path d="M 70 85 Q 70 60 100 60 Q 130 60 130 85" stroke="#0B5ED7" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+    <!-- Briefcase divider -->
+    <line x1="100" y1="85" x2="100" y2="155" stroke="#ffffff" stroke-width="2" opacity="0.3"/>
+
+    <!-- Left side: Graduation cap -->
+    <g transform="translate(75, 105)">
+      <!-- Cap top -->
+      <circle cx="0" cy="0" r="12" fill="#ffffff"/>
+      <!-- Cap base -->
+      <rect x="-15" y="2" width="30" height="4" fill="#ffffff"/>
+      <!-- Tassel -->
+      <line x1="0" y1="6" x2="0" y2="18" stroke="#ffffff" stroke-width="2"/>
+      <circle cx="0" cy="20" r="3" fill="#ffffff"/>
+    </g>
+
+    <!-- Right side: Document/Checklist -->
+    <g transform="translate(125, 105)">
+      <!-- Document -->
+      <rect x="-10" y="-12" width="20" height="24" rx="2" fill="#ffffff"/>
+      <!-- Lines -->
+      <line x1="-6" y1="-6" x2="6" y2="-6" stroke="#0B5ED7" stroke-width="1.5"/>
+      <line x1="-6" y1="-2" x2="6" y2="-2" stroke="#0B5ED7" stroke-width="1.5"/>
+      <line x1="-6" y1="2" x2="6" y2="2" stroke="#0B5ED7" stroke-width="1.5"/>
+      <!-- Checkmark -->
+      <g transform="translate(0, 8)">
+        <path d="M -4 0 L -1 3 L 4 -2" stroke="#10b981" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Optional: Outer ring for badge style -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#0B5ED7" stroke-width="2" opacity="0.2"/>
+</svg>
