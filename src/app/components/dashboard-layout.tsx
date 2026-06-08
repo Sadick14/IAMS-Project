@@ -245,32 +245,16 @@ export function DashboardLayout() {
 
             {/* Main nav */}
             <div className="space-y-0.5">
-              {mainNav.map((item) => {
-                // Block Applications link if student has active internship
-                const isApplicationsLink = item.label === "Applications";
-                const isBlocked = user.role === "student" && isApplicationsLink && activeInternship?.status === "active";
-
-                return (
+              {mainNav.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     end={item.to === `/${user.role}`}
-                    onClick={(e) => {
-                      if (isBlocked) {
-                        e.preventDefault();
-                        return;
-                      }
-                      handleNavClick();
-                    }}
-                    className={({ isActive }) => {
-                      if (isBlocked) {
-                        return `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 opacity-50 cursor-not-allowed text-sidebar-foreground/50`;
-                      }
-                      return `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 ${isActive
+                    onClick={handleNavClick}
+                    className={({ isActive }) => `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 ${isActive
                         ? "bg-[#E3EBFF] dark:bg-primary/20 text-primary font-medium"
                         : "text-sidebar-foreground hover:bg-[#E3EBFF]/50 dark:hover:bg-white/5 hover:text-foreground"
-                      }`;
-                    }}
+                      }`}
                   >
                   {({ isActive }) => (
                     <>
@@ -294,8 +278,8 @@ export function DashboardLayout() {
                     </>
                   )}
                   </NavLink>
-                );
-              })}
+                ))}
+
             </div>
           </nav>
         </div>
