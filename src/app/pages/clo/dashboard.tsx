@@ -3,6 +3,7 @@ import { StatCard } from "../../components/stat-card";
 import { StatusBadge } from "../../components/status-badge";
 import { exportToCSV } from "../../lib/csv-export";
 import { apiClient } from "../../lib/api-client";
+import { getNameInitials } from "../../lib/validation";
 import {
   Building2, FileText, GraduationCap, Clock, AlertTriangle, TrendingUp,
   ArrowRight, UserPlus, Zap, Download, Calendar, CheckCircle2, XCircle
@@ -281,7 +282,7 @@ export function CLODashboard() {
                         <div className="w-1/3 bg-[#F59E0B] rounded-t" style={{ height: `${(d.pending / max) * 100}%`, minHeight: d.pending > 0 ? 4 : 0 }} />
                         <div className="w-1/3 bg-[#8B5CF6] rounded-t" style={{ height: `${(d.completed / max) * 100}%`, minHeight: d.completed > 0 ? 4 : 0 }} />
                       </div>
-                      <span className="text-muted-foreground truncate w-full text-center" style={{ fontSize: "0.62rem" }} title={d.name}>{d.name.split(" ")[0]}</span>
+                      <span className="text-muted-foreground truncate w-full text-center" style={{ fontSize: "0.62rem" }} title={d.name}>{(d.name || "—").split(" ")[0]}</span>
                     </div>
                   ));
                 })()}

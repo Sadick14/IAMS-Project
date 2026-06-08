@@ -3,6 +3,7 @@ import { Search, UserPlus, Mail, Shield, X, Users, CheckCircle2, XCircle, MoreVe
 import { SkeletonStatCards, SkeletonTable, SkeletonTabs, SkeletonPageHeader } from "../../components/skeleton";
 import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
+import { getNameInitials } from "../../lib/validation";
 
 type RoleFilter = "All" | "clo" | "dlo" | "academic supervisor" | "industry supervisor" | "student" | "hod";
 
@@ -425,7 +426,7 @@ export function UsersPage() {
               <div className="flex items-center gap-3 min-w-0 flex-1" onClick={() => toggleSelect(u.id)}>
                 <input type="checkbox" checked={selectedUsers.has(u.id)} onChange={() => toggleSelect(u.id)} className="rounded shrink-0" />
                 <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground shrink-0" style={{ fontSize: "0.7rem" }}>
-                  {u.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                  {getNameInitials(u.name, 2)}
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium truncate" style={{ fontSize: "0.9rem" }}>{u.name}</p>
@@ -483,7 +484,7 @@ export function UsersPage() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground shrink-0" style={{ fontSize: "0.7rem" }}>
-                      {u.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                      {getNameInitials(u.name, 2)}
                     </div>
                     <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>{u.name}</span>
                   </div>

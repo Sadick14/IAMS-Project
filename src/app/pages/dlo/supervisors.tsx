@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { apiClient } from "../../lib/api-client";
+import { getNameInitials } from "../../lib/validation";
 
 interface SupervisorRow {
   id: string;
@@ -60,7 +61,7 @@ export function SupervisorsPage() {
 
   const workloadData = supervisors.map((s) => ({
     id: s.id,
-    name: s.name.split(" ").pop() || s.name,
+    name: (s.name || "").split(" ").pop() || s.name || "Unknown",
     value: s.currentLoad,
     color: s.currentLoad >= s.maxLoad ? "#EF4444" : s.currentLoad >= s.maxLoad * 0.75 ? "#F59E0B" : "#10B981",
   })).filter((d) => d.value > 0);
@@ -124,7 +125,7 @@ export function SupervisorsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-full bg-primary flex items-center justify-center text-primary-foreground" style={{ fontSize: "0.8rem" }}>
-                      {sup.name.split(" ").map((w) => w[0]).join("")}
+                      {getNameInitials(sup.name)}
                     </div>
                     <div>
                       <p style={{ fontSize: "0.9rem" }}>{sup.name}</p>

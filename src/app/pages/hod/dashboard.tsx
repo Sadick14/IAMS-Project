@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { getNameInitials } from "../../lib/validation";
 
 function getStudentName(g: any) { return g.internship?.student?.user?.name ?? g.student?.user?.name ?? "—"; }
 function getStudentNum(g: any)  { return g.internship?.student?.student_id ?? g.student?.student_id ?? "—"; }
@@ -174,7 +175,7 @@ export function HODDashboard() {
               <div key={g.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-700" style={{ fontSize: "0.75rem" }}>
-                    {getStudentName(g).split(" ").map((w: string) => w[0]).join("")}
+                    {getNameInitials(getStudentName(g))}
                   </div>
                   <div>
                     <p style={{ fontSize: "0.85rem" }}>{getStudentName(g)}</p>

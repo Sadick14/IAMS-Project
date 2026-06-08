@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
+import { getNameInitials } from "../../lib/validation";
 
 type FilterTab = "pending" | "approved" | "all";
 
@@ -176,7 +177,7 @@ export function HODApprovalsPage() {
               <div key={g.id} className={`bg-card border rounded-xl transition-colors ${g.gradeStatus === "Submitted" ? "border-amber-200" : "border-border"}`}>
                 <button onClick={() => setExpandedId(isExpanded ? null : g.id)} className="w-full text-left p-5 flex items-center gap-4">
                   <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0" style={{ fontSize: "0.85rem" }}>
-                    {g.studentName.split(" ").map((w: string) => w[0]).join("")}
+                    {getNameInitials(g.studentName)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">

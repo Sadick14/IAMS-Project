@@ -1,5 +1,6 @@
 import { GraduationCap, BookMarked, Calendar, Eye } from "lucide-react";
 import type { LogbookEntryResponse } from "../../types/api";
+import { getNameInitials } from "../../lib/validation";
 
 interface Student {
   id: string;
@@ -64,10 +65,7 @@ export function StudentListReview({ assignedStudents, logbookEntriesByStudent, o
                       className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 font-semibold"
                       style={{ fontSize: "0.85rem" }}
                     >
-                      {s.studentName
-                        .split(" ")
-                        .map((w) => w[0])
-                        .join("")}
+                      {getNameInitials(s.studentName)}
                     </div>
                     {isFlagged && (
                       <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 border-2 border-card" />

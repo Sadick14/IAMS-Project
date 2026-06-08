@@ -75,3 +75,15 @@ export function validateForm(
 
   return { valid, errors };
 }
+
+// ── String Utilities ──
+
+export function getNameInitials(name: string | null | undefined, maxChars = 2): string {
+  if (!name || typeof name !== "string") return "U";
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, maxChars)
+    .toUpperCase();
+}

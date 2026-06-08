@@ -8,6 +8,7 @@ import {
   BarChart3, ArrowRight, Calendar, Clock, CheckCircle2, Eye
 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { getNameInitials } from "../../lib/validation";
 
 function getStudentName(i: any) { return i.student?.user?.name ?? "—"; }
 function getStudentNum(i: any)  { return i.student?.student_id ?? "—"; }
@@ -156,7 +157,7 @@ export function AcademicDashboard() {
               internships.map((i) => (
                 <div key={i.id} className="p-4 flex items-center gap-4 hover:bg-secondary/20 transition-colors">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0" style={{ fontSize: "0.8rem" }}>
-                    {getStudentName(i).split(" ").map((w: string) => w[0]).join("")}
+                    {getNameInitials(getStudentName(i))}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
