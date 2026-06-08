@@ -1,21 +1,35 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
-import { Bell, X, CheckCheck, Trash2, Loader2 } from "lucide-react";
+import { Bell, X, CheckCheck, Loader2 } from "lucide-react";
 import { apiClient } from "../lib/api-client";
 import { useAppContext } from "../lib/context";
+import { markNotificationRead as markStoreNotificationRead, setNotifications as setStoreNotifications } from "../lib/store";
 import { toast } from "sonner";
 import type { NotificationResponse } from "../types/api";
 
+type NotificationFilter = "all" | "unread" | "read";
+type DisplayNotification = NotificationResponse & {
+  read: boolean;
+  created_at: string;
+};
+
 export function NotificationBell() {
-  const { user } = useAppContext();
+  const { user, store } = useAppContext();
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
+  const [notifications, setNotifications] = useState<DisplayNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [filter, setFilter] = useState<NotificationFilter>("all");
   const [loading, setLoading] = useState(false);
   const [marking, setMarking] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const readCount = notifications.length - unreadCount;
+  const visibleNotifications = notifications.filter((notification) => {
+    if (filter === "unread") return !notification.read;
+    if (filter === "read") return notification.read;
+    return true;
+  });
 
   useEffect(() => {
     loadNotifications();
@@ -35,7 +49,41 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
+  useEffect(() => {
+    if (store.notifications.length === 0) return;
+    setNotifications((prev) => {
+      const actionDataById = new Map(prev.map((n) => [n.id, n]));
+      return store.notifications.map((notification: any) => {
+        const existing = actionDataById.get(String(notification.id));
+        return {
+          ...existing,
+          id: String(notification.id),
+          user_id: existing?.user_id ?? "",
+          type: notification.type ?? existing?.type ?? "system",
+          title: notification.title ?? existing?.title ?? "Notification",
+          message: notification.message ?? existing?.message ?? "",
+          read: Boolean(notification.read ?? notification.is_read),
+          created_at: notification.created_at ?? notification.timestamp ?? existing?.created_at ?? new Date().toISOString(),
+          action_url: existing?.action_url,
+          priority: existing?.priority,
+        } as DisplayNotification;
+      });
+    });
+  }, [store.notifications]);
+
+  const normaliseNotification = (notification: any): DisplayNotification => ({
+    ...notification,
+    id: String(notification.id),
+    user_id: String(notification.user_id ?? ""),
+    type: notification.type ?? "system",
+    title: notification.title ?? notification.subject ?? "Notification",
+    message: notification.message ?? notification.body ?? "",
+    read: Boolean(notification.read ?? notification.is_read),
+    created_at: notification.created_at ?? notification.timestamp ?? new Date().toISOString(),
+  });
+
   const loadNotifications = async () => {
+    setLoading(true);
     try {
       let res;
 
@@ -48,10 +96,21 @@ export function NotificationBell() {
       }
 
       if (res.success && Array.isArray(res.data)) {
-        setNotifications(res.data);
+        const normalised = res.data.map(normaliseNotification);
+        setNotifications(normalised);
+        setStoreNotifications(normalised.map((notification) => ({
+          id: notification.id,
+          type: notification.type as any,
+          title: notification.title,
+          message: notification.message,
+          read: notification.read,
+          timestamp: notification.created_at,
+        })));
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,6 +121,7 @@ export function NotificationBell() {
         setNotifications((prev) =>
           prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
         );
+        markStoreNotificationRead(notificationId);
       }
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -74,6 +134,7 @@ export function NotificationBell() {
       const res = await apiClient.markAllNotificationsRead();
       if (res.success) {
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        setStoreNotifications(store.notifications.map((n) => ({ ...n, read: true })));
         toast.success("All notifications marked as read");
       }
     } catch (error) {
@@ -90,6 +151,7 @@ export function NotificationBell() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
       );
+      markStoreNotificationRead(notification.id);
       // Mark as read on server
       handleMarkAsRead(notification.id);
     }
@@ -116,10 +178,11 @@ export function NotificationBell() {
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
         title="Notifications"
+        aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          <span className="absolute top-0 right-0 min-w-5 h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -127,28 +190,55 @@ export function NotificationBell() {
 
       {/* Dropdown Popover */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-card border border-border rounded-xl shadow-2xl z-50 flex flex-col max-h-[600px] overflow-hidden max-w-[calc(100vw-2rem)]">
+        <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 bg-card border border-border rounded-xl shadow-2xl z-50 flex flex-col max-h-[calc(100dvh-5rem)] sm:max-h-[600px] overflow-hidden">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <h3 className="font-semibold text-sm">Notifications</h3>
-            <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
+          <div className="px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-sm">Notifications</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"} · {notifications.length} total
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    disabled={marking}
+                    className="p-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                    title="Mark all as read"
+                  >
+                    {marking && <Loader2 className="w-3 h-3 animate-spin" />}
+                    <CheckCheck className="w-4 h-4" />
+                  </button>
+                )}
                 <button
-                  onClick={handleMarkAllAsRead}
-                  disabled={marking}
-                  className="p-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors disabled:opacity-50 flex items-center gap-1"
-                  title="Mark all as read"
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
                 >
-                  {marking && <Loader2 className="w-3 h-3 animate-spin" />}
-                  <CheckCheck className="w-4 h-4" />
+                  <X className="w-4 h-4" />
                 </button>
-              )}
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {[
+                { key: "all", label: "All", count: notifications.length },
+                { key: "unread", label: "Unread", count: unreadCount },
+                { key: "read", label: "Read", count: readCount },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setFilter(item.key as NotificationFilter)}
+                  className={`rounded-lg border px-2 py-2 text-left transition-colors ${
+                    filter === item.key
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border hover:bg-accent"
+                  }`}
+                >
+                  <span className="block text-[0.65rem] text-muted-foreground">{item.label}</span>
+                  <span className="block text-sm font-semibold leading-tight">{item.count}</span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -163,9 +253,14 @@ export function NotificationBell() {
                 <Bell className="w-8 h-8 mx-auto opacity-50 mb-2" />
                 <p>No notifications</p>
               </div>
+            ) : visibleNotifications.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                <Bell className="w-8 h-8 mx-auto opacity-50 mb-2" />
+                <p>No {filter} notifications</p>
+              </div>
             ) : (
               <div className="space-y-1 p-2">
-                {notifications.map((notification) => (
+                {visibleNotifications.map((notification) => (
                   <button
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
