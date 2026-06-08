@@ -15,7 +15,14 @@ interface Props {
 
 export function CommunicationsPage({ viewRole }: Props) {
   const [searchParams] = useSearchParams();
-  const initialTab = (searchParams.get("tab") as CommTab) ?? "notifications";
+  const canComposeAnnouncements = viewRole === "clo" || viewRole === "dlo";
+  const requestedTab = searchParams.get("tab") as CommTab;
+
+  // If non-composer tries to view announcements, default to notifications
+  const initialTab: CommTab =
+    (requestedTab === "announcements" && !canComposeAnnouncements)
+      ? "notifications"
+      : (requestedTab as CommTab) ?? "notifications";
   const recipientParam = searchParams.get("recipient") ?? undefined;
 
   const [activeTab, setActiveTab] = useState<CommTab>(initialTab);
@@ -28,13 +35,10 @@ export function CommunicationsPage({ viewRole }: Props) {
     });
   }, []);
 
-  // Only CLO/DLO can compose announcements; all roles can view them
-  const canComposeAnnouncements = viewRole === "clo" || viewRole === "dlo";
-
   const tabs: { key: CommTab; label: string; icon: typeof Bell; badge?: number }[] = [
     { key: "notifications", label: "Notifications", icon: Bell, badge: unreadNotifs || undefined },
     { key: "messages", label: "Messages", icon: MessageSquare, badge: unreadMsgs || undefined },
-    { key: "announcements", label: "Announcements", icon: Megaphone },
+    ...(canComposeAnnouncements ? [{ key: "announcements" as const, label: "Announcements", icon: Megaphone }] : []),
   ];
 
   return (
