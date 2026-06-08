@@ -58,8 +58,8 @@ export function StudentProfileSetup() {
           setPreferredIndustries(d.preferredIndustries || "");
           setDesiredRoles(d.desiredRoles || "");
           setIsProfileComplete(isProfileSaved);
-          // Only enter edit mode if there's a draft AND profile is not yet saved
-          setIsEditMode(!isProfileSaved);
+          // Always show view page first, user clicks Edit to modify
+          setIsEditMode(false);
         } else if (user?.id) {
           const res = await apiClient.getStudentProfile(String(user.id));
           if (res.success && res.data) {
@@ -78,18 +78,18 @@ export function StudentProfileSetup() {
             setLastSaved(new Date());
             const isComplete = p.profile_completed || false;
             setIsProfileComplete(isComplete);
-            // Always show view page if profile is complete, otherwise show edit page
-            setIsEditMode(!isComplete);
+            // Always show view page first - whether complete or not
+            setIsEditMode(false);
           } else if (user?.email) {
             setStudentId(user.email.split("@")[0]);
-            // No profile found - show edit page for new profile setup
-            setIsEditMode(true);
+            // No profile found - still show view page with empty/placeholder data
+            setIsEditMode(false);
           }
         }
       } catch {
         if (user?.email) setStudentId(user.email.split("@")[0]);
-        // On error, show edit page
-        setIsEditMode(true);
+        // On error, still show view page
+        setIsEditMode(false);
       }
     };
     load();
@@ -164,13 +164,13 @@ export function StudentProfileSetup() {
   ];
 
   // ── VIEW MODE ──
-  if (!isEditMode && isProfileComplete) {
+  if (!isEditMode) {
     return (
       <div className="space-y-4">
         <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold">My Profile</h1>
-            <p className="text-muted-foreground text-xs mt-1">Your profile is complete</p>
+            <p className="text-muted-foreground text-xs mt-1">{isProfileComplete ? "Your profile is complete" : "Your profile (click Edit to complete)"}</p>
           </div>
           <button
             onClick={() => setIsEditMode(true)}
