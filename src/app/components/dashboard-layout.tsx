@@ -13,7 +13,6 @@ import { getSettings, updateSettings, subscribeSettings } from "../lib/settings-
 import { setNotifications } from "../lib/store";
 import { getOverdueWeeklyRubrics } from "../services/grading-service";
 import { CheckInModal } from "./check-in-modal";
-import { StudentMobileShell } from "./student/student-mobile-shell";
 import { NotificationBell } from "./notification-bell";
 import { useStudentCheckIn } from "../hooks/use-student-check-in";
 
@@ -160,11 +159,6 @@ export function DashboardLayout() {
   const settings = useSyncExternalStore(subscribeSettings, getSettings);
 
   if (!user) return null;
-
-  // For students on mobile, use the mobile shell instead
-  if (user.role === "student" && isMobile) {
-    return <StudentMobileShell />;
-  }
 
   const nav = getNavForRole(user.role);
   const unread = store.notifications.filter((n) => !n.read).length + (store.announcementUnread ?? 0);
@@ -359,7 +353,7 @@ export function DashboardLayout() {
                 className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground shrink-0"
                 style={{ fontSize: "0.75rem", fontWeight: 600 }}
               >
-                {user.name
+                {(user.name || "U")
                   .split(" ")
                   .map((w) => w[0])
                   .join("")}
@@ -389,7 +383,7 @@ export function DashboardLayout() {
                         className="w-11 h-11 rounded-full bg-primary flex items-center justify-center text-primary-foreground shrink-0"
                         style={{ fontSize: "0.8rem", fontWeight: 600 }}
                       >
-                        {user.name.split(" ").map((w) => w[0]).join("")}
+                        {(user.name || "U").split(" ").map((w) => w[0]).join("")}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p style={{ fontSize: "0.9rem", fontWeight: 500 }} className="text-foreground truncate">
