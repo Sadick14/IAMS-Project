@@ -112,14 +112,10 @@ export function StudentDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Top Bar: Search and Profile */}
+      {/* Profile */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-full px-4 py-2 border border-border rounded-lg bg-background text-sm"
-          />
+          
         </div>
         <div className="flex items-center gap-2">
           <button
