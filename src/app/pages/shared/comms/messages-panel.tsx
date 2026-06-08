@@ -334,9 +334,9 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
               )}
 
               {/* Input */}
-              <div className="p-4 border-t border-border">
-                <div className="flex gap-2 items-end">
-                  <button className="p-2.5 rounded-lg border border-border hover:bg-accent text-muted-foreground shrink-0" title="Attach file">
+              <div className="p-3 sm:p-4 border-t border-border">
+                <div className="flex gap-1.5 sm:gap-2 items-end">
+                  <button className="p-2 sm:p-2.5 rounded-lg border border-border hover:bg-accent text-muted-foreground shrink-0" title="Attach file">
                     <Paperclip className="w-4 h-4" />
                   </button>
                   <input
@@ -345,18 +345,18 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     placeholder="Type a message..."
-                    className="flex-1 px-4 py-2.5 border border-border rounded-lg bg-background"
+                    className="flex-1 min-w-0 px-3 sm:px-4 py-2 sm:py-2.5 border border-border rounded-lg bg-background"
                     style={{ fontSize: "0.85rem" }}
                   />
                   <button
                     onClick={handleSend}
                     disabled={!messageText.trim()}
-                    className="px-2.5 sm:px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 sm:gap-2 shrink-0 font-medium"
+                    className="px-2 sm:px-4 py-2 sm:py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1 sm:gap-2 shrink-0 font-medium whitespace-nowrap"
                     style={{ fontSize: "0.8rem" }}
                     title="Send message"
                   >
-                    <Send className="w-5 h-5 sm:w-4 sm:h-4" />
-                    <span>Send</span>
+                    <Send className="w-4 h-4" />
+                    <span className="text-xs sm:text-sm">Send</span>
                   </button>
                 </div>
               </div>
