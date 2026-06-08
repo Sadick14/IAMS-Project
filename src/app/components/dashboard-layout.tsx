@@ -360,10 +360,10 @@ export function DashboardLayout() {
               </div>
               <div className="hidden md:block text-left">
                 <p style={{ fontSize: "0.85rem", fontWeight: 500 }} className="text-foreground">
-                  {user.name}
+                  {user.name || "User"}
                 </p>
                 <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground">
-                  {user.email}
+                  {user.email || "—"}
                 </p>
               </div>
               <ChevronDown className={`w-4 h-4 text-muted-foreground hidden md:block transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} />
@@ -387,10 +387,10 @@ export function DashboardLayout() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p style={{ fontSize: "0.9rem", fontWeight: 500 }} className="text-foreground truncate">
-                          {user.name}
+                          {user.name || "User"}
                         </p>
                         <p style={{ fontSize: "0.75rem" }} className="text-muted-foreground truncate">
-                          {user.email}
+                          {user.email || "—"}
                         </p>
                         <span
                           className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/8 text-primary mt-1"
