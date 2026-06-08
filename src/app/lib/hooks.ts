@@ -221,13 +221,30 @@ function requestPushPermission() {
   }
 }
 
-function firePushNotification(title: string, body: string) {
-  if (typeof Notification === "undefined") return;
-  if (Notification.permission !== "granted") return;
-  try {
-    new Notification(title, { body, icon: "/favicon.ico", badge: "/favicon.ico" });
-  } catch {
-    // Some environments block new Notification() — ignore
+async function firePushNotification(title: string, body: string) {
+  // Prefer the service-worker approach — works even when the tab is in background
+  if ("serviceWorker" in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      registration.active?.postMessage({
+        type: "SHOW_NOTIFICATION",
+        notification: {
+          title,
+          options: {
+            body,
+            icon: "/logo-192.png",
+            badge: "/logo-192.png",
+            tag: "iams-notification",
+            requireInteraction: false,
+          },
+        },
+      });
+      return;
+    } catch { /* fall through */ }
+  }
+  // Fallback for browsers without service-worker support
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    try { new Notification(title, { body, icon: "/favicon.ico" }); } catch {}
   }
 }
 
