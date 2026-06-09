@@ -54,14 +54,26 @@ function addDays(date: Date, days: number): Date {
 }
 
 function buildWeeksForInternship(item: any) {
-  const startIso = toIsoDate(item?.confirmed_start_date ?? item?.start_date ?? item?.proposed_start_date);
-  const endIso = toIsoDate(item?.confirmed_end_date ?? item?.end_date ?? item?.proposed_end_date);
-  if (!startIso || !endIso) return [];
+  // Use approved term dates (confirmed_start_date, confirmed_end_date)
+  // These are the dates approved for the current term
+  const startIso = toIsoDate(item?.confirmed_start_date ?? item?.start_date);
+  const endIso = toIsoDate(item?.confirmed_end_date ?? item?.end_date);
+
+  if (!startIso || !endIso) {
+    console.warn("Missing internship dates for weeks calculation", {
+      confirmed_start_date: item?.confirmed_start_date,
+      confirmed_end_date: item?.confirmed_end_date,
+      start_date: item?.start_date,
+      end_date: item?.end_date,
+    });
+    return [];
+  }
 
   const weeks = [];
   let cursor = new Date(startIso);
   const end = new Date(endIso);
   let weekNumber = 1;
+
   while (cursor <= end) {
     const weekStart = cursor.toISOString().slice(0, 10);
     const weekEnd = addDays(cursor, 6);
