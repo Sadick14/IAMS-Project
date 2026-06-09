@@ -71,6 +71,8 @@ function normalizeAuditLogs(logs: any[]): AuditLogItem[] {
   }));
 }
 
+const ALL_ACTIONS = Object.keys(actionColors).sort();
+
 export function AuditLogsPage() {
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("All");
@@ -81,15 +83,32 @@ export function AuditLogsPage() {
   const [selectedLog, setSelectedLog] = useState<string | null>(null);
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState<string[]>([]);
+
+  useEffect(() => {
+    apiClient.getUsers().then((res) => {
+      if (res.success) {
+        setAllUsers(
+          [...res.data]
+            .map((u: any) => u.name as string)
+            .filter(Boolean)
+            .sort()
+        );
+      }
+    });
+  }, []);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
     // Only date range is sent to the server to narrow the dataset.
     // Action, user, and text search are filtered client-side so the
     // filter dropdowns always show the full set of available values.
-    const filters: Record<string, unknown> = { per_page: 500 };
-    if (dateFrom) filters.from = dateFrom;
-    if (dateTo)   filters.to   = dateTo;
+    // When no date range is set we fetch all records; when a date range
+    // is applied the dataset is already narrow so 500 is a safe cap.
+    const filters: Record<string, unknown> = {};
+    if (dateFrom) { filters.from = dateFrom; filters.per_page = 500; }
+    if (dateTo)   { filters.to   = dateTo;   filters.per_page = 500; }
+    if (!dateFrom && !dateTo) filters.per_page = 10000;
 
     const response = await apiClient.getAuditLogs(filters);
     if (response.success) {
@@ -104,9 +123,6 @@ export function AuditLogsPage() {
     loadLogs().catch(() => setLoading(false));
   }, [loadLogs]);
 
-  const uniqueActions = [...new Set(logs.map((l) => l.action))].sort();
-  const uniqueUsers   = [...new Set(logs.map((l) => l.user))].sort();
-
   const filtered = logs.filter((log) => {
     if (search) {
       const q = search.toLowerCase();
@@ -117,7 +133,8 @@ export function AuditLogsPage() {
         !log.description.toLowerCase().includes(q)
       ) return false;
     }
-    if (userFilter !== "All" && log.user !== userFilter) return false;
+    if (actionFilter !== "All" && log.action !== actionFilter) return false;
+    if (userFilter   !== "All" && log.user   !== userFilter)   return false;
     return true;
   });
 
@@ -190,7 +207,7 @@ export function AuditLogsPage() {
             style={{ fontSize: "0.85rem" }}
           >
             <option value="All">All Actions</option>
-            {uniqueActions.map((a) => <option key={a}>{a}</option>)}
+            {ALL_ACTIONS.map((a) => <option key={a}>{a}</option>)}
           </select>
           <select
             value={userFilter}
@@ -199,25 +216,32 @@ export function AuditLogsPage() {
             style={{ fontSize: "0.85rem" }}
           >
             <option value="All">All Users</option>
-            {uniqueUsers.map((u) => <option key={u}>{u}</option>)}
+            {allUsers.map((u) => <option key={u}>{u}</option>)}
           </select>
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
-              className="px-3 py-2 border border-border rounded-lg bg-background"
-              style={{ fontSize: "0.85rem" }}
-            />
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+                className="pl-9 pr-3 py-2 border border-border rounded-lg bg-background"
+                style={{ fontSize: "0.85rem" }}
+                placeholder="From"
+              />
+            </div>
             <span className="text-muted-foreground" style={{ fontSize: "0.8rem" }}>to</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
-              className="px-3 py-2 border border-border rounded-lg bg-background"
-              style={{ fontSize: "0.85rem" }}
-            />
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+                className="pl-9 pr-3 py-2 border border-border rounded-lg bg-background"
+                style={{ fontSize: "0.85rem" }}
+                placeholder="To"
+              />
+            </div>
           </div>
         </div>
         {hasFilters && (
