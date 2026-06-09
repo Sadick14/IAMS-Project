@@ -183,17 +183,26 @@ export function UsersPage() {
     };
     if (editForm.phone.trim()) payload.phone = editForm.phone.trim();
     if (editForm.department_id) payload.department_id = Number(editForm.department_id);
-    if (editForm.role && editForm.role !== editTarget.role)
+    // Always send role to ensure it's updated in database
+    if (editForm.role) {
       payload.role = ROLE_API_MAP[editForm.role] ?? editForm.role;
+    }
 
     const res = await apiClient.updateUser(editTarget.id, payload as any);
     if (res.success) {
-      const deptName = depts.find((d) => String(d.id) === editForm.department_id)?.name ?? editTarget.department;
-      setUsers((prev) => prev.map((u) =>
-        u.id === editTarget.id
-          ? { ...u, name: editForm.name.trim(), email: editForm.email.trim(), phone: editForm.phone.trim(), department: deptName, departmentId: editForm.department_id, role: editForm.role }
-          : u
-      ));
+      // Refresh users from API to ensure role changes are reflected correctly
+      const usersRes = await apiClient.getUsers();
+      if (usersRes.success) {
+        setUsers(usersRes.data.map(normalizeUser));
+      } else {
+        // Fallback to manual update if refresh fails
+        const deptName = depts.find((d) => String(d.id) === editForm.department_id)?.name ?? editTarget.department;
+        setUsers((prev) => prev.map((u) =>
+          u.id === editTarget.id
+            ? { ...u, name: editForm.name.trim(), email: editForm.email.trim(), phone: editForm.phone.trim(), department: deptName, departmentId: editForm.department_id, role: editForm.role }
+            : u
+        ));
+      }
       toast.success(`${editForm.name} updated.`);
       setEditTarget(null);
     } else {
@@ -275,7 +284,7 @@ export function UsersPage() {
         {actionMenu === user.id && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} />
-            <div className="absolute right-0 top-8 w-44 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+            <div className="absolute right-0 top-8 w-44 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => openEdit(user)}
                 className="w-full text-left px-3 py-2.5 hover:bg-accent flex items-center gap-2"
@@ -456,8 +465,9 @@ export function UsersPage() {
       </div>
 
       {/* Desktop table */}
-      <div className="hidden lg:block bg-card border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
+      <div className="hidden lg:block bg-card border border-border rounded-xl overflow-visible">
+        <div className="overflow-hidden">
+          <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               <th className="text-left px-4 py-3" style={{ fontSize: "0.75rem" }}>
@@ -513,6 +523,7 @@ export function UsersPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ── Edit Modal ──────────────────────────────────────────────────────────── */}
