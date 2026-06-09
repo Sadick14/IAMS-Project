@@ -260,9 +260,9 @@ export function DashboardLayout() {
                     to={item.to}
                     end={item.to === `/${user.role}`}
                     onClick={handleNavClick}
-                    className={({ isActive }) => `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 rounded-lg ${isActive
-                        ? "bg-white/40 dark:bg-white/10 text-primary font-medium backdrop-blur-sm"
-                        : "text-sidebar-foreground hover:bg-white/30 dark:hover:bg-white/8 hover:text-foreground backdrop-blur-sm"
+                    className={({ isActive }) => `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 ${isActive
+                        ? "text-primary font-medium"
+                        : "text-sidebar-foreground hover:text-foreground"
                       }`}
                   >
                   {({ isActive }) => (
