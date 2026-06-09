@@ -353,15 +353,6 @@ export function StudentDashboard() {
                       </div>
                     </div>
                   )}
-                  {supervisorName && (
-                    <div className="flex items-start gap-2">
-                      <User className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-muted-foreground text-xs">Academic Advisor</p>
-                        <p className="font-medium text-sm truncate">{supervisorName}</p>
-                      </div>
-                    </div>
-                  )}
                   {supervisorData && (
                     <div className="flex items-start gap-2">
                       <User className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
