@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { apiClient } from "../../../lib/api-client";
 import {
   Bell, CheckCheck, Mail, Search, Archive, FileText,
