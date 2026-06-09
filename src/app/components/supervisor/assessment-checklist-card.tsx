@@ -21,14 +21,21 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
       const res = await apiClient.getSupervisorAssessmentSummary();
       if (res.success && res.data) {
         setSummary(res.data);
-      } else {
-        const fallback = await apiClient.computeAssessmentSummary();
-        setSummary(fallback);
+        return;
       }
     } catch (error) {
       console.error("Error loading assessment summary:", error);
+    }
+
+    try {
       const fallback = await apiClient.computeAssessmentSummary();
-      setSummary(fallback);
+      if (fallback) {
+        setSummary(fallback);
+      }
+    } catch (error) {
+      console.error("Error computing assessment summary:", error);
+      // If both calls fail, show empty state
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -37,7 +44,11 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
   if (loading || !summary) {
     return (
       <div className="bg-card border border-border rounded-xl p-6 flex items-center justify-center h-48">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        {loading ? (
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        ) : (
+          <p className="text-muted-foreground">Unable to load assessment summary</p>
+        )}
       </div>
     );
   }
@@ -45,6 +56,7 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
   const stats = [
     {
       label: "Logbooks",
+      route: "/supervisor/logbooks",
       current: summary.logbooks.approved,
       total: summary.total_students,
       status: summary.logbooks.pending_review > 0 ? "pending" : "complete",
@@ -54,6 +66,7 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
     },
     {
       label: "Assessments",
+      route: "/supervisor/evaluate",
       current: summary.assessments.submitted,
       total: summary.assessments.total,
       status: summary.assessments.pending > 0 ? "pending" : "complete",
@@ -63,6 +76,7 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
     },
     {
       label: "Attendance",
+      route: "/supervisor/attendance",
       current: summary.attendance.verified,
       total: summary.attendance.verified + summary.attendance.pending_verification,
       status:
@@ -72,7 +86,8 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
       textColor: "text-emerald-700 dark:text-emerald-300",
     },
     {
-      label: "Comments",
+      label: "Messages",
+      route: "/supervisor/messages",
       current: summary.comments.added,
       total: summary.comments.pending,
       status: summary.comments.pending > 0 ? "pending" : "complete",
@@ -114,7 +129,7 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
           <div
             key={index}
             className={`rounded-lg border ${stat.borderColor} bg-gradient-to-br ${stat.color} p-4 cursor-pointer hover:shadow-md transition-shadow`}
-            onClick={() => onNavigate?.(`/supervisor/${stat.label.toLowerCase()}`)}
+            onClick={() => onNavigate?.(stat.route)}
           >
             <div className="flex items-start justify-between mb-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase">
