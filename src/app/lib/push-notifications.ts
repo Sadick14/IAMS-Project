@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 /**
  * Push Notifications utilities for PWA
  * Handles subscription, permission requests, and notification management
