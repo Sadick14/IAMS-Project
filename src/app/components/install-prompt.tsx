@@ -11,35 +11,23 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault();
-      console.log("[PWA] beforeinstallprompt event fired");
       const event = e as BeforeInstallPromptEvent;
       setDeferredPrompt(event);
 
       // Check if user has dismissed before
       const dismissed = localStorage.getItem("pwa_install_dismissed");
-      console.log("[PWA] User previously dismissed:", !!dismissed);
       if (!dismissed) {
         setShowPrompt(true);
       }
     };
 
-    // Log if event doesn't fire
-    const timeout = setTimeout(() => {
-      if (!deferredPrompt) {
-        console.log("[PWA] beforeinstallprompt event did not fire within 5 seconds");
-        console.log("[PWA] This is normal in development or on non-HTTPS connections");
-      }
-    }, 5000);
-
     window.addEventListener("beforeinstallprompt", handler);
 
     return () => {
-      clearTimeout(timeout);
       window.removeEventListener("beforeinstallprompt", handler);
     };
   }, [deferredPrompt]);
@@ -69,16 +57,6 @@ export function InstallPrompt() {
     localStorage.setItem("pwa_install_dismissed", "true");
     setShowPrompt(false);
   };
-
-  const handleReset = () => {
-    localStorage.removeItem("pwa_install_dismissed");
-    setShowPrompt(true);
-    setShowDebug(false);
-    console.log("[PWA] Dismissed flag cleared - popup should show on next page load");
-  };
-
-  // Show debug info if PWA event hasn't fired yet
-  const shouldShowDebug = showDebug || (!deferredPrompt && showPrompt === false);
 
   // Main install prompt
   if (showPrompt && deferredPrompt) {
@@ -163,37 +141,5 @@ export function InstallPrompt() {
     );
   }
 
-  // Debug panel for when PWA support is unavailable
-  return (
-    <button
-      onClick={() => setShowDebug(!showDebug)}
-      className="fixed bottom-4 right-4 px-3 py-1 text-xs bg-muted border border-border rounded-lg hover:bg-accent transition-colors z-40"
-      title="Click for PWA debug info"
-    >
-      PWA Debug
-      {showDebug && (
-        <div className="absolute bottom-12 right-0 w-72 bg-card border border-border rounded-lg p-4 space-y-3 shadow-lg text-left">
-          <div>
-            <p className="text-xs font-semibold mb-1">PWA Installation Debug</p>
-            <div className="space-y-2 text-xs text-muted-foreground">
-              <p>• beforeinstallprompt: {deferredPrompt ? "✓ Received" : "✗ Not received"}</p>
-              <p>• Previously dismissed: {localStorage.getItem("pwa_install_dismissed") ? "Yes" : "No"}</p>
-              <p>• HTTPS: {window.location.protocol === "https:" ? "✓ Yes" : "✗ No"}</p>
-              <p>• Manifest: ✓ Configured</p>
-              <p>• Service Worker: {navigator.serviceWorker ? "✓ Supported" : "✗ Not supported"}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleReset}
-            className="w-full px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:opacity-90 transition-colors"
-          >
-            Reset Dismissal & Show Prompt
-          </button>
-          <p className="text-xs text-muted-foreground">
-            Note: PWA installation only works on HTTPS connections or localhost. The browser must also support the beforeinstallprompt event (Chrome, Edge, Samsung Internet on Android).
-          </p>
-        </div>
-      )}
-    </button>
-  );
+  return null;
 }

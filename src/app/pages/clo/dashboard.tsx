@@ -6,7 +6,7 @@ import { apiClient } from "../../lib/api-client";
 import { getNameInitials } from "../../lib/validation";
 import {
   Building2, FileText, GraduationCap, Clock, AlertTriangle, TrendingUp,
-  ArrowRight, UserPlus, Zap, Download, Calendar, CheckCircle2, XCircle
+  ArrowRight, UserPlus, Zap, Download, Calendar, CheckCircle2, XCircle, RefreshCw
 } from "lucide-react";
 import { SkeletonStatCards, SkeletonDashboard } from "../../components/skeleton";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
@@ -36,24 +36,37 @@ export function CLODashboard() {
   const [dashData, setDashData] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
+  const load = async () => {
+    setRefreshing(true);
+    try {
       const [appsRes, companiesRes, dashRes, notifRes] = await Promise.all([
         apiClient.getApplications(),
         apiClient.getCompanies(),
         apiClient.getDashboard("clo"),
         apiClient.getNotifications({ per_page: 5 }),
       ]);
-      if (cancelled) return;
       if (appsRes.success) setApplications(appsRes.data);
       if (companiesRes.success) setCompanies(companiesRes.data);
       if (dashRes.success) setDashData(dashRes.data);
       if (notifRes.success) setNotifications(notifRes.data);
       setLoading(false);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const init = async () => {
+      await load();
+      if (cancelled) return;
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(load, 30000);
+      return () => clearInterval(interval);
     };
-    void load();
+    void init();
     return () => { cancelled = true; };
   }, []);
 
@@ -108,6 +121,15 @@ export function CLODashboard() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={load}
+            disabled={refreshing || loading}
+            className="px-3 py-2 border border-border rounded-lg hover:bg-accent disabled:opacity-50 flex items-center gap-2"
+            style={{ fontSize: "0.85rem" }}
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            {!refreshing && <span className="hidden sm:inline">Refresh</span>}
+          </button>
           <button
             onClick={() => navigate("/clo/terms")}
             className="px-3 md:px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all flex items-center gap-2"

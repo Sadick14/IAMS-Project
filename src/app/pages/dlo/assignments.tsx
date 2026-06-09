@@ -35,6 +35,7 @@ export function DLOAssignmentsPage() {
   const [assignFor, setAssignFor] = useState<string | null>(null);
   const [assignTo, setAssignTo] = useState("");
   const [autoRunning, setAutoRunning] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,7 +65,12 @@ export function DLOAssignmentsPage() {
     setLoading(false);
   }, [department]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    // Refresh every 30 seconds to catch updates from other sessions
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   const filtered = pending.filter((e) => {
     if (!search) return true;
@@ -74,13 +80,30 @@ export function DLOAssignmentsPage() {
 
   const handleAssign = async () => {
     if (!assignFor || !assignTo) return;
-    const res = await apiClient.assignSupervisor(assignFor, Number(assignTo));
-    if (res.success) {
-      toast.success(res.message ?? "Supervisor assigned.");
-      setAssignFor(null); setAssignTo("");
-      load();
-    } else {
-      toast.error(res.message ?? "Failed to assign supervisor.");
+    setRefreshing(true);
+    try {
+      const res = await apiClient.assignSupervisor(assignFor, Number(assignTo));
+      if (res.success) {
+        toast.success(res.message ?? "Supervisor assigned.");
+        setAssignFor(null);
+        setAssignTo("");
+        // Refresh immediately to show updated list
+        await load();
+      } else {
+        toast.error(res.message ?? "Failed to assign supervisor.");
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await load();
+      toast.success("Data refreshed.");
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -109,10 +132,17 @@ export function DLOAssignmentsPage() {
             Assign academic supervisors to internships awaiting placement.
           </p>
         </div>
-        <button onClick={handleAutoAssign} disabled={autoRunning || totalPending === 0}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50" style={{ fontSize: "0.85rem" }}>
-          {autoRunning ? <><RefreshCw className="w-4 h-4 animate-spin" /> Assigning…</> : <><Zap className="w-4 h-4" /> Run Auto-Assignment</>}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleManualRefresh} disabled={refreshing || loading}
+            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent disabled:opacity-50" style={{ fontSize: "0.85rem" }}>
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            {!refreshing && "Refresh"}
+          </button>
+          <button onClick={handleAutoAssign} disabled={autoRunning || totalPending === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50" style={{ fontSize: "0.85rem" }}>
+            {autoRunning ? <><RefreshCw className="w-4 h-4 animate-spin" /> Assigning…</> : <><Zap className="w-4 h-4" /> Run Auto-Assignment</>}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

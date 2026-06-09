@@ -2,18 +2,26 @@ import { useState, useEffect } from "react";
 import { Bell, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  areBrowserNotificationsEnabled,
+  isBrowserNotificationSupported,
+  isPushConfigured,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
   isSubscribedToPushNotifications,
   getNotificationPermission,
+  requestNotificationPermission,
   sendTestNotification,
+  setBrowserNotificationsEnabled,
 } from "../lib/push-notifications";
 
 export function NotificationPreferences() {
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [browserEnabled, setBrowserEnabled] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission>(getNotificationPermission());
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
-  const permission = getNotificationPermission();
+  const browserSupported = isBrowserNotificationSupported();
+  const pushConfigured = isPushConfigured();
 
   useEffect(() => {
     checkSubscriptionStatus();
@@ -21,25 +29,45 @@ export function NotificationPreferences() {
 
   const checkSubscriptionStatus = async () => {
     const subscribed = await isSubscribedToPushNotifications();
+    const enabled = await areBrowserNotificationsEnabled();
     setIsSubscribed(subscribed);
+    setBrowserEnabled(enabled);
+    setPermission(getNotificationPermission());
   };
 
   const handleToggleNotifications = async () => {
     setIsLoading(true);
     try {
-      if (isSubscribed) {
+      if (browserEnabled || isSubscribed) {
         const success = await unsubscribeFromPushNotifications();
-        if (success) {
+        if (success || !isSubscribed) {
           setIsSubscribed(false);
-          toast.success("Push notifications disabled");
+          setBrowserEnabled(false);
+          toast.success("Push notifications disabled for this browser");
         }
       } else {
+        const nextPermission = await requestNotificationPermission();
+        setPermission(nextPermission);
+
+        if (nextPermission !== "granted") {
+          toast.error("Notification permission was not granted");
+          return;
+        }
+
+        setBrowserEnabled(true);
+        setBrowserNotificationsEnabled(true);
+
+        if (!pushConfigured) {
+          toast.success("Browser notifications enabled. Server push needs a VAPID key.");
+          return;
+        }
+
         const subscription = await subscribeToPushNotifications();
-        if (subscription) {
-          setIsSubscribed(true);
+        if (subscription || (await areBrowserNotificationsEnabled())) {
+          setIsSubscribed(!!subscription);
           toast.success("Push notifications enabled! You'll receive updates.");
         } else {
-          toast.error("Failed to enable notifications");
+          toast.error("Browser permission is enabled, but push subscription failed");
         }
       }
     } catch (error) {
@@ -51,7 +79,7 @@ export function NotificationPreferences() {
   };
 
   const handleSendTestNotification = async () => {
-    if (!isSubscribed) {
+    if (!browserEnabled && permission !== "granted") {
       toast.error("Please enable notifications first");
       return;
     }
@@ -77,7 +105,9 @@ export function NotificationPreferences() {
           <div className="flex-1">
             <h3 className="font-semibold mb-1">Push Notifications</h3>
             <p className="text-muted-foreground text-sm">
-              {permission === "granted"
+              {!browserSupported
+                ? "This browser does not support service-worker notifications."
+                : permission === "granted"
                 ? "You'll receive notifications about logbooks, attendance, grades, and announcements."
                 : permission === "denied"
                 ? "Notifications are blocked. Enable them in your browser settings to receive updates."
@@ -88,7 +118,14 @@ export function NotificationPreferences() {
 
         {/* Permission Status Indicator */}
         <div className="flex items-center gap-2 text-sm">
-          {permission === "granted" ? (
+          {!browserSupported ? (
+            <>
+              <AlertCircle className="w-4 h-4 text-red-600" />
+              <span className="text-red-700 dark:text-red-400">
+                Not supported
+              </span>
+            </>
+          ) : permission === "granted" ? (
             <>
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span className="text-emerald-700 dark:text-emerald-400">
@@ -114,11 +151,18 @@ export function NotificationPreferences() {
 
         {/* Subscription Status */}
         <div className="flex items-center gap-2 text-sm">
-          {isSubscribed ? (
+          {pushConfigured && isSubscribed ? (
             <>
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span className="text-emerald-700 dark:text-emerald-400">
                 Subscribed to notifications
+              </span>
+            </>
+          ) : browserEnabled ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span className="text-emerald-700 dark:text-emerald-400">
+                Browser notifications enabled
               </span>
             </>
           ) : (
@@ -135,21 +179,21 @@ export function NotificationPreferences() {
         <div className="flex gap-2 pt-2">
           <button
             onClick={handleToggleNotifications}
-            disabled={isLoading || permission === "denied"}
+            disabled={isLoading || permission === "denied" || !browserSupported}
             className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-              isSubscribed
+              browserEnabled || isSubscribed
                 ? "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
                 : "bg-primary text-primary-foreground hover:opacity-90"
             } disabled:opacity-50`}
           >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isSubscribed ? "Disable Notifications" : "Enable Notifications"}
+            {browserEnabled || isSubscribed ? "Disable Notifications" : "Enable Notifications"}
           </button>
 
-          {isSubscribed && (
+          {browserEnabled && (
             <button
               onClick={handleSendTestNotification}
-              disabled={isSendingTest || !isSubscribed}
+              disabled={isSendingTest}
               className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors font-medium text-sm disabled:opacity-50 flex items-center gap-2"
             >
               {isSendingTest && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -175,6 +219,12 @@ export function NotificationPreferences() {
                 <strong>Safari:</strong> Preferences → Websites → Notifications
               </div>
             </div>
+          </div>
+        )}
+        {!pushConfigured && permission === "granted" && (
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-lg p-3 text-sm text-amber-800 dark:text-amber-300">
+            Browser notifications are enabled. To receive true server push while the app is closed,
+            configure <code className="px-1 py-0.5 rounded bg-background">VITE_VAPID_PUBLIC_KEY</code>.
           </div>
         )}
       </div>

@@ -3,9 +3,10 @@ import { StatCard } from "../../components/stat-card";
 import { StatusBadge } from "../../components/status-badge";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
+import { SkeletonDashboard } from "../../components/skeleton";
 import {
   Building2, FileText, GraduationCap, Clock, AlertTriangle, UserPlus,
-  ArrowRight, TrendingUp, CheckCircle2, BarChart3
+  ArrowRight, TrendingUp, CheckCircle2, BarChart3, RefreshCw
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -27,25 +28,40 @@ export function DLODashboard() {
   const [dashboardCounts, setDashboardCounts] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [pendingAssignments, setPendingAssignments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
+  const load = async () => {
+    setRefreshing(true);
+    try {
       const [appsRes, dashRes, notifRes, assignRes] = await Promise.all([
         apiClient.getApplications({ department: dept }),
         apiClient.getDashboard("dlo"),
         apiClient.getNotifications({ per_page: 4 }),
         apiClient.getSupervisorAssignmentsPending({ per_page: 6, department: dept }),
       ]);
-      if (cancelled) return;
       if (appsRes.success)    setApplications(appsRes.data);
       if (dashRes.success)    setDashboardCounts(dashRes.data);
       if (notifRes.success)   setNotifications(notifRes.data);
       if (assignRes.success)  setPendingAssignments(assignRes.data);
+      setLoading(false);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const init = async () => {
+      await load();
+      if (cancelled) return;
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(load, 30000);
+      return () => clearInterval(interval);
     };
 
-    void load();
+    void init();
     return () => { cancelled = true; };
   }, [dept]);
 
@@ -77,6 +93,8 @@ export function DLODashboard() {
     { id: "approved",  name: "Approved",  value: applications.filter((a) => a.status === "approved").length, color: "#10B981" },
   ].filter((d) => d.value > 0);
 
+  if (loading) return <SkeletonDashboard statCount={4} />;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -86,13 +104,24 @@ export function DLODashboard() {
             {dept ? `${dept} · ` : ""}Departmental Liaison Overview
           </p>
         </div>
-        <button
-          onClick={() => navigate("/dlo/applications")}
-          className="px-3 md:px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2"
-          style={{ fontSize: "0.85rem" }}
-        >
-          <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Review Applications</span>
-        </button>
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={load}
+            disabled={refreshing || loading}
+            className="px-3 py-2 border border-border rounded-lg hover:bg-accent disabled:opacity-50 flex items-center gap-2"
+            style={{ fontSize: "0.85rem" }}
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            {!refreshing && <span className="hidden sm:inline">Refresh</span>}
+          </button>
+          <button
+            onClick={() => navigate("/dlo/applications")}
+            className="px-3 md:px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2"
+            style={{ fontSize: "0.85rem" }}
+          >
+            <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Review Applications</span>
+          </button>
+        </div>
       </div>
 
       {/* Stat Cards */}

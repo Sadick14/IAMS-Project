@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { StatusBadge } from "../../components/status-badge";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
+import { SkeletonTableRows } from "../../components/skeleton";
 import {
   Search, AlertTriangle, MessageSquare, Download, X,
   Eye, BookMarked, MapPin, Clock, CheckCircle2, FileText, Award, Flag,
@@ -196,6 +197,8 @@ export function StudentsPage({ viewRole }: Props) {
   };
 
   const commPath = `/${ROLE_PATH[viewRole] ?? viewRole}/communications`;
+
+  if (loading) return <SkeletonTableRows count={5} />;
 
   return (
     <div className="space-y-6">

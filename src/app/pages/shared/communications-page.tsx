@@ -42,7 +42,7 @@ export function CommunicationsPage({ viewRole }: Props) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full overflow-y-auto">
       {/* Header */}
       <div>
         <h1>Communications</h1>

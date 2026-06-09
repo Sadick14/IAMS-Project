@@ -159,7 +159,7 @@ export function StudentAttendancePage() {
       {/* Stats grid – 3 cards: Rate, Present, Absent */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Attendance Rate Card */}
-        <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-4 shadow-sm">
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-primary uppercase tracking-wider">Rate</span>
             <Award className="w-4 h-4 text-primary/70" />

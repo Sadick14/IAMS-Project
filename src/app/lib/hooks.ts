@@ -10,6 +10,7 @@ import type { ApiResponse } from "../types/api";
 import { apiClient } from "./api-client";
 import { setNotifications, setAnnouncementUnread } from "./store";
 import { toast } from "sonner";
+import { areBrowserNotificationsEnabled } from "./push-notifications";
 
 // ── useAsync: Generic async operation hook ──
 
@@ -139,8 +140,6 @@ export function usePagination<T>(items: T[], options: PaginationOptions = {}) {
 
 // ── useToastAction: Execute async action with toast feedback ──
 
-import { toast } from "sonner";
-
 export function useToastAction() {
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
@@ -214,29 +213,41 @@ export function usePolling(
 
 // ── useNotifications: Poll API → sync store → fire toasts + browser push ──
 
-function requestPushPermission() {
-  if (typeof Notification === "undefined") return;
-  if (Notification.permission === "default") {
-    Notification.requestPermission().catch(() => {});
-  }
-}
+async function firePushNotification(title: string, body: string) {
+  if (!(await areBrowserNotificationsEnabled())) return;
 
-function firePushNotification(title: string, body: string) {
-  if (typeof Notification === "undefined") return;
-  if (Notification.permission !== "granted") return;
-  try {
-    new Notification(title, { body, icon: "/favicon.ico", badge: "/favicon.ico" });
-  } catch {
-    // Some environments block new Notification() — ignore
+  // Prefer the service-worker approach — works even when the tab is in background
+  if ("serviceWorker" in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      registration.active?.postMessage({
+        type: "SHOW_NOTIFICATION",
+        notification: {
+          title,
+          options: {
+            body,
+            icon: "/logo-192.png",
+            badge: "/logo-192.png",
+            tag: "iams-notification",
+            requireInteraction: false,
+            data: {
+              url: "/",
+            },
+          },
+        },
+      });
+      return;
+    } catch { /* fall through */ }
+  }
+  // Fallback for browsers without service-worker support
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    try { new Notification(title, { body, icon: "/logo-192.png" }); } catch {}
   }
 }
 
 export function useNotifications(enabled = true) {
   const seenIdsRef = useRef<Set<string>>(new Set());
   const isFirstFetchRef = useRef(true);
-
-  // Request browser permission once on mount
-  useEffect(() => { if (enabled) requestPushPermission(); }, [enabled]);
 
   const fetchAndSync = useCallback(async () => {
     try {

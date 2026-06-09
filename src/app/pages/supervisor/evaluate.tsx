@@ -5,7 +5,7 @@ import { Card } from "../../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 import { Badge } from "../../components/ui/badge";
-import { CheckCircle2, Clock, Loader2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { IndustrialAssessmentForm } from "../../components/grading/industrial-assessment-form";
 import { WeeklyRubricForm } from "../../components/grading/weekly-rubric-form";
 import { useAppContext } from "../../lib/context";
@@ -54,14 +54,26 @@ function addDays(date: Date, days: number): Date {
 }
 
 function buildWeeksForInternship(item: any) {
-  const startIso = toIsoDate(item?.confirmed_start_date ?? item?.start_date ?? item?.proposed_start_date);
-  const endIso = toIsoDate(item?.confirmed_end_date ?? item?.end_date ?? item?.proposed_end_date);
-  if (!startIso || !endIso) return [];
+  // Use approved term dates (confirmed_start_date, confirmed_end_date)
+  // These are the dates approved for the current term
+  const startIso = toIsoDate(item?.confirmed_start_date ?? item?.start_date);
+  const endIso = toIsoDate(item?.confirmed_end_date ?? item?.end_date);
+
+  if (!startIso || !endIso) {
+    console.warn("Missing internship dates for weeks calculation", {
+      confirmed_start_date: item?.confirmed_start_date,
+      confirmed_end_date: item?.confirmed_end_date,
+      start_date: item?.start_date,
+      end_date: item?.end_date,
+    });
+    return [];
+  }
 
   const weeks = [];
   let cursor = new Date(startIso);
   const end = new Date(endIso);
   let weekNumber = 1;
+
   while (cursor <= end) {
     const weekStart = cursor.toISOString().slice(0, 10);
     const weekEnd = addDays(cursor, 6);
@@ -94,11 +106,17 @@ export function EvaluatePage() {
     let cancelled = false;
     apiClient.getDashboard("industry-supervisor").then((res) => {
       if (!cancelled && res.success) {
-        setAssignedInternships(res.data?.assigned_internships ?? []);
+        const allInternships = res.data?.assigned_internships ?? [];
+        // Security: Filter internships by current supervisor (client-side check)
+        const filtered = allInternships.filter((i: any) => {
+          const supervisorId = i.industry_supervisor?.user?.id ?? i.industry_supervisor?.id ?? i.industry_supervisor;
+          return supervisorId === user?.id;
+        });
+        setAssignedInternships(filtered);
       }
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [user?.id]);
 
   const activeApps = assignedInternships;
 
@@ -133,6 +151,7 @@ export function EvaluatePage() {
   }, [appId, weeks, currentWeekNumber]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [weekNumber, setWeekNumber] = useState<number>(defaultWeek);
+  const [collapsedWeeks, setCollapsedWeeks] = useState<Record<number, boolean>>({});
 
   // Keep state in sync with URL deep-links and student switches.
   useEffect(() => { setWeekNumber(defaultWeek); }, [defaultWeek]);
@@ -164,8 +183,8 @@ export function EvaluatePage() {
       <div>
         <h1 className="text-2xl text-[#1a1a2e]">Student Assessments</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Weekly progress check-ins (qualitative) and the end-of-attachment Final
-          Assessment (scored, 20 criteria) — all in one place per student.
+          Weekly progress check-ins and the end-of-attachment Industrial Assessment
+          (18 criteria across 4 sections) — all in one place per student.
         </p>
       </div>
 
@@ -208,7 +227,7 @@ export function EvaluatePage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="final">
-              Final Assessment
+              Industrial Assessment
               {existingFinal && (
                 <CheckCircle2 className="ml-2 size-3.5 text-emerald-600" />
               )}
@@ -217,62 +236,80 @@ export function EvaluatePage() {
 
           <TabsContent value="weekly" className="mt-4 space-y-4">
             <Card className="p-4">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="text-sm text-gray-700">
-                  <span className="text-[#1a1a2e]">{filledWeeks}</span> of{" "}
-                  <span className="text-[#1a1a2e]">{weeks.length}</span> weeks recorded
-                  {weeks.length > 0 && filledWeeks < weeks.length && (
-                    <span className="text-amber-700 ml-2">
-                      · {weeks.length - filledWeeks} pending
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-[14rem]">
-                  <Select
-                    value={String(weekNumber)}
-                    onValueChange={(v) => setWeekNumber(parseInt(v, 10))}
-                    disabled={weeks.length === 0}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select a week" /></SelectTrigger>
-                    <SelectContent>
-                      {weeks.map((w) => {
-                        const filled = !!getWeeklyRubric(appId, w.weekNumber);
-                        const isCurrent = w.weekNumber === currentWeekNumber;
-                        return (
-                          <SelectItem key={w.weekNumber} value={String(w.weekNumber)}>
-                            <span className="inline-flex items-center gap-2">
-                              Week {w.weekNumber} —{" "}
-                              {new Date(w.weekStart).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                              {filled && <CheckCircle2 className="size-3.5 text-emerald-600" />}
-                              {isCurrent && !filled && <Clock className="size-3.5 text-[#0B5ED7]" />}
-                            </span>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="text-sm text-gray-700">
+                <span className="text-[#1a1a2e]">{filledWeeks}</span> of{" "}
+                <span className="text-[#1a1a2e]">{weeks.length}</span> weeks recorded
+                {weeks.length > 0 && filledWeeks < weeks.length && (
+                  <span className="text-amber-700 ml-2">
+                    · {weeks.length - filledWeeks} pending
+                  </span>
+                )}
               </div>
             </Card>
 
-            {week ? (
-              <Card className="p-6">
-                <WeeklyRubricForm
-                  weekNumber={week.weekNumber}
-                  weekStart={week.weekStart}
-                  weekEnd={week.weekEnd}
-                  initialRatings={existingWeekly?.ratings}
-                  initialNotes={existingWeekly?.notes}
-                  onSubmit={async (ratings, notes) => {
-                    await runEvaluationAction(async () => {
-                      return apiClient.submitWeeklyRubric(getInternshipId(app), week.weekNumber, ratings, notes, actor);
-                    }, {
-                      successMessage: "Weekly rubric submitted successfully!",
-                      errorMessage: "Failed to submit weekly rubric."
-                    });
-                  }}
-                />
-              </Card>
+            {weeks.length > 0 ? (
+              <div className="space-y-3">
+                {weeks.map((w) => {
+                  const filled = !!getWeeklyRubric(appId, w.weekNumber);
+                  const isCurrent = w.weekNumber === currentWeekNumber;
+                  const isExpanded = weekNumber === w.weekNumber && !collapsedWeeks[w.weekNumber];
+                  const weekRange = `${new Date(w.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(w.weekEnd).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+
+                  return (
+                    <Card key={w.weekNumber} className="overflow-hidden">
+                      <button
+                        onClick={() => {
+                          setWeekNumber(w.weekNumber);
+                          setCollapsedWeeks((prev) => ({
+                            ...prev,
+                            [w.weekNumber]: !prev[w.weekNumber],
+                          }));
+                        }}
+                        className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          <div>
+                            <p className="font-medium text-sm">
+                              Week {w.weekNumber} — {weekRange}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {isCurrent && !filled && "Current week"}
+                              {isCurrent && filled && "Current week (completed)"}
+                              {!isCurrent && !filled && "Pending"}
+                              {!isCurrent && filled && "Completed"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {filled && <CheckCircle2 className="size-4 text-emerald-600" />}
+                          {isCurrent && !filled && <Clock className="size-4 text-blue-600" />}
+                          {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="border-t border-border p-6 bg-muted/20">
+                          <WeeklyRubricForm
+                            weekNumber={w.weekNumber}
+                            weekStart={w.weekStart}
+                            weekEnd={w.weekEnd}
+                            initialRatings={getWeeklyRubric(appId, w.weekNumber)?.ratings}
+                            initialNotes={getWeeklyRubric(appId, w.weekNumber)?.notes}
+                            onSubmit={async (ratings, notes) => {
+                              await runEvaluationAction(async () => {
+                                return apiClient.submitWeeklyRubric(getInternshipId(app), w.weekNumber, ratings, notes, actor);
+                              }, {
+                                successMessage: "Weekly rubric submitted successfully!",
+                                errorMessage: "Failed to submit weekly rubric."
+                              });
+                            }}
+                          />
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
             ) : (
               <Card className="p-6 text-sm text-gray-600">
                 No weeks available — the active term may not yet have an internship date range.

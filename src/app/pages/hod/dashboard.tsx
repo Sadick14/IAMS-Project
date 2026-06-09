@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAppContext } from "../../lib/context";
 import { StatCard } from "../../components/stat-card";
 import { apiClient } from "../../lib/api-client";
+import { SkeletonDashboard } from "../../components/skeleton";
 import {
   AlertTriangle, GraduationCap, ClipboardCheck, BarChart3,
   Clock, ArrowRight, Download, Eye, Briefcase
@@ -20,6 +21,7 @@ export function HODDashboard() {
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [pendingGrades, setPendingGrades] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,6 +32,7 @@ export function HODDashboard() {
       if (cancelled) return;
       if (dashRes.success) setDashboard(dashRes.data);
       if (gradesRes.success) setPendingGrades(gradesRes.data);
+      setLoading(false);
     });
     return () => { cancelled = true; };
   }, []);
@@ -49,6 +52,8 @@ export function HODDashboard() {
     { stage: "Approved",   count: gradeCounts.approved },
     { stage: "Published",  count: gradeCounts.published },
   ].filter((d) => d.count > 0);
+
+  if (loading) return <SkeletonDashboard statCount={4} />;
 
   return (
     <div className="space-y-6">

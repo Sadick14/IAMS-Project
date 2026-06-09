@@ -21,14 +21,21 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
       const res = await apiClient.getSupervisorAssessmentSummary();
       if (res.success && res.data) {
         setSummary(res.data);
-      } else {
-        const fallback = await apiClient.computeAssessmentSummary();
-        setSummary(fallback);
+        return;
       }
     } catch (error) {
       console.error("Error loading assessment summary:", error);
+    }
+
+    try {
       const fallback = await apiClient.computeAssessmentSummary();
-      setSummary(fallback);
+      if (fallback) {
+        setSummary(fallback);
+      }
+    } catch (error) {
+      console.error("Error computing assessment summary:", error);
+      // If both calls fail, show empty state
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -37,7 +44,11 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
   if (loading || !summary) {
     return (
       <div className="bg-card border border-border rounded-xl p-6 flex items-center justify-center h-48">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        {loading ? (
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        ) : (
+          <p className="text-muted-foreground">Unable to load assessment summary</p>
+        )}
       </div>
     );
   }
@@ -45,38 +56,42 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
   const stats = [
     {
       label: "Logbooks",
+      route: "/supervisor/logbooks",
       current: summary.logbooks.approved,
       total: summary.total_students,
       status: summary.logbooks.pending_review > 0 ? "pending" : "complete",
-      color: "from-amber-100 to-amber-50 dark:from-amber-950/30 dark:to-amber-950/10",
+      color: "bg-amber-100 dark:bg-amber-950/30",
       borderColor: "border-amber-200 dark:border-amber-800",
       textColor: "text-amber-700 dark:text-amber-300",
     },
     {
       label: "Assessments",
+      route: "/supervisor/evaluate",
       current: summary.assessments.submitted,
       total: summary.assessments.total,
       status: summary.assessments.pending > 0 ? "pending" : "complete",
-      color: "from-blue-100 to-blue-50 dark:from-blue-950/30 dark:to-blue-950/10",
+      color: "bg-blue-100 dark:bg-blue-950/30",
       borderColor: "border-blue-200 dark:border-blue-800",
       textColor: "text-blue-700 dark:text-blue-300",
     },
     {
       label: "Attendance",
+      route: "/supervisor/attendance",
       current: summary.attendance.verified,
       total: summary.attendance.verified + summary.attendance.pending_verification,
       status:
         summary.attendance.pending_verification > 0 ? "pending" : "complete",
-      color: "from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-emerald-950/10",
+      color: "bg-emerald-100 dark:bg-emerald-950/30",
       borderColor: "border-emerald-200 dark:border-emerald-800",
       textColor: "text-emerald-700 dark:text-emerald-300",
     },
     {
-      label: "Comments",
+      label: "Messages",
+      route: "/supervisor/communications",
       current: summary.comments.added,
       total: summary.comments.pending,
       status: summary.comments.pending > 0 ? "pending" : "complete",
-      color: "from-purple-100 to-purple-50 dark:from-purple-950/30 dark:to-purple-950/10",
+      color: "bg-purple-100 dark:bg-purple-950/30",
       borderColor: "border-purple-200 dark:border-purple-800",
       textColor: "text-purple-700 dark:text-purple-300",
     },
@@ -99,7 +114,7 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
         {/* Progress Bar */}
         <div className="w-full bg-secondary rounded-full h-2">
           <div
-            className="bg-gradient-to-r from-emerald-500 to-blue-500 h-2 rounded-full transition-all"
+            className="bg-primary h-2 rounded-full transition-all"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -109,12 +124,12 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3 p-6 bg-gradient-to-br from-background to-secondary/20">
+      <div className="grid grid-cols-2 gap-3 p-6 bg-background">
         {stats.map((stat, index) => (
           <div
             key={index}
-            className={`rounded-lg border ${stat.borderColor} bg-gradient-to-br ${stat.color} p-4 cursor-pointer hover:shadow-md transition-shadow`}
-            onClick={() => onNavigate?.(`/supervisor/${stat.label.toLowerCase()}`)}
+            className={`rounded-lg border ${stat.borderColor} ${stat.color} p-4 cursor-pointer hover:shadow-md transition-shadow`}
+            onClick={() => onNavigate?.(stat.route)}
           >
             <div className="flex items-start justify-between mb-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase">
@@ -136,7 +151,7 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
 
             <div className="w-full bg-white/30 rounded-full h-1.5 mt-3">
               <div
-                className={`bg-gradient-to-r ${stat.color.split(" ")[0]} rounded-full h-1.5 transition-all`}
+                className={`${stat.color.split(" ")[0]} rounded-full h-1.5 transition-all`}
                 style={{ width: `${stat.total > 0 ? (stat.current / stat.total) * 100 : 0}%` }}
               />
             </div>
@@ -173,7 +188,7 @@ export function AssessmentChecklistCard({ onNavigate }: AssessmentChecklistCardP
         </button>
 
         <button
-          onClick={() => onNavigate?.("/supervisor/messages")}
+          onClick={() => onNavigate?.("/supervisor/communications")}
           className="w-full flex items-center justify-between px-4 py-2.5 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm font-medium"
         >
           View Messages

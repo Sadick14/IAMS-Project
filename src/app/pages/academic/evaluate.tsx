@@ -286,21 +286,21 @@ export function AcademicEvaluatePage() {
           <button
             type="button"
             onClick={() => setActiveTab("evaluation")}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 font-medium"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
             style={{ fontSize: "0.85rem" }}
           >
-            <ClipboardCheck className="w-4 h-4" /> Submit Evaluation
+            <ClipboardCheck className="w-4 h-4" /> View Grade Breakdown
           </button>
         )}
       </div>
 
       {/* Student Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-card border border-border rounded-xl p-3.5 text-center">
           <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>Log Entries</p>
           <p style={{ fontSize: "1.5rem", lineHeight: 1.2 }} className="font-semibold">{logbookEntries.length}</p>
           <p className="text-muted-foreground" style={{ fontSize: "0.65rem" }}>
-            {approvedCount} approved · {pendingCount} pending
+            {approvedCount} approved
           </p>
         </div>
         <div className="bg-card border border-border rounded-xl p-3.5 text-center">
@@ -313,13 +313,22 @@ export function AcademicEvaluatePage() {
         <div className="bg-card border border-border rounded-xl p-3.5 text-center">
           <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>Site Visits</p>
           <p style={{ fontSize: "1.5rem", lineHeight: 1.2 }} className="font-semibold">{siteVisitNotes.length}</p>
-          <p className="text-muted-foreground" style={{ fontSize: "0.65rem" }}>Recorded</p>
+          <p className="text-muted-foreground" style={{ fontSize: "0.65rem" }}>
+            {siteVisitNotes.length > 0 ? "✓ Submitted" : "⏳ Pending"}
+          </p>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-3.5 text-center">
+          <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>Report</p>
+          <p style={{ fontSize: "1.5rem", lineHeight: 1.2 }} className="font-semibold">—</p>
+          <p className="text-muted-foreground" style={{ fontSize: "0.65rem" }}>
+            ⏳ Pending
+          </p>
         </div>
         <div className="bg-card border border-border rounded-xl p-3.5 text-center">
           <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>Grade</p>
           <p style={{ fontSize: "1.5rem", lineHeight: 1.2 }} className="font-semibold">{student?.grade || "—"}</p>
           <p className="text-muted-foreground" style={{ fontSize: "0.65rem" }}>
-            {student?.gradeStatus || "Not graded"}
+            {student?.gradeStatus || "Pending"}
           </p>
         </div>
       </div>
@@ -368,12 +377,18 @@ export function AcademicEvaluatePage() {
           <div className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 dark:bg-blue-950/20 dark:border-blue-800">
               <p className="text-blue-800 dark:text-blue-300" style={{ fontSize: "0.85rem" }}>
-                As the Academic Supervisor, your only graded contribution is the <strong>Site Visitation Score (30%)</strong>.
-                The Attachment Report and Final Presentation scores are entered by the DLO. The breakdown below is read-only —
-                use the <em>Site Visit</em> tab to submit or update your rubric.
+                <strong>Your Role:</strong> As the Academic Supervisor, you grade three components:
+              </p>
+              <ul className="text-blue-800 dark:text-blue-300 mt-2 space-y-1" style={{ fontSize: "0.85rem" }}>
+                <li>• <strong>Site Visitation</strong> (30%) — Use the <em>Site Visits</em> tab to record observations</li>
+                <li>• <strong>Report</strong> (15%) — Evaluate the final attachment report</li>
+                <li>• <strong>Presentation</strong> (15%) — Grade the student's presentation</li>
+              </ul>
+              <p className="text-blue-700 dark:text-blue-400 mt-3" style={{ fontSize: "0.85rem" }}>
+                Once all your scores are submitted, the DLO will compile them with the Industrial Assessment (40% from company supervisor) and publish the final grade.
               </p>
               <p className="text-blue-700 dark:text-blue-400 mt-2" style={{ fontSize: "0.75rem" }}>
-                Department uses Structure {config.structure}.
+                Department uses Structure {config.structure}. The breakdown below shows all components once available.
               </p>
             </div>
 

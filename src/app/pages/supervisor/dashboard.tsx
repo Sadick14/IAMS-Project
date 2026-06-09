@@ -4,6 +4,7 @@ import { StatusBadge } from "../../components/status-badge";
 import { StatCard } from "../../components/stat-card";
 import { AssessmentChecklistCard } from "../../components/supervisor/assessment-checklist-card";
 import { apiClient } from "../../lib/api-client";
+import { SkeletonDashboard } from "../../components/skeleton";
 import {
   GraduationCap, BookMarked, ClipboardCheck, AlertTriangle,
   MapPin, TrendingUp, Calendar, CheckCircle2, Shield
@@ -21,28 +22,59 @@ export function SupervisorDashboard() {
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [pendingLogs, setPendingLogs] = useState<any[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
-      const [dashRes, logsRes] = await Promise.all([
+      const [dashRes, logsRes, approvalsRes] = await Promise.all([
         apiClient.getDashboard("industry-supervisor"),
         apiClient.getLogbookEntries({ status: "submitted", per_page: 10 }),
+        apiClient.getPendingSupervisorInvitations(),
       ]);
       if (cancelled) return;
-      if (dashRes.success)  setDashboard(dashRes.data);
-      if (logsRes.success)  setPendingLogs(logsRes.data);
+      if (dashRes.success) {
+        setDashboard(dashRes.data);
+        // Filter logs to only include those from assigned students
+        if (logsRes.success && Array.isArray(logsRes.data)) {
+          const assignedIds = new Set(
+            (dashRes.data?.assigned_internships ?? [])
+              .filter((i: any) => (i.industry_supervisor?.user?.id ?? i.industry_supervisor?.id ?? i.industry_supervisor) === user?.id)
+              .map((i: any) => i.id)
+          );
+          const filtered = logsRes.data.filter((log: any) => assignedIds.has(log.internship_id));
+          setPendingLogs(filtered);
+        }
+      }
+      if (approvalsRes.success) {
+        setPendingApprovals(approvalsRes.data || []);
+      }
+      setLoading(false);
     };
 
     void load();
-    return () => { cancelled = true; };
-  }, []);
+    const interval = setInterval(() => { void load(); }, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [user?.id]);
 
-  const internships: any[]    = dashboard?.assigned_internships ?? [];
-  const todayAttendance: any[] = dashboard?.today_attendance     ?? [];
-  const totalStudents          = dashboard?.assigned_students    ?? internships.length;
-  const pendingAssessments     = dashboard?.pending_assessments  ?? 0;
+  // Security: Filter internships by current supervisor (client-side check)
+  const allInternships = dashboard?.assigned_internships ?? [];
+  const internships = allInternships.filter((i: any) => {
+    const supervisorId = i.industry_supervisor?.user?.id ?? i.industry_supervisor?.id ?? i.industry_supervisor;
+    return supervisorId === user?.id;
+  });
+  // Filter attendance and assessments to only include assigned students
+  const allTodayAttendance: any[] = dashboard?.today_attendance ?? [];
+  const todayAttendance = allTodayAttendance.filter((r: any) =>
+    internships.some((i: any) => i.id === r.internship_id)
+  );
+  const totalStudents = internships.length;
+  // Pending assessments count filtered per supervisor
+  // Backend should return department-wide; client-side can't reliably filter without detailed data
+  // Show 0 to avoid misleading counts - supervisor sees actual pending on Evaluate page
+  const pendingAssessments = 0;
 
   const presentToday   = todayAttendance.filter((r: any) => ["present", "late"].includes(r.status)).length;
   const absentToday    = todayAttendance.filter((r: any) => r.status === "absent").length;
@@ -57,18 +89,14 @@ export function SupervisorDashboard() {
     return { ...i, pendingLogCount: logs.length, todayRecord, activityStatus };
   });
 
+  if (loading) return <SkeletonDashboard statCount={3} />;
+
   return (
     <div className="space-y-6">
       <div>
         <h1>Industry Supervisor Portal</h1>
         <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
           Welcome, {user?.name}. You have {totalStudents} intern{totalStudents !== 1 ? "s" : ""} assigned.
-        </p>
-      </div>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <p style={{ fontSize: "0.8rem" }} className="text-blue-800">
-          This portal uses tokenized access — no password required. Review student logbooks, verify attendance check-ins, and submit evaluations from here.
         </p>
       </div>
 
@@ -100,6 +128,27 @@ export function SupervisorDashboard() {
           icon={<ClipboardCheck className="w-4 h-4" />}
         />
       </div>
+
+      {/* Pending Approvals Alert */}
+      {pendingApprovals.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-5 h-5 text-blue-600" />
+            <h4 className="text-blue-800">Student Approvals Pending</h4>
+          </div>
+          <p className="text-sm text-blue-700 mb-3">
+            {pendingApprovals.length} student{pendingApprovals.length > 1 ? "s" : ""} {pendingApprovals.length > 1 ? "have" : "has"} invited you to the platform.
+          </p>
+          <button
+            onClick={() => navigate("/supervisor/approvals")}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            style={{ fontSize: "0.85rem" }}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            Review {pendingApprovals.length} Invitation{pendingApprovals.length > 1 ? "s" : ""}
+          </button>
+        </div>
+      )}
 
       {/* Action Alert */}
       {(pendingLogs.length > 0 || pendingVerify > 0) && (

@@ -11,6 +11,7 @@ export interface AuthUser {
   avatar?: string;
   studentId?: string;
   supervisorToken?: string;
+  profileComplete?: boolean;
 }
 
 export function isHTUEmail(email: string): boolean {

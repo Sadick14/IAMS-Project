@@ -5,6 +5,7 @@ import { StatusBadge } from "../../components/status-badge";
 import { BookMarked, Clock, Award, ArrowRight, Calendar, MapPin, Mail, User, AlertCircle, CheckCircle2, Zap, FileText, MessageSquare, Briefcase, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { SkeletonDashboard } from "../../components/skeleton";
 
 export function StudentDashboard() {
   const { user } = useAppContext();
@@ -13,6 +14,7 @@ export function StudentDashboard() {
   const [visitations, setVisitations] = useState<any[]>([]);
   const [pendingApplication, setPendingApplication] = useState<any>(null);
   const [attendanceData, setAttendanceData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const prevStatusRef = useRef<string | null>(null);
 
@@ -22,7 +24,7 @@ export function StudentDashboard() {
       const [dashRes, appsRes, internshipRes] = await Promise.all([
         apiClient.getDashboard("student"),
         apiClient.getApplications(),
-        apiClient.getInternships(), // Fetch internship data to get approved applications
+        apiClient.getInternships(),
       ]);
       if (dashRes.success) {
         setDashboard(dashRes.data);
@@ -88,6 +90,7 @@ export function StudentDashboard() {
       // internshipRes is fetched to update dashboard with approved internship data
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   };
 
@@ -109,6 +112,12 @@ export function StudentDashboard() {
   const companyName = activeInternship?.company?.name ?? "N/A";
   const appStatus = activeInternship?.status ?? "none";
   const supervisorName = activeInternship?.academic_supervisor?.user?.name ?? activeInternship?.academicSupervisor?.user?.name ?? null;
+
+  // Supervisor data from company acceptance upload (pendingApplication or activeInternship)
+  const supervisorData = pendingApplication?.industry_supervisor_name || pendingApplication?.supervisor || activeInternship?.industry_supervisor?.user?.name || activeInternship?.supervisor_name;
+  const supervisorInviteStatus = pendingApplication?.supervisor_approval_status || activeInternship?.supervisor_approval_status || "pending";
+
+  if (loading) return <SkeletonDashboard statCount={3} />;
 
   return (
     <div className="space-y-6">
@@ -138,7 +147,7 @@ export function StudentDashboard() {
 
           {/* Hero Banner - Based on Application Status */}
           {activeInternship ? (
-            <div className="bg-gradient-to-r from-primary/80 via-primary/60 to-primary/40 rounded-2xl p-8 text-white relative overflow-hidden">
+            <div className="bg-primary rounded-2xl p-8 text-white relative overflow-hidden">
               <div className="relative z-10">
                 <p className="text-sm opacity-90 mb-2">{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
                 <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name?.split(" ")[0]}!</h1>
@@ -149,18 +158,51 @@ export function StudentDashboard() {
               </div>
             </div>
           ) : pendingApplication?.status?.toLowerCase() === "approved" ? (
-            <div className="bg-gradient-to-r from-emerald-100 to-green-100 dark:from-emerald-950/30 dark:to-green-950/30 rounded-2xl p-8">
+            <div className="bg-emerald-100 dark:bg-emerald-950/30 rounded-2xl p-8">
               <h1 className="text-3xl font-bold mb-2">🎉 Application Approved!</h1>
               <p className="text-sm mb-4">Your application for <span className="font-semibold">{pendingApplication?.company?.name || "a position"}</span> has been approved. Download documents and submit the signed company acceptance form to activate your internship.</p>
-              <button
-                onClick={() => navigate("/student/documents")}
-                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
-              >
-                Go to Documents <ArrowRight className="w-4 h-4 inline ml-2" />
-              </button>
+              {supervisorData && (
+                <div className="mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="w-4 h-4 text-emerald-700" />
+                    <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">Company Supervisor</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{supervisorData}</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium capitalize">
+                        {supervisorInviteStatus === "approved" || supervisorInviteStatus === "accepted" ? "Approved" : "Pending"}
+                      </span>
+                      {supervisorInviteStatus === "approved" || supervisorInviteStatus === "accepted" ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <button
+                  onClick={() => navigate("/student/documents")}
+                  className="w-full px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                >
+                  Go to Documents <ArrowRight className="w-4 h-4 inline ml-2" />
+                </button>
+                {supervisorData && (supervisorInviteStatus !== "approved" && supervisorInviteStatus !== "accepted") && (
+                  <button
+                    onClick={() => {
+                      toast.info(`Invitation resent to ${supervisorData}`);
+                    }}
+                    className="w-full px-6 py-2 border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-lg font-semibold text-sm transition-colors"
+                  >
+                    Resend Supervisor Invite
+                  </button>
+                )}
+              </div>
             </div>
           ) : pendingApplication?.status?.toLowerCase() === "rejected" ? (
-            <div className="bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-950/30 dark:to-rose-950/30 rounded-2xl p-8">
+            <div className="bg-red-100 dark:bg-red-950/30 rounded-2xl p-8">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-bold mb-2">Application Not Approved</h1>
@@ -176,7 +218,7 @@ export function StudentDashboard() {
               </div>
             </div>
           ) : pendingApplication ? (
-            <div className="bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-950/30 dark:to-orange-950/30 rounded-2xl p-8">
+            <div className="bg-amber-100 dark:bg-amber-950/30 rounded-2xl p-8">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-bold mb-2">Application Under Review</h1>
@@ -202,7 +244,7 @@ export function StudentDashboard() {
               </div>
             </div>
           ) : (
-            <div className="bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-950/30 dark:to-orange-950/30 rounded-2xl p-8">
+            <div className="bg-amber-100 dark:bg-amber-950/30 rounded-2xl p-8">
               <h1 className="text-3xl font-bold mb-2">Ready to start?</h1>
               <p className="text-sm mb-4">Submit an application to begin your industrial attachment</p>
               <button
@@ -292,7 +334,7 @@ export function StudentDashboard() {
                   See all <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-6 space-y-4">
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-bold text-lg">{companyName}</h3>
@@ -320,21 +362,60 @@ export function StudentDashboard() {
                       </div>
                     </div>
                   )}
+                  {supervisorData && (
+                    <div className="flex items-start gap-2">
+                      <User className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-muted-foreground text-xs">Company Supervisor</p>
+                        <p className="font-medium text-sm truncate">{supervisorData}</p>
+                      </div>
+                    </div>
+                  )}
+                  {supervisorData && (
+                    <div className="flex items-start gap-2">
+                      <Mail className={`w-4 h-4 mt-0.5 shrink-0 ${supervisorInviteStatus === "approved" || supervisorInviteStatus === "accepted" ? "text-emerald-600" : "text-amber-600"}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-muted-foreground text-xs">Invitation</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-medium text-sm capitalize">
+                            {supervisorInviteStatus === "approved" || supervisorInviteStatus === "accepted" ? "Approved" : "Pending"}
+                          </p>
+                          {supervisorInviteStatus === "approved" || supervisorInviteStatus === "accepted" ? (
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="w-3 h-3 text-amber-600" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={() => navigate("/student/logbook")}
-                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-sm font-semibold"
-                  >
-                    Logbook
-                  </button>
-                  <button
-                    onClick={() => navigate("/student/attendance")}
-                    className="flex-1 px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-semibold"
-                  >
-                    Attendance
-                  </button>
+                <div className="space-y-2 pt-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate("/student/logbook")}
+                      className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-sm font-semibold"
+                    >
+                      Logbook
+                    </button>
+                    <button
+                      onClick={() => navigate("/student/attendance")}
+                      className="flex-1 px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-semibold"
+                    >
+                      Attendance
+                    </button>
+                  </div>
+                  {supervisorData && (supervisorInviteStatus !== "approved" && supervisorInviteStatus !== "accepted") && (
+                    <button
+                      onClick={() => {
+                        toast.info(`Invitation resent to ${supervisorData}`);
+                      }}
+                      className="w-full px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/20 text-sm font-semibold transition-colors"
+                    >
+                      Resend Supervisor Invite
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

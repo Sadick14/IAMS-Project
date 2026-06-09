@@ -76,10 +76,10 @@ const studentNav: NavItem[] = [
 
 const supervisorNav: NavItem[] = [
   { to: "/supervisor", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/supervisor/approvals", icon: ClipboardCheck, label: "Student Approvals" },
   { to: "/supervisor/logbooks", icon: BookMarked, label: "Student Logbooks" },
   { to: "/supervisor/evaluate", icon: ClipboardCheck, label: "Assessments", badgeKey: "supervisorOverdueRubrics" },
   { to: "/supervisor/attendance", icon: MapPin, label: "Attendance" },
-  { to: "/supervisor/messages", icon: MessageSquarePlus, label: "Messages" },
   { to: "/supervisor/communications", icon: MessageSquarePlus, label: "Communications" },
   { to: "/supervisor/help", icon: LifeBuoy, label: "Help & Support" },
   { to: "/supervisor/settings", icon: Settings, label: "Settings" },
@@ -219,10 +219,12 @@ export function DashboardLayout() {
           flex flex-col shrink-0
         `}
       >
-        {/* Sidebar inner container with rounded style */}
+        {/* Sidebar inner container with glassmorphism */}
         <div
-          className="flex flex-col flex-1 m-3 rounded-2xl bg-sidebar overflow-hidden"
-          style={{ boxShadow: "0 1px 3px rgba(11,94,215,0.04), 0 4px 16px rgba(11,94,215,0.03)" }}
+          className="flex flex-col flex-1 m-3 rounded-2xl overflow-hidden backdrop-blur-md border border-white/20 dark:border-white/10 bg-white/40 dark:bg-slate-900/40"
+          style={{
+            boxShadow: "0 8px 32px rgba(31, 38, 135, 0.15), 0 2px 8px rgba(31, 38, 135, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.2)"
+          }}
         >
           {/* Logo */}
           <div className={`flex items-center ${sidebarOpen || isMobile ? "gap-3 px-5" : "justify-center px-0"} py-5 transition-all duration-300`}>
@@ -259,8 +261,8 @@ export function DashboardLayout() {
                     end={item.to === `/${user.role}`}
                     onClick={handleNavClick}
                     className={({ isActive }) => `group relative flex items-center ${sidebarOpen || isMobile ? "gap-3 px-6" : "justify-center px-0"} -mx-3 py-3 transition-all duration-200 ${isActive
-                        ? "bg-[#E3EBFF] dark:bg-primary/20 text-primary font-medium"
-                        : "text-sidebar-foreground hover:bg-[#E3EBFF]/50 dark:hover:bg-white/5 hover:text-foreground"
+                        ? "text-primary font-medium"
+                        : "text-sidebar-foreground hover:text-foreground"
                       }`}
                   >
                   {({ isActive }) => (
@@ -295,7 +297,7 @@ export function DashboardLayout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="h-16 flex items-center px-4 md:px-6 gap-3 shrink-0">
+        <header className="h-16 flex items-center px-4 md:px-6 gap-3 shrink-0 pt-safe" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all duration-200"
@@ -331,8 +333,8 @@ export function DashboardLayout() {
             </button>
           )}
 
-          {/* Notifications - Show NotificationBell for supervisors */}
-          {user.role === "supervisor" && <NotificationBell />}
+          {/* Notifications */}
+          <NotificationBell />
 
           {/* User Profile Dropdown */}
           <div className="relative" ref={profileRef}>

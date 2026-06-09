@@ -3,7 +3,10 @@
  * Handles subscription, permission requests, and notification management
  */
 
+import { getApiAuthToken, getApiUrl } from "./api-client";
+
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || "";
+const BROWSER_NOTIFICATIONS_ENABLED_KEY = "iams_browser_notifications_enabled";
 
 export interface NotificationSubscription {
   endpoint: string;
@@ -18,17 +21,46 @@ export interface NotificationSubscription {
  */
 export function isPushNotificationSupported(): boolean {
   return (
+    typeof window !== "undefined" &&
+    typeof navigator !== "undefined" &&
     "serviceWorker" in navigator &&
     "PushManager" in window &&
     "Notification" in window
   );
 }
 
+export function isBrowserNotificationSupported(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof navigator !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "Notification" in window
+  );
+}
+
+export function isPushConfigured(): boolean {
+  return VAPID_PUBLIC_KEY.trim().length > 0;
+}
+
+export function setBrowserNotificationsEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(BROWSER_NOTIFICATIONS_ENABLED_KEY, enabled ? "true" : "false");
+  } catch {}
+}
+
+function getBrowserNotificationsPreference(): boolean {
+  try {
+    return localStorage.getItem(BROWSER_NOTIFICATIONS_ENABLED_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Request notification permission from user
  */
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (!("Notification" in window)) {
+  if (typeof window === "undefined" || !("Notification" in window)) {
     console.warn("[Push] Notifications not supported");
     return "denied";
   }
@@ -60,6 +92,11 @@ export async function subscribeToPushNotifications(): Promise<NotificationSubscr
     return null;
   }
 
+  if (!isPushConfigured()) {
+    console.warn("[Push] VITE_VAPID_PUBLIC_KEY is not configured; server push subscription skipped");
+    return null;
+  }
+
   const permission = await requestNotificationPermission();
   if (permission !== "granted") {
     console.warn("[Push] Notification permission not granted");
@@ -68,17 +105,24 @@ export async function subscribeToPushNotifications(): Promise<NotificationSubscr
 
   try {
     const registration = await navigator.serviceWorker.ready;
+    const existingSubscription = await registration.pushManager.getSubscription();
+    if (existingSubscription) {
+      await sendSubscriptionToBackend(existingSubscription);
+      setBrowserNotificationsEnabled(true);
+      localStorage.setItem("push_subscription", JSON.stringify(existingSubscription.toJSON()));
+      return existingSubscription.toJSON() as NotificationSubscription;
+    }
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: VAPID_PUBLIC_KEY
-        ? urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        : undefined,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
     });
 
     console.log("[Push] Subscribed to push notifications:", subscription);
 
     // Send subscription to backend (when API is ready)
     await sendSubscriptionToBackend(subscription);
+    setBrowserNotificationsEnabled(true);
 
     // Save subscription to localStorage as backup
     localStorage.setItem(
@@ -98,15 +142,18 @@ export async function subscribeToPushNotifications(): Promise<NotificationSubscr
  */
 export async function unsubscribeFromPushNotifications(): Promise<boolean> {
   try {
+    if (!isPushNotificationSupported()) return false;
+
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
 
     if (subscription) {
       await subscription.unsubscribe();
-      localStorage.removeItem("push_subscription");
-      console.log("[Push] Unsubscribed from push notifications");
-      return true;
     }
+    localStorage.removeItem("push_subscription");
+    setBrowserNotificationsEnabled(false);
+    console.log("[Push] Unsubscribed from push notifications");
+    return true;
   } catch (error) {
     console.error("[Push] Failed to unsubscribe from push notifications:", error);
   }
@@ -119,6 +166,8 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
  */
 export async function getPushSubscription(): Promise<NotificationSubscription | null> {
   try {
+    if (!isPushNotificationSupported()) return null;
+
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
 
@@ -139,8 +188,18 @@ export async function getPushSubscription(): Promise<NotificationSubscription | 
  * Check if user is subscribed to push notifications
  */
 export async function isSubscribedToPushNotifications(): Promise<boolean> {
+  if (!isPushConfigured()) return false;
+
   const subscription = await getPushSubscription();
   return !!subscription;
+}
+
+export async function areBrowserNotificationsEnabled(): Promise<boolean> {
+  return (
+    isBrowserNotificationSupported() &&
+    getBrowserNotificationsPreference() &&
+    getNotificationPermission() === "granted"
+  );
 }
 
 /**
@@ -150,14 +209,9 @@ async function sendSubscriptionToBackend(
   subscription: PushSubscription
 ): Promise<void> {
   try {
-    // This endpoint should be implemented in the backend
-    // For now, we'll log it as a demo
     const subscriptionJson = subscription.toJSON();
-    console.log("[Push] Subscription ready to send to backend:", subscriptionJson);
 
-    // Uncomment when backend is ready:
-    /*
-    const response = await fetch("/api/push/subscribe", {
+    const response = await fetch(getApiUrl("/api/v1/push/subscribe"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -167,14 +221,13 @@ async function sendSubscriptionToBackend(
     });
 
     if (!response.ok) {
-      throw new Error("Failed to subscribe on backend");
+      throw new Error("Failed to save push subscription on backend");
     }
 
-    console.log("[Push] Subscription sent to backend");
-    */
+    console.log("[Push] Subscription saved to backend");
   } catch (error) {
     console.warn("[Push] Could not send subscription to backend:", error);
-    // Don't throw - subscription is still valid locally
+    // Don't throw — subscription is still valid locally
   }
 }
 
@@ -183,26 +236,28 @@ async function sendSubscriptionToBackend(
  */
 export async function sendTestNotification(): Promise<void> {
   try {
+    const permission = await requestNotificationPermission();
+    if (permission !== "granted") {
+      throw new Error("Notification permission is not granted");
+    }
+
     const registration = await navigator.serviceWorker.ready;
 
-    // Create a test notification through the service worker
-    registration.active?.postMessage({
-      type: "SHOW_NOTIFICATION",
-      notification: {
-        title: "IAMS Notification",
-        options: {
-          body: "This is a test notification from IAMS",
-          icon: "/logo-192.png",
-          badge: "/logo-192.png",
-          tag: "test-notification",
-          requireInteraction: false,
-        },
+    await registration.showNotification("IAMS Notification", {
+      body: "This is a test notification from IAMS",
+      icon: "/logo-192.png",
+      badge: "/logo-192.png",
+      tag: "test-notification",
+      requireInteraction: false,
+      data: {
+        url: "/",
       },
     });
 
     console.log("[Push] Test notification sent");
   } catch (error) {
     console.error("[Push] Failed to send test notification:", error);
+    throw error;
   }
 }
 
@@ -229,7 +284,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * Get notification permission status
  */
 export function getNotificationPermission(): NotificationPermission {
-  if (!("Notification" in window)) {
+  if (typeof window === "undefined" || !("Notification" in window)) {
     return "denied";
   }
   return Notification.permission;

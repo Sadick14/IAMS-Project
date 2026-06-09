@@ -190,32 +190,34 @@ export function AnnouncementsPanel({ viewRole, canCompose }: Props) {
           className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-card" style={{ fontSize: "0.85rem" }} />
       </div>
 
-      {loading ? (
-        <div className="text-center py-12 text-muted-foreground" style={{ fontSize: "0.85rem" }}>Loading…</div>
-      ) : (
-        <>
-          {pinned.length > 0 && (
-            <div>
-              <h3 className="flex items-center gap-2 mb-3 text-sm font-semibold"><Pin className="w-4 h-4 text-amber-600" /> Pinned</h3>
-              <div className="space-y-3">{pinned.map((a) => <AnnCard key={a.id} ann={a} pinBg />)}</div>
-            </div>
-          )}
-
-          <div>
-            {pinned.length > 0 && <h3 className="mb-3 text-sm font-semibold">All Announcements</h3>}
-            {regular.length === 0 && pinned.length === 0 ? (
-              <div className="bg-card border border-border rounded-xl p-8 text-center">
-                <Megaphone className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
-                  {search ? "No announcements match your search." : "No announcements yet."}
-                </p>
+      <div className="max-h-[600px] overflow-y-auto">
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground" style={{ fontSize: "0.85rem" }}>Loading…</div>
+        ) : (
+          <>
+            {pinned.length > 0 && (
+              <div>
+                <h3 className="flex items-center gap-2 mb-3 text-sm font-semibold"><Pin className="w-4 h-4 text-amber-600" /> Pinned</h3>
+                <div className="space-y-3">{pinned.map((a) => <AnnCard key={a.id} ann={a} pinBg />)}</div>
               </div>
-            ) : (
-              <div className="space-y-3">{regular.map((a) => <AnnCard key={a.id} ann={a} />)}</div>
             )}
-          </div>
-        </>
-      )}
+
+            <div>
+              {pinned.length > 0 && <h3 className="mb-3 text-sm font-semibold">All Announcements</h3>}
+              {regular.length === 0 && pinned.length === 0 ? (
+                <div className="bg-card border border-border rounded-xl p-8 text-center">
+                  <Megaphone className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
+                    {search ? "No announcements match your search." : "No announcements yet."}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">{regular.map((a) => <AnnCard key={a.id} ann={a} />)}</div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Compose modal */}
       {showCompose && (

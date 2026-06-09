@@ -2,16 +2,23 @@ const CACHE_NAME = "iams-v1";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
-  "/favicon.ico",
+  "/iams-logo.svg",
+  "/logo-192.png",
 ];
 
 // Install event - cache necessary files
 self.addEventListener("install", (event) => {
   console.log("[ServiceWorker] Install event");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
       console.log("[ServiceWorker] Caching app assets");
-      return cache.addAll(ASSETS_TO_CACHE);
+      await Promise.all(
+        ASSETS_TO_CACHE.map((asset) =>
+          cache.add(asset).catch((error) => {
+            console.warn("[ServiceWorker] Failed to cache asset:", asset, error);
+          })
+        )
+      );
     })
   );
   self.skipWaiting();
@@ -81,10 +88,11 @@ self.addEventListener("notificationclick", (event) => {
 
   event.notification.close();
 
-  const urlToOpen = new URL("/", self.location.origin);
-  if (event.notification.data && event.notification.data.url) {
-    urlToOpen.pathname = event.notification.data.url;
-  }
+  const notificationUrl =
+    event.notification.data?.url ||
+    event.notification.data?.action_url ||
+    "/";
+  const urlToOpen = new URL(notificationUrl, self.location.origin);
 
   event.waitUntil(
     clients
@@ -114,7 +122,9 @@ self.addEventListener("message", (event) => {
 
   if (event.data && event.data.type === "SHOW_NOTIFICATION") {
     const { notification } = event.data;
-    self.registration.showNotification(notification.title, notification.options);
+    event.waitUntil(
+      self.registration.showNotification(notification.title, notification.options)
+    );
   }
 });
 

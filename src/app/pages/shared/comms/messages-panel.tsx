@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAppContext } from "../../../lib/context";
 import { apiClient } from "../../../lib/api-client";
 import { usePolling } from "../../../lib/hooks";
-import { MessageSquare, Send, ArrowLeft, Plus, Search, X, Paperclip, Phone, Video, MoreVertical } from "lucide-react";
+import { MessageSquare, Send, ArrowLeft, Plus, Search, X, Phone, Video, MoreVertical } from "lucide-react";
 
 interface Thread {
   id: string | number;
@@ -168,7 +168,7 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
         </button>
       </div>
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col md:flex-row" style={{ height: "calc(100vh - 310px)", minHeight: "400px" }}>
+      <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col md:flex-row min-h-[500px] md:min-h-[600px]">
         {/* Thread List */}
         <div className={`w-full md:w-80 border-b md:border-b-0 md:border-r border-border flex flex-col shrink-0 ${selectedThread ? "hidden md:flex" : "flex"}`}>
           <div className="p-3 border-b border-border">
@@ -261,31 +261,29 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
           ) : (
             <>
               {/* Thread Header */}
-              <div className="p-4 border-b border-border flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setSelectedThread(null)} className="md:hidden text-muted-foreground hover:text-foreground">
+              <div className="p-4 border-b border-border flex items-center justify-between flex-shrink-0 bg-background">
+                <div className="flex items-center gap-3 min-w-0">
+                  <button onClick={() => setSelectedThread(null)} className="md:hidden text-muted-foreground hover:text-foreground flex-shrink-0">
                     <ArrowLeft className="w-5 h-5" />
                   </button>
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary" style={{ fontSize: "0.75rem" }}>
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0" style={{ fontSize: "0.75rem" }}>
                     {currentThread ? getInitials(getThreadLabel(currentThread)) : ""}
                   </div>
-                  <div>
-                    <p style={{ fontSize: "0.9rem" }} className="text-foreground">
+                  <div className="min-w-0">
+                    <p style={{ fontSize: "0.9rem" }} className="text-foreground truncate font-medium">
                       {currentThread ? getThreadLabel(currentThread) : ""}
                     </p>
-                    <p className="text-muted-foreground" style={{ fontSize: "0.75rem" }}>
+                    <p className="text-muted-foreground text-xs truncate">
                       {currentThread?.subject}
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <button className="p-2 rounded-lg hover:bg-accent text-muted-foreground" title="Voice call"><Phone className="w-4 h-4" /></button>
-                  <button className="p-2 rounded-lg hover:bg-accent text-muted-foreground" title="Video call"><Video className="w-4 h-4" /></button>
+                <div className="flex gap-1 flex-shrink-0">
                   <button className="p-2 rounded-lg hover:bg-accent text-muted-foreground" title="More"><MoreVertical className="w-4 h-4" /></button>
                 </div>
               </div>
 
-              {/* Messages */}
+              {/* Messages - Scrollable Area */}
               {apiAvailable === false ? (
                 <div className="flex-1 flex items-center justify-center p-8 text-center">
                   <div>
@@ -299,7 +297,7 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                   </div>
                 </div>
               ) : (
-                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30">
                   {messages.length === 0 && (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>No messages yet. Start the conversation!</p>
@@ -310,20 +308,22 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                   return (
                     <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                       {!isMine && (
-                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mr-2 shrink-0 mt-auto" style={{ fontSize: "0.6rem" }}>
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0 mr-2 mt-auto" style={{ fontSize: "0.6rem", fontWeight: "600" }}>
                           {getInitials(msg.senderName)}
                         </div>
                       )}
-                      <div
-                        className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                          isMine ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-secondary-foreground rounded-bl-md"
-                        }`}
-                      >
+                      <div className="flex flex-col max-w-[70%]">
                         {!isMine && (
-                          <p style={{ fontSize: "0.7rem" }} className="opacity-75 mb-1">{msg.senderName}{msg.senderRole ? ` · ${msg.senderRole}` : ""}</p>
+                          <p style={{ fontSize: "0.7rem" }} className="text-muted-foreground mb-1 ml-2 font-medium">{msg.senderName}</p>
                         )}
-                        <p style={{ fontSize: "0.85rem" }}>{msg.content}</p>
-                        <p style={{ fontSize: "0.65rem" }} className={`mt-1 ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                        <div
+                          className={`rounded-lg px-3 py-2 ${
+                            isMine ? "bg-primary text-primary-foreground rounded-br-none" : "bg-white dark:bg-slate-700 text-foreground rounded-bl-none"
+                          }`}
+                        >
+                          <p style={{ fontSize: "0.85rem" }} className="break-words">{msg.content}</p>
+                        </div>
+                        <p style={{ fontSize: "0.65rem" }} className={`mt-0.5 ml-2 ${isMine ? "text-muted-foreground text-right" : "text-muted-foreground"}`}>
                           {new Date(msg.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
@@ -333,28 +333,25 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                 </div>
               )}
 
-              {/* Input */}
-              <div className="p-4 border-t border-border">
+              {/* Input - Fixed at Bottom */}
+              <div className="p-3 sm:p-4 border-t border-border bg-background flex-shrink-0">
                 <div className="flex gap-2 items-end">
-                  <button className="p-2.5 rounded-lg border border-border hover:bg-accent text-muted-foreground shrink-0" title="Attach file">
-                    <Paperclip className="w-4 h-4" />
-                  </button>
                   <input
                     type="text"
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     placeholder="Type a message..."
-                    className="flex-1 px-4 py-2.5 border border-border rounded-lg bg-background"
+                    className="flex-1 min-w-0 px-3 sm:px-4 py-2 sm:py-2.5 border border-border rounded-full bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0"
                     style={{ fontSize: "0.85rem" }}
                   />
                   <button
                     onClick={handleSend}
                     disabled={!messageText.trim()}
-                    className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2 shrink-0"
-                    style={{ fontSize: "0.85rem" }}
+                    className="w-10 h-10 bg-primary text-primary-foreground rounded-full hover:opacity-90 disabled:opacity-50 flex items-center justify-center flex-shrink-0 transition-all"
+                    title="Send message"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-5 h-5" />
                   </button>
                 </div>
               </div>

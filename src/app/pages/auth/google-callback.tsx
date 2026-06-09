@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router";
+import { useNavigate, useSearchParams, useLocation, Link } from "react-router";
 import { useAppContext } from "../../lib/context";
 import { normalizeApiUser } from "../../lib/context";
 import { apiClient, setApiAuthToken } from "../../lib/api-client";
@@ -12,6 +12,7 @@ type State = "processing" | "success" | "error";
 export function GoogleCallbackPage() {
   const { setUser } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
 
   const [state, setState] = useState<State>("processing");
@@ -48,7 +49,9 @@ export function GoogleCallbackPage() {
       setUser(user);
       setState("success");
       toast.success(`Welcome, ${user.name}!`);
-      setTimeout(() => navigate(getRoutePrefix(user.role), { replace: true }), 1000);
+      // Redirect to the page they were trying to access, or dashboard if none
+      const fromLocation = (location.state as any)?.from?.pathname || getRoutePrefix(user.role);
+      setTimeout(() => navigate(fromLocation, { replace: true }), 1000);
     }).catch(() => {
       setApiAuthToken(null);
       setState("error");

@@ -51,7 +51,7 @@ import { StudentAttendancePage } from "./pages/student/attendance";
 import { SupervisorDashboard } from "./pages/supervisor/dashboard";
 import { EvaluatePage } from "./pages/supervisor/evaluate";
 import { SupervisorLogbooksPage } from "./pages/supervisor/logbooks";
-import { SupervisorMessagesPage } from "./pages/supervisor/messages";
+import { SupervisorApprovalsPage } from "./pages/supervisor/approvals";
 
 // Academic & HOD Pages
 import { AcademicDashboard } from "./pages/academic/dashboard";
@@ -221,11 +221,11 @@ export const router = createBrowserRouter([
         ),
         children: [
           { index: true, element: <SupervisorDashboard /> },
+          { path: "approvals", element: <SupervisorApprovalsPage /> },
           { path: "evaluate", element: <EvaluatePage /> },
           // Legacy deep-link → merged Assessments page (preserves any ?student= param).
           { path: "weekly-rubric", element: <Navigate to="/supervisor/evaluate?tab=weekly" replace /> },
           { path: "logbooks", element: <SupervisorLogbooksPage /> },
-          { path: "messages", element: <SupervisorMessagesPage /> },
           { path: "attendance", Component: SupervisorAttendance },
           { path: "communications", Component: SupervisorCommunications },
           { path: "settings", Component: SupervisorSettings },

@@ -115,11 +115,23 @@ export function GradesPage({ viewRole }: Props) {
     else toast.error(res.message ?? "Failed to request revision.");
   };
 
+  const [detailGrade, setDetailGrade] = useState<any>(null);
   const detail = selectedId ? gradeApps.find((g) => g.id === selectedId) : null;
-  // detailGrade is the same as detail for the breakdown card (fields align)
-  const detailGrade = detail ? { finalPercent: detail.finalPercent, status: detail.gradeStatus } : null;
+
+  useEffect(() => {
+    if (detail?.internshipId) {
+      apiClient.getGrade(detail.internshipId).then((res) => {
+        if (res.success) setDetailGrade(res.data?.grade ?? res.data ?? null);
+        else setDetailGrade(null);
+      });
+    } else {
+      setDetailGrade(null);
+    }
+  }, [detail?.internshipId]);
 
   const tabCounts = { all: gradeApps.length, submitted: submittedCount, approved: approvedCount, pending: pendingCount };
+
+  if (loading) return <SkeletonList count={5} />;
 
   return (
     <div className="space-y-6">
@@ -393,9 +405,49 @@ export function GradesPage({ viewRole }: Props) {
                   ))}
                   <div>
                     <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>Status</p>
-                    <StatusBadge status={detail.gradeStatus} />
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={detail.gradeStatus} />
+                      <span className="text-muted-foreground text-xs">
+                        {detail.gradeStatus === "Pending" && "Awaiting component submissions"}
+                        {detail.gradeStatus === "Submitted" && "Ready for approval"}
+                        {detail.gradeStatus === "Approved" && "Ready to publish"}
+                        {detail.gradeStatus === "Published" && "Visible to student"}
+                      </span>
+                    </div>
                   </div>
                 </div>
+
+                {detailGrade && (
+                  <div className="pt-3 border-t border-border space-y-3">
+                    <h4 className="text-sm font-semibold">Score Breakdown</h4>
+                    <div className="space-y-2 text-xs">
+                      {detailGrade.industrial_assessment_score !== null && (
+                        <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                          <span className="text-muted-foreground">Industrial Assessment</span>
+                          <span className="font-medium">{Number(detailGrade.industrial_assessment_score).toFixed(1)} / 90</span>
+                        </div>
+                      )}
+                      {detailGrade.site_visitation_score !== null && (
+                        <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                          <span className="text-muted-foreground">Site Visitation</span>
+                          <span className="font-medium">{Number(detailGrade.site_visitation_score).toFixed(1)} / 30</span>
+                        </div>
+                      )}
+                      {detailGrade.report_score !== null && (
+                        <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                          <span className="text-muted-foreground">Report</span>
+                          <span className="font-medium">{Number(detailGrade.report_score).toFixed(1)} / 20</span>
+                        </div>
+                      )}
+                      {detailGrade.presentation_score !== null && (
+                        <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                          <span className="text-muted-foreground">Presentation</span>
+                          <span className="font-medium">{Number(detailGrade.presentation_score).toFixed(1)} / 20</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {detail.gradeStatus === "Submitted" && (
                   <div className="pt-3 border-t border-border space-y-2">

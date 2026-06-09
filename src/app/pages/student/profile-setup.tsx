@@ -6,7 +6,7 @@ import { User, Book, Briefcase, Loader2, AlertCircle, CheckCircle2, FileText } f
 import { toast } from "sonner";
 
 export function StudentProfileSetup() {
-  const { user } = useAppContext();
+  const { user, setUser } = useAppContext();
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"personal" | "academic" | "internship">("personal");
@@ -151,6 +151,10 @@ export function StudentProfileSetup() {
       const res = await apiClient.updateUser(String(user?.id || ""), data);
       if (res.success) {
         localStorage.setItem(`student_profile_complete_${user?.id}`, "true");
+        // Update user object to mark profile as complete
+        if (user) {
+          setUser({ ...user, profileComplete: true });
+        }
         clearDraft();
         toast.success("Profile saved!");
         setTimeout(() => navigate("/student", { replace: true }), 1200);

@@ -21,22 +21,18 @@ export function StudentProfileGuard({ children }: StudentProfileGuardProps) {
       return;
     }
 
-    // Check if profile is already marked as complete
-    const isProfileComplete = localStorage.getItem(`student_profile_complete_${user?.id}`);
+    const currentPath = window.location.pathname;
 
-    // Check if user has minimal profile data (phone + emergency contact)
-    // This is a heuristic - backend should ideally track this
-    const userHasBasicInfo = user && user.email && user.name;
-
-    // If profile is not marked complete and user doesn't have basic info, redirect
-    if (!isProfileComplete && (!userHasBasicInfo || true)) {
-      // Allow access to profile-setup page only
-      const currentPath = window.location.pathname;
-      if (!currentPath.includes("/student/profile-setup")) {
-        navigate("/student/profile-setup", { replace: true });
-      }
+    // Allow profile-setup page always
+    if (currentPath.includes("/student/profile-setup")) {
+      return;
     }
-  }, [user, navigate]);
+
+    // Only redirect if profile is NOT marked complete
+    if (!user.profileComplete) {
+      navigate("/student/profile-setup", { replace: true });
+    }
+  }, [user?.role, user?.profileComplete, navigate]);
 
   return <>{children}</>;
 }

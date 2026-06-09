@@ -36,6 +36,7 @@ function normalizeApiUser(u: any): AuthUser {
     department: typeof u.department === "string" ? u.department : (u.department?.name ?? undefined),
     studentId: u.student_id ?? u.studentId ?? undefined,
     avatar: u.avatar ?? u.profile_photo ?? "",
+    profileComplete: u.profile_complete ?? u.profileComplete ?? false,
   };
 }
 
