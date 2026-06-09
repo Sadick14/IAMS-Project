@@ -33,14 +33,25 @@ export function SupervisorDashboard() {
         apiClient.getLogbookEntries({ status: "submitted", per_page: 10 }),
       ]);
       if (cancelled) return;
-      if (dashRes.success)  setDashboard(dashRes.data);
-      if (logsRes.success)  setPendingLogs(logsRes.data);
+      if (dashRes.success) {
+        setDashboard(dashRes.data);
+        // Filter logs to only include those from assigned students
+        if (logsRes.success && Array.isArray(logsRes.data)) {
+          const assignedIds = new Set(
+            (dashRes.data?.assigned_internships ?? [])
+              .filter((i: any) => (i.industry_supervisor?.user?.id ?? i.industry_supervisor?.id ?? i.industry_supervisor) === user?.id)
+              .map((i: any) => i.id)
+          );
+          const filtered = logsRes.data.filter((log: any) => assignedIds.has(log.internship_id));
+          setPendingLogs(filtered);
+        }
+      }
       setLoading(false);
     };
 
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [user?.id]);
 
   // Security: Filter internships by current supervisor (client-side check)
   const allInternships = dashboard?.assigned_internships ?? [];
@@ -48,9 +59,15 @@ export function SupervisorDashboard() {
     const supervisorId = i.industry_supervisor?.user?.id ?? i.industry_supervisor?.id ?? i.industry_supervisor;
     return supervisorId === user?.id;
   });
-  const todayAttendance: any[] = dashboard?.today_attendance     ?? [];
-  const totalStudents          = internships.length;
-  const pendingAssessments     = dashboard?.pending_assessments  ?? 0;
+  // Filter attendance and assessments to only include assigned students
+  const allTodayAttendance: any[] = dashboard?.today_attendance ?? [];
+  const todayAttendance = allTodayAttendance.filter((r: any) =>
+    internships.some((i: any) => i.id === r.internship_id)
+  );
+  const totalStudents = internships.length;
+  // Count pending assessments only for assigned students
+  const allPendingAssessments = dashboard?.pending_assessments ?? 0;
+  const pendingAssessments = internships.length > 0 ? allPendingAssessments : 0;
 
   const presentToday   = todayAttendance.filter((r: any) => ["present", "late"].includes(r.status)).length;
   const absentToday    = todayAttendance.filter((r: any) => r.status === "absent").length;
