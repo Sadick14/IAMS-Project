@@ -83,14 +83,17 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
 
   useEffect(() => {
     apiClient.getMessageContacts().then((res) => {
-      if (res.success && res.data.length > 0) {
-        setContacts(res.data.filter((c: any) => String(c.id) !== userId));
-      } else {
-        apiClient.getUsers().then((usersRes) => {
-          if (usersRes.success) {
-            setContacts(usersRes.data.filter((u: any) => String(u.id) !== userId));
-          }
-        });
+      if (res.success) {
+        const contactsList = Array.isArray(res.data) ? res.data : res.data?.contacts || [];
+        if (contactsList.length > 0) {
+          setContacts(contactsList.filter((c: any) => String(c.id) !== userId));
+        } else {
+          apiClient.getUsers().then((usersRes) => {
+            if (usersRes.success) {
+              setContacts(usersRes.data.filter((u: any) => String(u.id) !== userId));
+            }
+          });
+        }
       }
     });
   }, [userId]);
