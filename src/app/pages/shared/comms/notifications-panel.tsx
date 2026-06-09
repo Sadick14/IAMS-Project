@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../../lib/api-client";
 import {
   Bell, CheckCheck, Mail, Search, Archive, FileText,
-  Building2, GraduationCap, AlertTriangle, Settings2
+  Building2, GraduationCap, AlertTriangle, Settings2, MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,6 +12,7 @@ export function NotificationsPanel() {
   const [filter, setFilter] = useState<string>("All");
   const [search, setSearch] = useState("");
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
 
   const fetchNotifications = useCallback(async () => {
     const res = await apiClient.getNotifications({ per_page: 100 });
@@ -22,6 +24,7 @@ export function NotificationsPanel() {
         type: n.type ?? "system",
         read: !!n.is_read,
         timestamp: n.created_at ?? new Date().toISOString(),
+        actionUrl: n.action_url ?? null,
       })));
     }
   }, []);
@@ -66,27 +69,39 @@ export function NotificationsPanel() {
   const unread = notifications.filter((n) => !n.read).length;
 
   const typeIcons: Record<string, typeof FileText> = {
-    application: FileText,
-    company: Building2,
-    grade: GraduationCap,
-    escalation: AlertTriangle,
-    system: Settings2,
+    application:         FileText,
+    company:             Building2,
+    grade:               GraduationCap,
+    escalation:          AlertTriangle,
+    system:              Settings2,
+    message:             MessageSquare,
+    internship_approved: GraduationCap,
+    attendance_alert:    AlertTriangle,
+    info:                Bell,
   };
 
   const typeColors: Record<string, string> = {
-    application: "bg-blue-100 text-blue-700",
-    company: "bg-emerald-100 text-emerald-700",
-    grade: "bg-purple-100 text-purple-700",
-    escalation: "bg-red-100 text-red-700",
-    system: "bg-gray-100 text-gray-700",
+    application:         "bg-blue-100 text-blue-700",
+    company:             "bg-emerald-100 text-emerald-700",
+    grade:               "bg-purple-100 text-purple-700",
+    escalation:          "bg-red-100 text-red-700",
+    system:              "bg-gray-100 text-gray-700",
+    message:             "bg-sky-100 text-sky-700",
+    internship_approved: "bg-teal-100 text-teal-700",
+    attendance_alert:    "bg-orange-100 text-orange-700",
+    info:                "bg-indigo-100 text-indigo-700",
   };
 
   const typeBgColors: Record<string, string> = {
-    application: "bg-blue-50",
-    company: "bg-emerald-50",
-    grade: "bg-purple-50",
-    escalation: "bg-red-50",
-    system: "bg-gray-50",
+    application:         "bg-blue-50",
+    company:             "bg-emerald-50",
+    grade:               "bg-purple-50",
+    escalation:          "bg-red-50",
+    system:              "bg-gray-50",
+    message:             "bg-sky-50",
+    internship_approved: "bg-teal-50",
+    attendance_alert:    "bg-orange-50",
+    info:                "bg-indigo-50",
   };
 
   // Group by date
@@ -138,13 +153,14 @@ export function NotificationsPanel() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { key: "All", label: "All", count: notifications.length, color: "text-blue-600 bg-blue-50", icon: Bell },
-          { key: "Unread", label: "Unread", count: unread, color: "text-red-600 bg-red-50", icon: Mail },
-          { key: "application", label: "Applications", count: typeCounts["application"] || 0, color: "text-blue-600 bg-blue-50", icon: FileText },
-          { key: "company", label: "Companies", count: typeCounts["company"] || 0, color: "text-emerald-600 bg-emerald-50", icon: Building2 },
-          { key: "escalation", label: "Escalations", count: typeCounts["escalation"] || 0, color: "text-red-600 bg-red-50", icon: AlertTriangle },
+          { key: "All",         label: "All",          count: notifications.length,               color: "text-blue-600 bg-blue-50",    icon: Bell },
+          { key: "Unread",      label: "Unread",       count: unread,                              color: "text-red-600 bg-red-50",      icon: Mail },
+          { key: "message",     label: "Messages",     count: typeCounts["message"] || 0,          color: "text-sky-600 bg-sky-50",      icon: MessageSquare },
+          { key: "application", label: "Applications", count: typeCounts["application"] || 0,      color: "text-blue-600 bg-blue-50",    icon: FileText },
+          { key: "company",     label: "Companies",    count: typeCounts["company"] || 0,          color: "text-emerald-600 bg-emerald-50", icon: Building2 },
+          { key: "escalation",  label: "Escalations",  count: typeCounts["escalation"] || 0,       color: "text-red-600 bg-red-50",      icon: AlertTriangle },
         ].map((s) => (
           <button
             key={s.key}
@@ -200,9 +216,13 @@ export function NotificationsPanel() {
                   return (
                     <div
                       key={n.id}
+                      onClick={() => {
+                        if (!n.read) handleMarkRead(n.id);
+                        if (n.actionUrl) navigate(n.actionUrl);
+                      }}
                       className={`bg-card border rounded-xl p-4 flex items-start gap-4 transition-all group ${
                         !n.read ? "border-primary/30 bg-primary/5 hover:bg-primary/10" : "border-border hover:bg-muted/20"
-                      }`}
+                      } ${n.actionUrl ? "cursor-pointer" : ""}`}
                     >
                       <div className={`w-9 h-9 rounded-lg ${typeBgColors[n.type] || "bg-gray-50"} flex items-center justify-center shrink-0 mt-0.5`}>
                         <TypeIcon className={`w-4 h-4 ${!n.read ? "text-primary" : "text-muted-foreground"}`} />
