@@ -1662,13 +1662,6 @@ export const apiClient = {
     );
   },
 
-  async rejectSupervisorInvitation(invitationId: string): Promise<ApiResponse<null>> {
-    return requestApi<null>(
-      `/api/v1/supervisor-invitations/${invitationId}/reject`,
-      { method: "POST" }
-    );
-  },
-
   async computeAssessmentSummary(): Promise<SupervisorAssessmentSummary> {
     const [logbooksRes, dashboardRes] = await Promise.all([
       this.getLogbookEntries({ per_page: 1000 }),

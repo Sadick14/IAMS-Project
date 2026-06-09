@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { apiClient } from "../../lib/api-client";
 import { toast } from "sonner";
 import {
-  CheckCircle2, XCircle, Clock, Mail, RefreshCw, AlertCircle
+  CheckCircle2, Clock, Mail, RefreshCw, AlertCircle
 } from "lucide-react";
 
 export function SupervisorApprovalsPage() {
@@ -39,16 +39,6 @@ export function SupervisorApprovalsPage() {
       load();
     } else {
       toast.error("Failed to approve invitation.");
-    }
-  };
-
-  const handleReject = async (invitationId: string, studentName: string) => {
-    const res = await apiClient.rejectSupervisorInvitation(invitationId);
-    if (res.success) {
-      toast.success(`Rejected invitation from ${studentName}.`);
-      load();
-    } else {
-      toast.error("Failed to reject invitation.");
     }
   };
 
@@ -131,25 +121,15 @@ export function SupervisorApprovalsPage() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => handleApprove(invitation.id, invitation.student?.user?.name || invitation.student_name || "Student")}
-                    className="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-1.5 transition-colors"
-                    style={{ fontSize: "0.8rem" }}
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span className="hidden sm:inline">Approve</span>
-                  </button>
-                  <button
-                    onClick={() => handleReject(invitation.id, invitation.student?.user?.name || invitation.student_name || "Student")}
-                    className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-1.5 transition-colors"
-                    style={{ fontSize: "0.8rem" }}
-                  >
-                    <XCircle className="w-4 h-4" />
-                    <span className="hidden sm:inline">Reject</span>
-                  </button>
-                </div>
+                {/* Action Button */}
+                <button
+                  onClick={() => handleApprove(invitation.id, invitation.student?.user?.name || invitation.student_name || "Student")}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shrink-0"
+                  style={{ fontSize: "0.8rem" }}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Approve</span>
+                </button>
               </div>
             </div>
           ))}
