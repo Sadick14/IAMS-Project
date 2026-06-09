@@ -47,8 +47,20 @@ function normalizeUser(user: any, index: number): StaffMember {
     name,
     email: user.email ?? user.email_address ?? "",
     phone: user.phone ?? user.phone_number ?? "",
-    department: user.department?.name ?? user.department_name ?? user.department ?? "—",
-    departmentId: String(user.department?.id ?? user.department_id ?? ""),
+    department: user.department?.name
+      ?? user.student_profile?.department?.name
+      ?? user.academic_supervisor?.department?.name
+      ?? user.department_head?.department?.name
+      ?? user.department_name
+      ?? "—",
+    departmentId: String(
+      user.department?.id
+      ?? user.student_profile?.department_id
+      ?? user.academic_supervisor?.department_id
+      ?? user.department_head?.department_id
+      ?? user.department_id
+      ?? ""
+    ),
     role: normalizeRole(rawRole),
     status: rawStatus === "active" ? "active" : "inactive",
   };
