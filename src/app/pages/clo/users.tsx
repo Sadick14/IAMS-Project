@@ -465,8 +465,9 @@ export function UsersPage() {
       </div>
 
       {/* Desktop table */}
-      <div className="hidden lg:block bg-card border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
+      <div className="hidden lg:block bg-card border border-border rounded-xl overflow-visible">
+        <div className="overflow-hidden">
+          <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               <th className="text-left px-4 py-3" style={{ fontSize: "0.75rem" }}>
@@ -522,6 +523,7 @@ export function UsersPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ── Edit Modal ──────────────────────────────────────────────────────────── */}
