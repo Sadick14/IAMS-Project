@@ -334,7 +334,8 @@ export const API_ENDPOINTS = {
   ANNOUNCEMENT_PIN: "/api/v1/announcements/:id/pin",
   ANNOUNCEMENT_DELETE: "/api/v1/announcements/:id",
 
-  // Messages (not yet implemented in backend — calls will fail gracefully)
+  // Messages
+  MESSAGE_CONTACTS: "/api/v1/messages/contacts",
   THREADS: "/api/v1/messages/threads",
   THREAD_MESSAGES: "/api/v1/messages/threads/:id",
   THREAD_SEND: "/api/v1/messages/threads/:id/send",

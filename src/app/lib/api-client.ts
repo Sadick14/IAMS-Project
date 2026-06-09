@@ -1076,6 +1076,17 @@ export const apiClient = {
     );
   },
 
+  async getMessageContacts(): Promise<ApiResponse<any[]>> {
+    const response = await requestApi<unknown>(API_ENDPOINTS.MESSAGE_CONTACTS, {
+      method: "GET",
+    });
+    return {
+      success: response.success,
+      data: response.success ? extractCollection<any>(response, "contacts") : [],
+      message: response.message,
+    };
+  },
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // NOTIFICATIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━

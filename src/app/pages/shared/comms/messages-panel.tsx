@@ -32,6 +32,10 @@ interface MessagesPanelProps {
   preselectedRecipientId?: string;
 }
 
+function humanizeRole(role: string): string {
+  return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
   const { user } = useAppContext();
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
@@ -78,8 +82,16 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
   }, [selectedThread, apiAvailable]);
 
   useEffect(() => {
-    apiClient.getUsers().then((res) => {
-      if (res.success) setContacts(res.data.filter((u: any) => String(u.id) !== userId));
+    apiClient.getMessageContacts().then((res) => {
+      if (res.success && res.data.length > 0) {
+        setContacts(res.data.filter((c: any) => String(c.id) !== userId));
+      } else {
+        apiClient.getUsers().then((usersRes) => {
+          if (usersRes.success) {
+            setContacts(usersRes.data.filter((u: any) => String(u.id) !== userId));
+          }
+        });
+      }
     });
   }, [userId]);
 
@@ -379,7 +391,7 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                 >
                   <option value="">Select a contact...</option>
                   {contacts.map((c) => (
-                    <option key={c.id} value={String(c.id)}>{c.name} — {c.role}</option>
+                    <option key={c.id} value={String(c.id)}>{c.name} — {humanizeRole(c.role ?? "")}</option>
                   ))}
                 </select>
               </div>
