@@ -22,15 +22,17 @@ export function SupervisorDashboard() {
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [pendingLogs, setPendingLogs] = useState<any[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
-      const [dashRes, logsRes] = await Promise.all([
+      const [dashRes, logsRes, approvalsRes] = await Promise.all([
         apiClient.getDashboard("industry-supervisor"),
         apiClient.getLogbookEntries({ status: "submitted", per_page: 10 }),
+        apiClient.getPendingSupervisorInvitations(),
       ]);
       if (cancelled) return;
       if (dashRes.success) {
@@ -45,6 +47,9 @@ export function SupervisorDashboard() {
           const filtered = logsRes.data.filter((log: any) => assignedIds.has(log.internship_id));
           setPendingLogs(filtered);
         }
+      }
+      if (approvalsRes.success) {
+        setPendingApprovals(approvalsRes.data || []);
       }
       setLoading(false);
     };
@@ -121,6 +126,27 @@ export function SupervisorDashboard() {
           icon={<ClipboardCheck className="w-4 h-4" />}
         />
       </div>
+
+      {/* Pending Approvals Alert */}
+      {pendingApprovals.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-5 h-5 text-blue-600" />
+            <h4 className="text-blue-800">Student Approvals Pending</h4>
+          </div>
+          <p className="text-sm text-blue-700 mb-3">
+            {pendingApprovals.length} student{pendingApprovals.length > 1 ? "s" : ""} {pendingApprovals.length > 1 ? "have" : "has"} invited you to the platform.
+          </p>
+          <button
+            onClick={() => navigate("/supervisor/approvals")}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            style={{ fontSize: "0.85rem" }}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            Review {pendingApprovals.length} Invitation{pendingApprovals.length > 1 ? "s" : ""}
+          </button>
+        </div>
+      )}
 
       {/* Action Alert */}
       {(pendingLogs.length > 0 || pendingVerify > 0) && (

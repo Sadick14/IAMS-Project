@@ -76,6 +76,7 @@ const studentNav: NavItem[] = [
 
 const supervisorNav: NavItem[] = [
   { to: "/supervisor", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/supervisor/approvals", icon: ClipboardCheck, label: "Student Approvals" },
   { to: "/supervisor/logbooks", icon: BookMarked, label: "Student Logbooks" },
   { to: "/supervisor/evaluate", icon: ClipboardCheck, label: "Assessments", badgeKey: "supervisorOverdueRubrics" },
   { to: "/supervisor/attendance", icon: MapPin, label: "Attendance" },
