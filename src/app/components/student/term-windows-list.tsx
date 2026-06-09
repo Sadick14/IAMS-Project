@@ -55,13 +55,16 @@ export function TermWindowsList({
           {availableTerms.map((term) => {
             const today = new Date().toISOString().split("T")[0];
             const appDeadline = term.applicationEnd ?? ""; // This is the actual deadline
+            const internshipEnd = term.internshipEnd ?? "";
             const isOpen = appDeadline && today <= appDeadline;
+            const internshipEnded = internshipEnd && today > internshipEnd;
             const daysLeft = isOpen && appDeadline
               ? Math.max(0, Math.ceil((new Date(appDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
               : null;
 
             const termName = String(term.name ?? "Term");
-            const termStatus = String(term.status ?? "Upcoming");
+            // If internship period has ended, show as "Completed"
+            const termStatus = internshipEnded ? "Completed" : String(term.status ?? "Upcoming");
             const termType = String(term.type ?? "Unknown");
 
             const statusColorMap: Record<string, { border: string; bgLight: string; text: string; icon: string }> = {
@@ -135,8 +138,10 @@ export function TermWindowsList({
 
         const today = new Date().toISOString().split("T")[0];
         const appDeadline = term.applicationEnd ?? ""; // Single deadline date
+        const internshipEnd = term.internshipEnd ?? "";
         const isOpen = appDeadline && today <= appDeadline;
         const isClosed = appDeadline && today > appDeadline;
+        const internshipEnded = internshipEnd && today > internshipEnd;
 
         const levelNames = (term.eligibleLevels ?? []).map((l: any) =>
           typeof l === "string" ? l : (l.name ?? l.code ?? String(l))
@@ -152,7 +157,9 @@ export function TermWindowsList({
           completed: { text: "text-gray-700 dark:text-gray-400", icon: "✔" },
           archived: { text: "text-gray-700 dark:text-gray-400", icon: "📦" },
         };
-        const statusLower = (term.status ?? "upcoming").toLowerCase();
+        // If internship has ended, show as "completed"
+        const displayStatus = internshipEnded ? "completed" : (term.status ?? "upcoming").toLowerCase();
+        const statusLower = displayStatus.toLowerCase();
         const statusStyle = statusColorMap[statusLower] || statusColorMap.upcoming;
 
         return (
@@ -176,7 +183,7 @@ export function TermWindowsList({
               <div className="p-6 space-y-6">
                 {/* Status */}
                 <div className={`p-4 rounded-lg ${statusStyle.text} bg-white dark:bg-background/40 border border-current/20`}>
-                  <p className="text-sm font-semibold">{statusStyle.icon} Status: {(term.status ?? "Upcoming").toUpperCase()}</p>
+                  <p className="text-sm font-semibold">{statusStyle.icon} Status: {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1).toUpperCase()}</p>
                 </div>
 
                 {/* Key Dates */}
