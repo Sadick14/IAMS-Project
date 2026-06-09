@@ -1,3 +1,5 @@
+import { isPushConfigured, subscribeToPushNotifications, getNotificationPermission } from "./push-notifications";
+
 /**
  * Register the Service Worker for PWA functionality
  */
@@ -13,6 +15,12 @@ export async function registerServiceWorker() {
       scope: "/",
     });
     console.log("[PWA] Service Worker registered:", registration);
+
+    // If the user already granted push permission, re-register the subscription
+    // so the backend always has a valid endpoint (handles new sessions / cleared storage)
+    if (isPushConfigured() && getNotificationPermission() === "granted") {
+      subscribeToPushNotifications().catch(() => {});
+    }
 
     // Check for updates periodically
     setInterval(() => {

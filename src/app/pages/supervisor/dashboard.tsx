@@ -55,7 +55,8 @@ export function SupervisorDashboard() {
     };
 
     void load();
-    return () => { cancelled = true; };
+    const interval = setInterval(() => { void load(); }, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [user?.id]);
 
   // Security: Filter internships by current supervisor (client-side check)
