@@ -104,6 +104,8 @@ export function UsersPage() {
     name: "", email: "", phone: "", department_id: "", role: "",
   });
 
+  const DEPT_REQUIRED_ROLES = new Set(["dlo", "hod", "academic supervisor", "student"]);
+
   // UI role label → raw API role value sent in PUT payload
   const ROLE_API_MAP: Record<string, string> = {
     clo: "clo",
@@ -187,6 +189,10 @@ export function UsersPage() {
     if (!editTarget) return;
     if (!editForm.name.trim()) { toast.error("Name is required."); return; }
     if (!editForm.email.trim()) { toast.error("Email is required."); return; }
+    if (DEPT_REQUIRED_ROLES.has(editForm.role) && !editForm.department_id) {
+      toast.error(`Department is required for ${editForm.role}.`);
+      return;
+    }
 
     setEditSaving(true);
     const payload: Record<string, unknown> = {
@@ -606,14 +612,16 @@ export function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 text-muted-foreground" style={{ fontSize: "0.8rem" }}>Department</label>
+                  <label className="block mb-1 text-muted-foreground" style={{ fontSize: "0.8rem" }}>
+                    Department {DEPT_REQUIRED_ROLES.has(editForm.role) && <span className="text-red-500">*</span>}
+                  </label>
                   <select
                     value={editForm.department_id}
                     onChange={(e) => setEditForm({ ...editForm, department_id: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-lg bg-background"
                     style={{ fontSize: "0.85rem" }}
                   >
-                    <option value="">— No change —</option>
+                    {!DEPT_REQUIRED_ROLES.has(editForm.role) && <option value="">— No change —</option>}
                     {depts.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
                   </select>
                 </div>
