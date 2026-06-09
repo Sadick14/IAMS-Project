@@ -318,10 +318,10 @@ export function AcademicEvaluatePage() {
           </p>
         </div>
         <div className="bg-card border border-border rounded-xl p-3.5 text-center">
-          <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>Presentation</p>
+          <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>Report</p>
           <p style={{ fontSize: "1.5rem", lineHeight: 1.2 }} className="font-semibold">—</p>
           <p className="text-muted-foreground" style={{ fontSize: "0.65rem" }}>
-            ⏳ DLO grades
+            ⏳ Pending
           </p>
         </div>
         <div className="bg-card border border-border rounded-xl p-3.5 text-center">
@@ -377,10 +377,15 @@ export function AcademicEvaluatePage() {
           <div className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 dark:bg-blue-950/20 dark:border-blue-800">
               <p className="text-blue-800 dark:text-blue-300" style={{ fontSize: "0.85rem" }}>
-                <strong>Your Role:</strong> Grade the Site Visitation (30% weight). Use the <em>Site Visits</em> tab to record and submit your observations.
+                <strong>Your Role:</strong> As the Academic Supervisor, you grade three components:
               </p>
-              <p className="text-blue-700 dark:text-blue-400 mt-2" style={{ fontSize: "0.85rem" }}>
-                <strong>DLO's Role:</strong> The Report (15%) and Presentation (15%) scores are graded by the DLO. Once all three are submitted, DLO will compile and publish the final grade.
+              <ul className="text-blue-800 dark:text-blue-300 mt-2 space-y-1" style={{ fontSize: "0.85rem" }}>
+                <li>• <strong>Site Visitation</strong> (30%) — Use the <em>Site Visits</em> tab to record observations</li>
+                <li>• <strong>Report</strong> (15%) — Evaluate the final attachment report</li>
+                <li>• <strong>Presentation</strong> (15%) — Grade the student's presentation</li>
+              </ul>
+              <p className="text-blue-700 dark:text-blue-400 mt-3" style={{ fontSize: "0.85rem" }}>
+                Once all your scores are submitted, the DLO will compile them with the Industrial Assessment (40% from company supervisor) and publish the final grade.
               </p>
               <p className="text-blue-700 dark:text-blue-400 mt-2" style={{ fontSize: "0.75rem" }}>
                 Department uses Structure {config.structure}. The breakdown below shows all components once available.

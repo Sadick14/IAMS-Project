@@ -166,14 +166,14 @@ export function StudentGradesPage() {
               score={reportScore}
               max={20}
               weighted={grade?.report_weighted}
-              evaluator="Graded by DLO"
+              evaluator="Evaluated by your academic supervisor"
             />
             <ComponentRow
               label="Presentation"
               score={presentationScore}
               max={20}
               weighted={grade?.presentation_weighted}
-              evaluator="Graded by DLO"
+              evaluator="Evaluated by your academic supervisor"
             />
             <div className="pt-2 mt-1 flex items-center justify-between border-t border-border">
               <span className="text-sm font-medium">Total</span>
