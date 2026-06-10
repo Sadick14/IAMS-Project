@@ -246,34 +246,6 @@ export async function areBrowserNotificationsEnabled(): Promise<boolean> {
   );
 }
 
-/**
- * Send subscription to backend
- */
-async function sendSubscriptionToBackend(
-  subscription: PushSubscription
-): Promise<void> {
-  try {
-    const subscriptionJson = subscription.toJSON();
-
-    const response = await fetch(getApiUrl("/api/v1/push/subscribe"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getApiAuthToken()}`,
-      },
-      body: JSON.stringify(subscriptionJson),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to save push subscription on backend");
-    }
-
-    console.log("[Push] Subscription saved to backend");
-  } catch (error) {
-    console.warn("[Push] Could not send subscription to backend:", error);
-    // Don't throw — subscription is still valid locally
-  }
-}
 
 /**
  * Send a test notification (for debugging)
@@ -305,31 +277,3 @@ export async function sendTestNotification(): Promise<void> {
   }
 }
 
-/**
- * Convert VAPID public key from base64
- */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, "+")
-    .replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-
-  return outputArray;
-}
-
-/**
- * Get notification permission status
- */
-export function getNotificationPermission(): NotificationPermission {
-  if (typeof window === "undefined" || !("Notification" in window)) {
-    return "denied";
-  }
-  return Notification.permission;
-}

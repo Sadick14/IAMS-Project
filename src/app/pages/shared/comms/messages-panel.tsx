@@ -31,13 +31,23 @@ interface NewConversationForm {
 
 interface MessagesPanelProps {
   preselectedRecipientId?: string;
+  onConversationOpenChange?: (open: boolean) => void;
 }
 
 function humanizeRole(role: string): string {
   return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+export function MessagesPanel({ preselectedRecipientId, onConversationOpenChange }: MessagesPanelProps) {
   const { user } = useAppContext();
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
@@ -84,7 +94,7 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
   useEffect(() => {
     apiClient.getMessageContacts().then((res) => {
       if (res.success) {
-        const contactsList = Array.isArray(res.data) ? res.data : res.data?.contacts || [];
+        const contactsList = Array.isArray(res.data) ? res.data : (res.data as any)?.contacts || [];
         if (contactsList.length > 0) {
           setContacts(contactsList.filter((c: any) => String(c.id) !== userId));
         } else {
@@ -122,14 +132,18 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
     }
   }, [selectedThread, fetchMessages, fetchThreads]);
 
-  usePolling(fetchThreads, 15_000, true);
-  usePolling(fetchMessages, 5_000, !!selectedThread);
+  usePolling(fetchThreads, 15000, true);
+  usePolling(fetchMessages, 5000, !!selectedThread);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    onConversationOpenChange?.(!!selectedThread);
+  }, [selectedThread, onConversationOpenChange]);
 
   const filteredThreads = threads.filter(
     (t) =>
@@ -143,7 +157,7 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
     if (!messageText.trim() || !selectedThread) return;
     const content = messageText;
     setMessageText("");
-    
+
     // Optimistic UI update
     const tempId = `temp-${Date.now()}`;
     const optimisticMsg: Message = {
@@ -153,27 +167,58 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
       content,
       timestamp: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, optimisticMsg]);
+    setMessages((prev) => [...prev, optimisticMsg]);
 
-    const res = await apiClient.sendMessage(selectedThread, { content });
+    // Get recipient info from the thread participants
+    const recipient = currentThread?.participants?.find((p: any) => String(p.id) !== userId);
+    try {
+      const res = await apiClient.sendMessage(selectedThread, {
+        senderId: userId,
+        senderName: user?.name || "Me",
+        senderRole: user?.role || "",
+        recipientId: String(recipient?.id || ""),
+        recipientName: recipient?.name || "",
+        content,
+      });
+      if (!res.success) {
+        toast.error("Failed to send message");
+      }
+    } catch (e) {
+      toast.error("Failed to send message");
+    }
+  };
+
+  const handleNewConversation = async () => {
     if (!newForm.recipientId || !newForm.subject.trim() || !newForm.message.trim()) return;
     setLoading(true);
     try {
+      const selectedContact = contacts.find((c: any) => String(c.id) === newForm.recipientId);
       const res = await apiClient.createThread({
-        recipient_id: Number(newForm.recipientId),
+        recipientId: newForm.recipientId,
+        recipientName: selectedContact?.name || "",
         subject: newForm.subject,
         message: newForm.message,
+        senderId: userId,
+        senderName: user?.name || "",
+        senderRole: user?.role || "",
+        participantIds: [userId, newForm.recipientId],
+        participantNames: [user?.name || "", selectedContact?.name || ""],
       } as any);
-      
+
       if (res.success && res.data?.threadId) {
         setSelectedThread(String(res.data.threadId));
         setShowNewConversation(false);
         setNewForm({ recipientId: "", subject: "", message: "" });
+        fetchThreads();
       } else {
-        recipient_id: Number(newForm.recipientId),
+        toast.error(res.message || "Failed to create conversation");
+      }
     } catch (e) {
-        message: newForm.message,
-      } as any);
+      toast.error("Failed to create conversation");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   function getThreadLabel(thread: Thread) {
     const other = thread.participants?.find((p: any) => String(p.id) !== userId);
@@ -204,16 +249,28 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
               <Plus className="w-5 h-5" />
             </button>
           </div>
-    <div className="flex h-full overflow-hidden">
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <div className="p-4 space-y-4">
+            <input
               type="text"
-            <h2 className="text-xl font-bold">Chats</h2>
-              </div>
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search chats..."
+              className="w-full pl-9 pr-3 py-2 bg-muted/50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500/50 outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {threads.length === 0 ? (
+            <div className="p-8 text-center space-y-4">
+              <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto opacity-50" />
               <div>
-              className="p-2 bg-primary text-primary-foreground rounded-full hover:opacity-90 shadow-md transition-transform active:scale-95"
-                <p className="text-xs text-muted-foreground mt-1">Start a conversation with your supervisor or student</p>
+                <p className="font-medium">No messages yet</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Start a conversation with your supervisor or student
+                </p>
               </div>
               <button
                 onClick={() => setShowNewConversation(true)}
@@ -225,7 +282,7 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
           ) : (
             <div className="divide-y divide-border/50">
               {filteredThreads.map((thread) => {
-              className="w-full pl-9 pr-3 py-2 bg-muted/50 border-none rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+                const label = getThreadLabel(thread);
                 const role = getThreadRole(thread);
                 const isActive = selectedThread === String(thread.id);
                 return (
@@ -233,21 +290,24 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                     key={thread.id}
                     onClick={() => setSelectedThread(String(thread.id))}
                     className={`w-full text-left p-4 hover:bg-muted/50 transition-all relative ${
-            <div className="p-8 text-center space-y-4">
+                      isActive ? "bg-emerald-50 dark:bg-emerald-950/30" : ""
                     }`}
                   >
                     <div className="flex gap-3 items-center">
                       <div className="relative shrink-0">
-                <p className="font-medium">No messages yet</p>
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold">
                           {getInitials(label)}
                         </div>
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full" />
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full" />
                       </div>
-                className="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-medium transition-colors"
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="font-bold text-sm truncate pr-2 text-foreground">{label}</span>
                           <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                            {new Date(thread.lastTimestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            {new Date(thread.lastTimestamp).toLocaleDateString("en-GB", {
+                              day: "numeric",
+                              month: "short",
+                            })}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 mb-1">
@@ -262,31 +322,31 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                         <div className="shrink-0 flex items-center">
                           <span className="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">
                             {thread.unreadCount}
-                    <div className="flex gap-3">
+                          </span>
                         </div>
                       )}
                     </div>
                   </button>
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-card rounded-full" />
+                );
               })}
             </div>
           )}
-                          <span className="font-bold text-sm truncate pr-2">{label}</span>
+        </div>
       </div>
 
       {/* Message Window Area */}
       <div className={`flex-1 min-w-0 flex flex-col relative bg-gradient-to-b from-emerald-50/30 to-transparent dark:from-emerald-950/10 dark:to-transparent ${!selectedThread ? "hidden md:flex" : "flex"}`}>
         {!selectedThread ? (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded-md text-muted-foreground font-medium">{role}</span>
-                          <span className="text-[10px] text-primary font-medium truncate">{thread.subject}</span>
+          <div className="flex-1 flex items-center justify-center p-12 text-center bg-background">
+            <div className="space-y-4">
               <div className="w-24 h-24 bg-emerald-50/50 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto">
-                        <p className={`text-xs truncate ${thread.unreadCount > 0 ? "text-foreground font-bold" : "text-muted-foreground"}`}>
+                <MessageSquare className="w-12 h-12 text-emerald-600 dark:text-emerald-400 opacity-70" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold text-foreground">Your Messages</h3>
+                <h3 className="text-xl font-bold">Your Messages</h3>
                 <p className="text-sm text-muted-foreground mt-2">
                   Send secure messages to your academic or industrial supervisors and keep track of your attachment progress.
-                          <span className="w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">
+                </p>
               </div>
               <button
                 onClick={() => setShowNewConversation(true)}
@@ -301,60 +361,71 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
             {/* Chat Header */}
             <div className="h-16 border-b border-border flex items-center justify-between px-4 bg-white dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
               <div className="flex items-center gap-3 min-w-0">
-      <div className={`flex-1 flex flex-col relative bg-muted/5 ${!selectedThread ? "hidden md:flex" : "flex"}`}>
-                  onClick={() => setSelectedThread(null)} 
-          <div className="flex-1 flex items-center justify-center p-12 text-center bg-background">
+                <button
+                  onClick={() => setSelectedThread(null)}
+                  className="md:hidden p-2 rounded-full hover:bg-muted transition-colors"
                 >
-              <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto">
-                <MessageSquare className="w-10 h-10 text-primary opacity-40" />
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
                 <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold shrink-0">
                   {currentThread ? getInitials(getThreadLabel(currentThread)) : ""}
-                <h3 className="text-xl font-bold">Your Messages</h3>
+                </div>
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold truncate leading-tight text-foreground">
                     {currentThread ? getThreadLabel(currentThread) : ""}
                   </h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full" />
-                className="px-6 py-2.5 bg-primary text-primary-foreground rounded-full hover:shadow-lg transition-all font-medium"
-                      {getThreadRole(currentThread!)} • Active
+                    <span className="text-xs text-muted-foreground">
+                      {getThreadRole(currentThread!)} · Active
                     </span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"><Phone className="w-4.5 h-4.5" /></button>
-                <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"><Video className="w-4.5 h-4.5" /></button>
-            <div className="h-16 border-b border-border flex items-center justify-between px-4 bg-card/80 backdrop-blur-md sticky top-0 z-10">
+                <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors">
+                  <Phone className="w-4.5 h-4.5" />
+                </button>
+                <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors">
+                  <Video className="w-4.5 h-4.5" />
+                </button>
+                <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors">
+                  <MoreVertical className="w-4.5 h-4.5" />
+                </button>
               </div>
             </div>
 
             {/* Chat Messages */}
-            <div 
-              ref={scrollRef} 
-              className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6"
+            <div
+              ref={scrollRef}
+              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6"
               style={{
-                backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.02) 1px, transparent 1px)',
-                backgroundSize: '20px 20px'
+                backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.02) 1px, transparent 1px)",
+                backgroundSize: "20px 20px",
               }}
-                  <h3 className="text-sm font-bold truncate leading-tight">
+            >
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center p-8 bg-white dark:bg-gray-900 border border-border rounded-2xl shadow-sm max-w-xs">
                     <p className="text-sm font-semibold text-foreground">No messages yet</p>
-                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Send the first message to start the conversation
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {messages.map((msg, idx) => {
                     const isMine = String(msg.senderId) === userId;
-                <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"><Phone className="w-4 h-4" /></button>
-                <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"><Video className="w-4 h-4" /></button>
-                <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"><MoreVertical className="w-4 h-4" /></button>
+                    const showAvatar = idx === 0 || String(messages[idx - 1]?.senderId) !== String(msg.senderId);
+                    return (
                       <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"} items-end gap-2`}>
                         {!isMine && (
-                          <div className={`w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-[10px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0 transition-opacity ${showAvatar ? "opacity-100" : "opacity-0"}`}>
+                          <div
+                            className={`w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-[10px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0 transition-opacity ${
+                              showAvatar ? "opacity-100" : "opacity-0"
+                            }`}
+                          >
                             {getInitials(msg.senderName)}
                           </div>
                         )}
@@ -366,17 +437,19 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                           )}
                           <div
                             className={`px-4 py-2.5 shadow-sm transition-all rounded-2xl ${
-                              isMine 
-                    <p className="text-sm font-medium">No messages yet</p>
+                              isMine
+                                ? "bg-emerald-500 text-white rounded-br-md"
                                 : "bg-white dark:bg-gray-800 border border-border text-foreground rounded-bl-md"
                             }`}
                           >
                             <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                           </div>
-                  {/* Group messages by date would be nice, but let's keep it simple for now */}
                           <div className={`flex items-center gap-1.5 ${isMine ? "justify-end pr-1" : "pl-1"}`}>
                             <span className="text-[9px] text-muted-foreground font-semibold">
-                              {new Date(msg.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                              {new Date(msg.timestamp).toLocaleTimeString("en-GB", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                             </span>
                             {isMine && <CheckCircle2 className="w-3 h-3 text-white/70" />}
                           </div>
@@ -385,38 +458,40 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                     );
                   })}
                 </div>
-                        <div className={`flex flex-col space-y-1 max-w-[85%] sm:max-w-[70%]`}>
+              )}
             </div>
 
             {/* Chat Input */}
             <div className="p-3 sm:p-4 bg-white dark:bg-gray-900 border-t border-border">
               <div className="max-w-4xl mx-auto flex items-end gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border/50 focus-within:border-emerald-500/50 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all">
-                <button className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors"><Plus className="w-5 h-5" /></button>
-                            className={`px-4 py-2.5 shadow-sm transition-all ${
+                <button className="p-2.5 text-muted-foreground hover:text-emerald-500 transition-colors">
+                  <Plus className="w-5 h-5" />
+                </button>
+                <textarea
                   value={messageText}
-                                ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm" 
-                                : "bg-card border border-border text-foreground rounded-2xl rounded-bl-sm"
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleSend();
                     }
                   }}
-                            <span className="text-[9px] text-muted-foreground font-medium">
+                  placeholder="Type a message..."
                   rows={1}
                   className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 py-2.5 px-1 text-sm resize-none min-h-[40px] max-h-[120px]"
-                            {isMine && <CheckCircle2 className="w-3 h-3 text-primary opacity-50" />}
+                />
                 <button
                   onClick={handleSend}
                   disabled={!messageText.trim()}
                   className={`p-2.5 rounded-xl transition-all ${
-                    messageText.trim() 
-                      ? "bg-emerald-500 text-white shadow-md hover:scale-105 active:scale-95" 
+                    messageText.trim()
+                      ? "bg-emerald-500 text-white shadow-md hover:scale-105 active:scale-95"
                       : "text-muted-foreground opacity-50 cursor-not-allowed"
                   }`}
                 >
                   <Send className="w-5 h-5" />
-            <div className="p-4 bg-background border-t border-border">
-              <div className="max-w-4xl mx-auto flex items-end gap-2 bg-muted/30 p-1.5 rounded-2xl border border-border/50 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5 transition-all">
+                </button>
+              </div>
               <p className="text-[10px] text-center text-muted-foreground mt-2">
                 Press Enter to send, Shift + Enter for new line
               </p>
@@ -427,9 +502,15 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
 
       {/* New Conversation Dialog */}
       {showNewConversation && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowNewConversation(false)}>
-          <div className="bg-white dark:bg-gray-900 border border-border rounded-3xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-                  className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 px-1 text-sm resize-none min-h-[40px] max-h-[120px]"
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setShowNewConversation(false)}
+        >
+          <div
+            className="bg-white dark:bg-gray-900 border border-border rounded-3xl w-full max-w-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/20 rounded-xl">
@@ -440,50 +521,63 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
                     <p className="text-xs opacity-90">Start a conversation with a contact</p>
                   </div>
                 </div>
-                <button onClick={() => setShowNewConversation(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                <button
+                  onClick={() => setShowNewConversation(false)}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
-            
+
             <div className="p-6 space-y-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Recipient</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">
+                  Recipient
+                </label>
                 <select
                   value={newForm.recipientId}
                   onChange={(e) => setNewForm({ ...newForm, recipientId: e.target.value })}
                   className="w-full px-4 py-3 bg-muted/50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
                 >
                   <option value="">Select a contact...</option>
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowNewConversation(false)}>
-          <div className="bg-card border border-border rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                  {contacts.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.name} ({humanizeRole(c.role)})
+                    </option>
                   ))}
                 </select>
               </div>
-                  <div className="p-2 bg-white/20 rounded-xl">
+
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Subject</label>
-                <input 
-                  type="text" 
-                    <p className="text-xs opacity-80">Start a conversation with a contact</p>
-                  onChange={(e) => setNewForm({ ...newForm, subject: e.target.value })} 
-                  placeholder="What is this about?" 
-                <button onClick={() => setShowNewConversation(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  value={newForm.subject}
+                  onChange={(e) => setNewForm({ ...newForm, subject: e.target.value })}
+                  placeholder="What is this about?"
+                  className="w-full px-4 py-3 bg-muted/50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Initial Message</label>
-                <textarea 
-                  value={newForm.message} 
-                  onChange={(e) => setNewForm({ ...newForm, message: e.target.value })} 
-                  placeholder="Write your message here..." 
-                  className="w-full px-4 py-3 bg-muted/50 border-none rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm appearance-none"
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">
+                  Initial Message
+                </label>
+                <textarea
+                  value={newForm.message}
+                  onChange={(e) => setNewForm({ ...newForm, message: e.target.value })}
+                  placeholder="Write your message here..."
+                  className="w-full px-4 py-3 bg-muted/50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm resize-none min-h-[100px]"
                 />
               </div>
             </div>
 
             <div className="p-6 pt-0 flex gap-3">
-              <button 
-                onClick={() => setShowNewConversation(false)} 
+              <button
+                onClick={() => setShowNewConversation(false)}
                 className="flex-1 py-3 border border-border rounded-xl hover:bg-muted font-bold text-sm transition-all"
               >
                 Cancel
@@ -491,9 +585,13 @@ export function MessagesPanel({ preselectedRecipientId }: MessagesPanelProps) {
               <button
                 onClick={handleNewConversation}
                 disabled={!newForm.recipientId || !newForm.subject.trim() || !newForm.message.trim() || loading}
-                className="flex-[2] py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-2"
+                className="flex-[2] py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-2"
               >
-                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
                 Send Message
               </button>
             </div>

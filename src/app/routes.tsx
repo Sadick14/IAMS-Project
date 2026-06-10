@@ -23,7 +23,6 @@ import { GoogleCallbackPage } from "./pages/auth/google-callback";
 // CLO Pages
 const CLODashboard = lazy(() => import("./pages/clo/dashboard").then(m => ({ default: m.CLODashboard })));
 const TermsPage = lazy(() => import("./pages/clo/terms").then(m => ({ default: m.TermsPage })));
-const UsersPage = lazy(() => import("./pages/clo/users").then(m => ({ default: m.UsersPage })));
 const AuditLogsPage = lazy(() => import("./pages/clo/audit").then(m => ({ default: m.AuditLogsPage })));
 const DepartmentsPage = lazy(() => import("./pages/clo/departments").then(m => ({ default: m.DepartmentsPage })));
 const Templates = lazy(() => import("./pages/templates").then(m => ({ default: m.Templates })));
@@ -156,7 +155,6 @@ export const router = createBrowserRouter([
           { path: "applications", Component: CLOApplications },
           { path: "companies", Component: CLOCompanies },
           { path: "terms", element: <SuspensePage><TermsPage /></SuspensePage> },
-          { path: "users", element: <SuspensePage><UsersPage /></SuspensePage> },
           { path: "students", Component: CLOStudents },
           { path: "grades", Component: CLOGrades },
           { path: "reports", Component: CLOReports },

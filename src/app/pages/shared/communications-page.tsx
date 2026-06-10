@@ -21,6 +21,7 @@ export function CommunicationsPage({ viewRole }: Props) {
   const [activeTab, setActiveTab] = useState<CommTab>(requestedTab);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
 
   useEffect(() => {
     // Sync active tab with search params
@@ -39,14 +40,15 @@ export function CommunicationsPage({ viewRole }: Props) {
   const handleTabChange = (tab: CommTab) => {
     setActiveTab(tab);
     setSearchParams({ tab });
+    setMobileChatOpen(false);
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] -m-4 md:-m-6 overflow-hidden bg-background">
+    <div className="flex flex-col h-full -m-4 md:-m-6 overflow-hidden bg-background">
       {/* Unified Chat App UI */}
       <div className="flex flex-1 overflow-hidden bg-card border-t border-border">
         {/* Left Sidebar - Navigation & Categories */}
-        <div className="w-16 sm:w-20 border-r border-border bg-muted/30 flex flex-col items-center py-6 gap-6 shrink-0">
+        <div className={`${mobileChatOpen && activeTab === "messages" ? "hidden md:flex" : "flex"} w-16 sm:w-20 border-r border-border bg-muted/30 flex-col items-center py-6 gap-6 shrink-0`}>
           <button
             onClick={() => handleTabChange("messages")}
             className={`relative p-3 rounded-xl transition-all ${
@@ -95,10 +97,10 @@ export function CommunicationsPage({ viewRole }: Props) {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-background">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-background">
           {activeTab === "messages" && (
             <div className="h-full">
-              <MessagesPanel preselectedRecipientId={searchParams.get("recipient") ?? undefined} />
+              <MessagesPanel preselectedRecipientId={searchParams.get("recipient") ?? undefined} onConversationOpenChange={setMobileChatOpen} />
             </div>
           )}
           
@@ -118,7 +120,7 @@ export function CommunicationsPage({ viewRole }: Props) {
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-muted/10">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-muted/10">
                 <NotificationsPanel />
               </div>
             </div>
@@ -135,7 +137,7 @@ export function CommunicationsPage({ viewRole }: Props) {
                   <p className="text-xs text-muted-foreground italic">Role: {viewRole.toUpperCase()} - Authorized to broadcast</p>
                 )}
               </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-muted/10">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-muted/10">
                 <AnnouncementsPanel viewRole={viewRole} canCompose={canComposeAnnouncements} />
               </div>
             </div>
