@@ -21,10 +21,11 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
   const [checkedInTime, setCheckedInTime] = useState<string | null>(null);
   const [internshipDates, setInternshipDates] = useState<{ start?: string; end?: string } | null>(null);
   const [outsideInternshipPeriod, setOutsideInternshipPeriod] = useState(false);
+  const [tooEarlyForInternship, setTooEarlyForInternship] = useState(false);
   const inFlightRef = useRef(false);
 
   const isInternshipActive = internshipStatus === "active" || internshipStatus === "approved";
-  const canCheckIn = !!internshipId && isInternshipActive;
+  const canCheckIn = !!internshipId && isInternshipActive && !tooEarlyForInternship;
   const isCheckedIn = !!checkedInTime && !!locationDetails;
 
   // Load existing check-in on modal open
@@ -47,8 +48,14 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
           const endDate = new Date(internship.end_date);
           const todayDate = new Date(today);
 
-          if (todayDate < startDate || todayDate > endDate) {
+          if (todayDate < startDate) {
+            setTooEarlyForInternship(true);
             setOutsideInternshipPeriod(true);
+          } else if (todayDate > endDate) {
+            setOutsideInternshipPeriod(true);
+          } else {
+            setTooEarlyForInternship(false);
+            setOutsideInternshipPeriod(false);
           }
         }
 
@@ -216,13 +223,25 @@ export function CheckInModal({ isOpen, onClose, onSuccess, internshipId, interns
 
         <div className="p-6 space-y-4">
           {/* Warning if outside internship period */}
-          {outsideInternshipPeriod && (
+          {tooEarlyForInternship && (
+            <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex gap-2">
+              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-semibold text-blue-700 dark:text-blue-300">Internship Not Started</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  Your internship is scheduled to start on {internshipDates?.start ? new Date(internshipDates.start).toLocaleDateString() : "—"}. Check-in will be available from that date.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!tooEarlyForInternship && outsideInternshipPeriod && (
             <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex gap-2">
               <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="font-semibold text-amber-700 dark:text-amber-300">Outside Internship Period</p>
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                  Check-ins are only recorded within the internship dates. This check-in may not appear in your attendance records.
+                  Your internship period has ended. Check-ins are no longer required.
                 </p>
               </div>
             </div>

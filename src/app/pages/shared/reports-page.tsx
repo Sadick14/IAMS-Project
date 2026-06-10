@@ -455,8 +455,19 @@ export function ReportsPage({ viewRole }: Props) {
         </div>
         <div className="divide-y divide-border">
           {[
-            { name: "Department Statistics",  action: () => exportToCSV(deptStats.map((d) => ({ Dept: d.department_name, Students: d.total_students, Active: d.internship_counts?.active, Completed: d.internship_counts?.completed, "Avg Score": d.grade_summary?.average_score })), "dept_stats") },
-            { name: "Company List",           action: () => exportToCSV(companies.map((c) => ({ Name: c.name, Industry: c.industry, Status: c.approval_status, City: c.city })), "companies") },
+            { name: "Department Statistics",  action: () => exportToCSV(deptStats.map((d) => ({ Dept: d.department_name, Code: d.department_code, Students: d.total_students, Active: d.internship_counts?.active, Completed: d.internship_counts?.completed, "Avg Score": d.grade_summary?.average_score })), "dept_stats") },
+            { name: "Student Progress Report", action: () => {
+                if (!progress?.student_progress) {
+                  toast.error("No progress data available to export.");
+                  return;
+                }
+                exportToCSV(progress.student_progress.map((s: any) => ({
+                  Name: s.student_name, ID: s.student_id, Dept: s.department, Company: s.company,
+                  Status: s.status, "Logs Approved": s.logs_approved, "Attendance %": s.attendance_percent,
+                  "Last Active": s.last_active_date
+                })), "student_progress_report");
+            }},
+            { name: "Company Engagement",     action: () => exportToCSV(companies.map((c) => ({ Name: c.name, Industry: c.industry, Status: c.approval_status, City: c.city, "Max Interns": c.max_interns })), "companies") },
             { name: "Top Performers",         action: () => performance?.top_performers ? exportToCSV(performance.top_performers, "top_performers") : toast.error("No grade data yet.") },
           ].map((r) => (
             <div key={r.name} className="px-4 py-3 flex items-center justify-between hover:bg-muted/20">

@@ -34,6 +34,7 @@ function normalizeApiUser(u: any): AuthUser {
     email: u.email,
     role: normalizeRole(u.role),
     department: typeof u.department === "string" ? u.department : (u.department?.name ?? undefined),
+    department_id: u.department_id ?? u.departmentId ?? u.department?.id ?? undefined,
     studentId: u.student_id ?? u.studentId ?? undefined,
     avatar: u.avatar ?? u.profile_photo ?? "",
     profileComplete: u.profile_complete ?? u.profileComplete ?? false,
@@ -64,7 +65,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const refreshUser = async () => {
       if (user && user.id && user.role) {
-        setCurrentUser({ id: user.id, role: user.role });
+        setCurrentUser({ 
+          id: user.id, 
+          role: user.role, 
+          department_id: user.department_id,
+          student_id: user.id // For students, the user ID is the student ID
+        });
         // If user is missing name or email, refetch from API
         if (!user.name || !user.email) {
           try {
@@ -74,7 +80,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
               const freshUser = normalizeApiUser(rawUser);
               setUserState(freshUser);
               saveUser(freshUser);
-              setCurrentUser({ id: freshUser.id, role: freshUser.role });
+              setCurrentUser({ 
+                id: freshUser.id, 
+                role: freshUser.role, 
+                department_id: freshUser.department_id,
+                student_id: freshUser.id
+              });
             }
           } catch {
             // Silently fail — keep the user we have
@@ -85,14 +96,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     };
     refreshUser();
-  }, [user?.id, user?.role]);
+  }, [user?.id, user?.role, user?.department_id]);
 
   const setUser = (u: AuthUser | null) => {
     saveUser(u);
     setUserState(u);
     // SECURITY: Sync user to API client for supervisor context in requests
     if (u && u.id && u.role) {
-      setCurrentUser({ id: u.id, role: u.role });
+      setCurrentUser({ 
+        id: u.id, 
+        role: u.role, 
+        department_id: u.department_id,
+        student_id: u.id
+      });
     } else {
       setCurrentUser(null);
     }

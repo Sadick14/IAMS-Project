@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { StatusBadge } from "../../components/status-badge";
+import { Pagination } from "../../components/ui/pagination";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { SkeletonTableRows } from "../../components/skeleton";
@@ -45,6 +46,9 @@ export function StudentsPage({ viewRole }: Props) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [missed3, setMissed3] = useState<string[]>([]);
   const [missed7, setMissed7] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
@@ -67,11 +71,25 @@ export function StudentsPage({ viewRole }: Props) {
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
-    // No status filter — let backend scope by role (DLO=dept, CLO=all, student=own)
-    const res = await apiClient.getInternships({ per_page: 200 });
-    if (res.success) setEnrolledStudents(res.data.map(normalizeInternship));
+    // Fetch with pagination parameters
+    const res = await apiClient.getInternships({ 
+      page: currentPage, 
+      per_page: itemsPerPage 
+    });
+    if (res.success) {
+      setEnrolledStudents(res.data.map(normalizeInternship));
+      // Extract pagination info from the meta if available, otherwise estimate
+      if (res.meta?.total_pages) {
+        setTotalPages(res.meta.total_pages);
+      } else if (res.meta?.total_count) {
+        setTotalPages(Math.ceil(res.meta.total_count / itemsPerPage));
+      } else {
+        // Fallback for mock/simple APIs
+        setTotalPages(res.data.length < itemsPerPage ? currentPage : currentPage + 1);
+      }
+    }
     setLoading(false);
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   const fetchMissed = useCallback(async () => {
     const [r3, r7] = await Promise.all([
@@ -236,6 +254,54 @@ export function StudentsPage({ viewRole }: Props) {
 
   const handleCompileGrade = async () => {
     if (!selectedStudent) return;
+
+    // For structures with 0% weight on report or presentation, auto-create them with 0 score
+    // so the compile endpoint doesn't fail
+    try {
+      const cfg = gradingConfig;
+      if (cfg && structure) {
+        // Check which components need auto-fill
+        const reportWeight = cfg.report_weight ?? 0;
+        const presentationWeight = cfg.presentation_weight ?? 0;
+
+        // Auto-create report with 0 score if weight is 0
+        if (reportWeight === 0 && !reportScore) {
+          const resReport = await apiClient.gradeReport(selectedStudent, {
+            content_quality: 0, organization: 0, technical_depth: 0,
+            writing_quality: 0, formatting: 0,
+            comments: "Auto-filled (not part of this structure)",
+          });
+          if (!resReport.success) {
+            toast.error("Failed to prepare report score.");
+            return;
+          }
+        }
+
+        // Auto-create presentation with 0 score if weight is 0
+        if (presentationWeight === 0 && !presScore) {
+          let presentationId = detailGrade?.presentation_id;
+          if (!presentationId) {
+            const schedRes = await apiClient.schedulePresentationScore({
+              internship_id: Number(selectedStudent),
+              presentation_date: new Date().toISOString().split('T')[0],
+            });
+            if (schedRes.success) {
+              presentationId = schedRes.data?.presentation?.id;
+            }
+          }
+          if (presentationId) {
+            await apiClient.gradePresentationScore(String(presentationId), {
+              assessor_1_score: 0,
+              comments: "Auto-filled (not part of this structure)",
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error preparing components:", error);
+      // Continue anyway, maybe components already exist
+    }
+
     const res = await apiClient.compileGrade(selectedStudent);
     if (res.success) {
       toast.success("Grade compiled.");
@@ -247,6 +313,13 @@ export function StudentsPage({ viewRole }: Props) {
   };
 
   const commPath = `/${ROLE_PATH[viewRole] ?? viewRole}/communications`;
+
+  // Determine which scoring components to show based on grading structure
+  const gradingConfig = (detailGrade as any)?.gradingConfiguration;
+  const structure = gradingConfig?.structure || gradingConfig?.name || "C"; // Default to C if unknown
+
+  const showReport = structure !== "B"; // A, C, D show report; B doesn't
+  const showPresentation = structure !== "A"; // B, C, D show presentation; A doesn't
 
   if (loading) return <SkeletonTableRows count={5} />;
 
@@ -386,6 +459,13 @@ export function StudentsPage({ viewRole }: Props) {
           )}
         </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        isLoading={loading}
+      />
 
       {/* Detail Modal */}
       {detail && (
@@ -531,39 +611,43 @@ export function StudentsPage({ viewRole }: Props) {
                     </div>
                   </div>
 
-                  {/* Report Score */}
-                  <div className="rounded-lg border border-border p-3 space-y-2">
-                    <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>REPORT SCORE</p>
-                    <div className="flex gap-2">
-                      <input type="number" min={0} max={100} value={reportScore} onChange={(e) => setReportScore(e.target.value)}
-                        placeholder="0–100"
-                        className="flex-1 px-3 py-1.5 rounded-md border border-border bg-card" style={{ fontSize: "0.85rem" }} />
-                      <button onClick={handleSaveReport} disabled={scoreSaving || !reportScore}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50" style={{ fontSize: "0.8rem" }}>
-                        Save
-                      </button>
+                  {/* Report Score - shown for Structures A, C, D */}
+                  {showReport && (
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>REPORT SCORE</p>
+                      <div className="flex gap-2">
+                        <input type="number" min={0} max={100} value={reportScore} onChange={(e) => setReportScore(e.target.value)}
+                          placeholder="0–100"
+                          className="flex-1 px-3 py-1.5 rounded-md border border-border bg-card" style={{ fontSize: "0.85rem" }} />
+                        <button onClick={handleSaveReport} disabled={scoreSaving || !reportScore}
+                          className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50" style={{ fontSize: "0.8rem" }}>
+                          Save
+                        </button>
+                      </div>
+                      <textarea value={reportComment} onChange={(e) => setReportComment(e.target.value)}
+                        placeholder="Comments (optional)" rows={2}
+                        className="w-full px-3 py-1.5 rounded-md border border-border bg-card" style={{ fontSize: "0.8rem" }} />
                     </div>
-                    <textarea value={reportComment} onChange={(e) => setReportComment(e.target.value)}
-                      placeholder="Comments (optional)" rows={2}
-                      className="w-full px-3 py-1.5 rounded-md border border-border bg-card" style={{ fontSize: "0.8rem" }} />
-                  </div>
+                  )}
 
-                  {/* Presentation Score */}
-                  <div className="rounded-lg border border-border p-3 space-y-2">
-                    <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>PRESENTATION SCORE</p>
-                    <div className="flex gap-2">
-                      <input type="number" min={0} max={100} value={presScore} onChange={(e) => setPresScore(e.target.value)}
-                        placeholder="0–100"
-                        className="flex-1 px-3 py-1.5 rounded-md border border-border bg-card" style={{ fontSize: "0.85rem" }} />
-                      <button onClick={handleSavePresentation} disabled={scoreSaving || !presScore}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50" style={{ fontSize: "0.8rem" }}>
-                        Save
-                      </button>
+                  {/* Presentation Score - shown for Structures B, C, D */}
+                  {showPresentation && (
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <p className="text-muted-foreground" style={{ fontSize: "0.7rem" }}>PRESENTATION SCORE</p>
+                      <div className="flex gap-2">
+                        <input type="number" min={0} max={100} value={presScore} onChange={(e) => setPresScore(e.target.value)}
+                          placeholder="0–100"
+                          className="flex-1 px-3 py-1.5 rounded-md border border-border bg-card" style={{ fontSize: "0.85rem" }} />
+                        <button onClick={handleSavePresentation} disabled={scoreSaving || !presScore}
+                          className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50" style={{ fontSize: "0.8rem" }}>
+                          Save
+                        </button>
+                      </div>
+                      <textarea value={presComment} onChange={(e) => setPresComment(e.target.value)}
+                        placeholder="Comments (optional)" rows={2}
+                        className="w-full px-3 py-1.5 rounded-md border border-border bg-card" style={{ fontSize: "0.8rem" }} />
                     </div>
-                    <textarea value={presComment} onChange={(e) => setPresComment(e.target.value)}
-                      placeholder="Comments (optional)" rows={2}
-                      className="w-full px-3 py-1.5 rounded-md border border-border bg-card" style={{ fontSize: "0.8rem" }} />
-                  </div>
+                  )}
 
                   {/* Compile + Approve */}
                   <div className="rounded-lg border border-border p-3 space-y-2">

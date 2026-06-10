@@ -352,7 +352,7 @@ export function calculateIndustrialScore(
   return Math.round(total * 100) / 100;
 }
 
-function compileFinalPercent(
+export function compileFinalPercent(
   components: CompiledGradeComponents,
   config: DepartmentGradingConfig
 ): number | null {

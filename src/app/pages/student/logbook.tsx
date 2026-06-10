@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Pagination } from "../../components/ui/pagination";
 import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
 import { SkeletonList } from "../../components/skeleton";
@@ -17,6 +18,9 @@ export function LogbookPage() {
   const [startDate, setStartDate] = useState<string | null>(null);
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(15);
 
   const [entries, setEntries] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -55,10 +59,21 @@ export function LogbookPage() {
       setStartDate(sDate);
 
       // Fetch logbook entries
-      const logsRes = await apiClient.getLogbookEntries({ internship_id: id, per_page: 100 });
+      const logsRes = await apiClient.getLogbookEntries({ 
+        internship_id: id, 
+        page: currentPage,
+        per_page: itemsPerPage 
+      });
       if (logsRes.success) {
         const sorted = [...(logsRes.data || [])].sort((a, b) => b.entry_date.localeCompare(a.entry_date));
         setEntries(sorted);
+        if (logsRes.meta?.total_pages) {
+          setTotalPages(logsRes.meta.total_pages);
+        } else if (logsRes.meta?.total_count) {
+          setTotalPages(Math.ceil(logsRes.meta.total_count / itemsPerPage));
+        } else {
+          setTotalPages(logsRes.data.length < itemsPerPage ? currentPage : currentPage + 1);
+        }
       }
 
       // Check today's attendance from localStorage first, then API
@@ -502,6 +517,13 @@ export function LogbookPage() {
               </div>
             );
           })}
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            isLoading={loading}
+          />
         </div>
       )}
 

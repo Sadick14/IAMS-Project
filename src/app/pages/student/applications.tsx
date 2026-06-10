@@ -5,6 +5,9 @@ import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
 import { useStudentCheckIn } from "../../hooks/use-student-check-in";
 import { ghanaRegions } from "../../lib/mock-data";
+import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { applicationSchema, type ApplicationInput } from "../../lib/schemas";
 import {
   Calendar,
   FileText,
@@ -183,12 +186,17 @@ export function StudentApplicationsPage() {
           setForm(f);
           setStep(s);
           setHasSavedDraft(true);
+          
+          // Re-validate eligibility for the saved term
+          if (f.termId) {
+            checkEligibility(f.termId);
+          }
           // Don't auto-jump to apply view; show resume banner on windows view instead
         }
       }
     } catch { /* ignore parse errors */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [terms]); // Re-run when terms are loaded to ensure checkEligibility has data
 
   // Save draft only while the student is actively in the apply flow
   useEffect(() => {
@@ -226,9 +234,21 @@ export function StudentApplicationsPage() {
 
   const { execute: submitAction, loading: isSubmitting } = useToastAction();
 
-  const availableTerms = terms.filter(
-    (t) => t.status === "active" || t.status === "upcoming"
-  );
+  const availableTerms = terms.filter((t) => {
+    const today = new Date().toISOString().split("T")[0];
+    const appDeadline = t.applicationEnd;
+    const internshipEnd = t.internshipEnd;
+
+    // A term is only "available" for new applications if:
+    // 1. It is not closed (deadline hasn't passed)
+    // 2. The internship itself hasn't ended
+    // 3. It's marked as active or upcoming
+    const isClosed = appDeadline && today > appDeadline;
+    const isEnded = internshipEnd && today > internshipEnd;
+    const isStatusValid = t.status === "active" || t.status === "upcoming";
+
+    return isStatusValid && !isClosed && !isEnded;
+  });
 
   const selectedTerm    = terms.find((t) => t.id === form.termId);
   const selectedCompany = companies.find((c) => String(c.id) === form.selectedCompanyId);
@@ -252,11 +272,24 @@ export function StudentApplicationsPage() {
     if (!term) return false;
 
     const today = new Date().toISOString().split("T")[0];
-    const appDeadline = term.applicationEnd; // Single deadline date
+    const appDeadline = term.applicationEnd;
+    const internshipEnd = term.internshipEnd;
 
     // Check if deadline has passed
     if (appDeadline && today > appDeadline) {
-      setEligibilityError(`The application deadline has passed (${appDeadline}).`);
+      setEligibilityError(`The application deadline for this window has passed (${appDeadline}).`);
+      return false;
+    }
+
+    // Check if internship has already ended
+    if (internshipEnd && today > internshipEnd) {
+      setEligibilityError("This internship period has already ended.");
+      return false;
+    }
+
+    // Check if term is active/upcoming
+    if (term.status !== "active" && term.status !== "upcoming") {
+      setEligibilityError("This internship window is no longer active.");
       return false;
     }
 
@@ -568,6 +601,22 @@ export function StudentApplicationsPage() {
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
                 <p className="text-sm font-medium">Submitting...</p>
+              </div>
+            </div>
+          )}
+
+          {eligibilityError && step > 1 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mb-4">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-red-800 text-sm">Application Blocked</p>
+                <p className="text-red-700 text-xs mt-1">{eligibilityError}</p>
+                <button
+                  onClick={() => { setStep(1); setEligibilityError(null); }}
+                  className="mt-3 px-3 py-1.5 bg-red-100 text-red-700 rounded-md text-xs font-medium hover:bg-red-200"
+                >
+                  Change Internship Window
+                </button>
               </div>
             </div>
           )}

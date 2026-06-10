@@ -47,6 +47,7 @@ const dloNav: NavItem[] = [
   { to: "/dlo", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/dlo/applications", icon: FileText, label: "Applications" },
   { to: "/dlo/companies", icon: Building2, label: "Companies" },
+  { to: "/dlo/users", icon: Users, label: "Users" },
   { to: "/dlo/students", icon: GraduationCap, label: "Students" },
   { to: "/dlo/supervisors", icon: UserPlus, label: "Supervisors" },
   { to: "/dlo/assignments", icon: MapPin, label: "Assignments" },
@@ -96,6 +97,7 @@ const academicNav: NavItem[] = [
 
 const hodNav: NavItem[] = [
   { to: "/hod", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/hod/users", icon: Users, label: "Users" },
   { to: "/hod/students", icon: GraduationCap, label: "Department Students" },
   { to: "/hod/approvals", icon: ClipboardCheck, label: "Grade Approvals" },
   { to: "/hod/reports", icon: BarChart3, label: "Analytics & Reports" },

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, UserPlus, Mail, Shield, X, Users, CheckCircle2, XCircle, MoreVertical, AlertCircle, Edit2 } from "lucide-react";
 import { SkeletonStatCards, SkeletonTable, SkeletonTabs, SkeletonPageHeader } from "../../components/skeleton";
+import { Pagination } from "../../components/ui/pagination";
 import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
 import { getNameInitials } from "../../lib/validation";
+import { useAppContext } from "../../lib/context";
+import type { ExtendedRole } from "../../services/auth-service";
 
 type RoleFilter = "All" | "clo" | "dlo" | "academic supervisor" | "industry supervisor" | "student" | "hod";
 
@@ -21,6 +24,10 @@ interface StaffMember {
 interface DeptOption {
   id: number;
   name: string;
+}
+
+interface Props {
+  viewRole: ExtendedRole;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -77,10 +84,14 @@ const roleBadgeClass: Record<string, string> = {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function UsersPage() {
+export function UsersPage({ viewRole }: Props) {
+  const { user: currentUser } = useAppContext();
   const [users, setUsers] = useState<StaffMember[]>([]);
   const [depts, setDepts] = useState<DeptOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(15);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
@@ -94,7 +105,7 @@ export function UsersPage() {
   const [inviteSaving, setInviteSaving] = useState(false);
   const [inviteForm, setInviteForm] = useState({
     name: "", email: "", staff_id: "", phone: "", department_id: "" as string,
-    role: "dlo" as "dlo" | "academic supervisor" | "industry supervisor" | "hod",
+    role: "academic supervisor" as "dlo" | "academic supervisor" | "industry supervisor" | "hod",
   });
 
   // Edit modal
@@ -105,6 +116,8 @@ export function UsersPage() {
   });
 
   const DEPT_REQUIRED_ROLES = new Set(["dlo", "hod", "academic supervisor", "student"]);
+  const isGlobalAdmin = viewRole === "clo";
+  const isDeptAdmin = viewRole === "dlo" || viewRole === "hod";
 
   // UI role label → raw API role value sent in PUT payload
   const ROLE_API_MAP: Record<string, string> = {
@@ -121,30 +134,56 @@ export function UsersPage() {
     let active = true;
     const load = async () => {
       setLoading(true);
+      
+      // For DLO/HOD, the backend applyDomainScoping will automatically inject department_id.
+      // We only send department filter if explicitly selected in the UI (for CLO).
       const [usersRes, deptsRes] = await Promise.all([
-        apiClient.getUsers(),
+        apiClient.getUsers({
+          page: currentPage,
+          per_page: itemsPerPage,
+          role: roleFilter !== "All" ? ROLE_API_MAP[roleFilter] : undefined,
+          department: (isGlobalAdmin && deptFilter !== "All") ? deptFilter : undefined,
+          search: search || undefined,
+        }),
         apiClient.getDepartments(),
       ]);
       if (!active) return;
-      setUsers(usersRes.success ? usersRes.data.map(normalizeUser) : []);
+      
+      if (usersRes.success) {
+        setUsers(usersRes.data.map(normalizeUser));
+        // Handle pagination meta
+        if (usersRes.meta?.total_pages) {
+          setTotalPages(usersRes.meta.total_pages);
+        } else if (usersRes.meta?.total_count) {
+          setTotalPages(Math.ceil(usersRes.meta.total_count / itemsPerPage));
+        } else {
+          setTotalPages(usersRes.data.length < itemsPerPage ? currentPage : currentPage + 1);
+        }
+      } else {
+        setUsers([]);
+      }
+
       if (deptsRes.success && deptsRes.data.length > 0) {
         const opts: DeptOption[] = deptsRes.data.map((d: any) => ({ id: Number(d.id), name: d.name ?? "" }));
         setDepts(opts);
-        setInviteForm((f) => ({ ...f, department_id: String(opts[0]?.id ?? "") }));
+        
+        // Pre-fill department for invite form
+        if (isDeptAdmin && currentUser?.department_id) {
+          setInviteForm((f) => ({ ...f, department_id: String(currentUser.department_id), role: "academic supervisor" }));
+        } else {
+          setInviteForm((f) => ({ ...f, department_id: String(opts[0]?.id ?? ""), role: "dlo" }));
+        }
       }
       setLoading(false);
     };
     load().catch(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [currentPage, itemsPerPage, roleFilter, deptFilter, search, isGlobalAdmin, isDeptAdmin, currentUser?.department_id]);
 
   // ── Filtering ───────────────────────────────────────────────────────────────
-  const filtered = useMemo(() => users.filter((u) => {
-    const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
-    const matchDept = deptFilter === "All" || u.department === deptFilter;
-    const matchRole = roleFilter === "All" || u.role === roleFilter;
-    return matchSearch && matchDept && matchRole;
-  }), [users, search, deptFilter, roleFilter]);
+  // Note: Filtering is now handled server-side for better scalability, 
+  // but we keep this for any client-side refinements if needed.
+  const filtered = useMemo(() => users, [users]);
 
   // ── Selection ───────────────────────────────────────────────────────────────
   const toggleSelect = (id: string) => {
@@ -267,7 +306,13 @@ export function UsersPage() {
       const usersRes = await apiClient.getUsers();
       if (usersRes.success) setUsers(usersRes.data.map(normalizeUser));
       setShowInvite(false);
-      setInviteForm({ name: "", email: "", staff_id: "", phone: "", department_id: String(depts[0]?.id ?? ""), role: "dlo" });
+      
+      const defaultRole = isDeptAdmin ? "academic supervisor" : "dlo";
+      setInviteForm({ 
+        name: "", email: "", staff_id: "", phone: "", 
+        department_id: isDeptAdmin ? String(currentUser?.department_id ?? "") : String(depts[0]?.id ?? ""), 
+        role: defaultRole as any 
+      });
     } else {
       toast.error(res.message ?? "Failed to create account.");
     }
@@ -287,9 +332,24 @@ export function UsersPage() {
   const activeCount   = users.filter((u) => u.status === "active").length;
   const inactiveCount = users.filter((u) => u.status === "inactive").length;
 
+  // Roles to show in tabs based on viewRole
+  const availableTabs: RoleFilter[] = isGlobalAdmin 
+    ? ["All", "clo", "dlo", "academic supervisor", "industry supervisor", "student", "hod"]
+    : ["All", "academic supervisor", "student", "hod"];
+
+  // Roles available for invitation
+  const invitableRoles = isGlobalAdmin
+    ? (["dlo", "academic supervisor", "industry supervisor", "hod"] as const)
+    : (["academic supervisor", "hod"] as const);
+
   // ── Action menu ─────────────────────────────────────────────────────────────
   const RowActionMenu = ({ user }: { user: StaffMember }) => {
     const isLoading = actionLoading === user.id;
+    // DLOs shouldn't be able to edit/deactivate themselves or CLOs
+    const canManage = isGlobalAdmin || (isDeptAdmin && user.role !== "clo" && user.role !== "dlo");
+
+    if (!canManage) return null;
+
     return (
       <div className="relative">
         <button
@@ -340,7 +400,7 @@ export function UsersPage() {
     return (
       <div className="space-y-6">
         <SkeletonPageHeader showAction />
-        <SkeletonTabs count={7} />
+        <SkeletonTabs count={availableTabs.length} />
         <SkeletonStatCards count={4} />
         <SkeletonTable rows={7} cols={7} />
       </div>
@@ -355,7 +415,7 @@ export function UsersPage() {
         <div>
           <h1>User Management</h1>
           <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
-            {loading ? "Loading users…" : "Manage system users, roles, and access permissions"}
+            {isDeptAdmin ? `Manage users within ${currentUser?.department ?? "your department"}` : "Manage system users, roles, and access permissions"}
           </p>
         </div>
         <button
@@ -369,7 +429,7 @@ export function UsersPage() {
 
       {/* Role Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {(["All", "clo", "dlo", "academic supervisor", "industry supervisor", "student", "hod"] as RoleFilter[]).map((role) => (
+        {availableTabs.map((role) => (
           <button
             key={role}
             onClick={() => { setRoleFilter(role); setSelectedUsers(new Set()); }}
@@ -397,15 +457,17 @@ export function UsersPage() {
             style={{ fontSize: "0.85rem" }}
           />
         </div>
-        <select
-          value={deptFilter}
-          onChange={(e) => setDeptFilter(e.target.value)}
-          className="px-3 py-2 border border-border rounded-lg bg-card"
-          style={{ fontSize: "0.85rem" }}
-        >
-          <option value="All">All Departments</option>
-          {depts.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
-        </select>
+        {isGlobalAdmin && (
+          <select
+            value={deptFilter}
+            onChange={(e) => setDeptFilter(e.target.value)}
+            className="px-3 py-2 border border-border rounded-lg bg-card"
+            style={{ fontSize: "0.85rem" }}
+          >
+            <option value="All">All Departments</option>
+            {depts.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
+          </select>
+        )}
         {selectedUsers.size > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>{selectedUsers.size} selected</span>
@@ -422,7 +484,7 @@ export function UsersPage() {
           { label: "Total Users",  value: users.length,   icon: Users,        color: "text-blue-600 bg-blue-50 dark:bg-blue-500/10" },
           { label: "Active",       value: activeCount,    icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10" },
           { label: "Inactive",     value: inactiveCount,  icon: AlertCircle,  color: "text-red-600 bg-red-50 dark:bg-red-500/10" },
-          { label: "Active DLOs",  value: roleCounts.dlo, icon: Shield,       color: "text-violet-600 bg-violet-50 dark:bg-violet-500/10" },
+          { label: isGlobalAdmin ? "Active DLOs" : "Students",  value: isGlobalAdmin ? roleCounts.dlo : roleCounts.student, icon: Shield, color: "text-violet-600 bg-violet-50 dark:bg-violet-500/10" },
         ].map((stat) => (
           <div key={stat.label} className="bg-card border border-border rounded-xl p-4">
             <div className="flex items-center gap-3">
@@ -544,6 +606,13 @@ export function UsersPage() {
         </div>
       </div>
 
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        isLoading={loading}
+      />
+
       {/* ── Edit Modal ──────────────────────────────────────────────────────────── */}
       {editTarget && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setEditTarget(null)}>
@@ -590,11 +659,12 @@ export function UsersPage() {
                 <select
                   value={editForm.role}
                   onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                  disabled={!isGlobalAdmin && (editForm.role === "clo" || editForm.role === "dlo")}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background disabled:opacity-50"
                   style={{ fontSize: "0.85rem" }}
                 >
                   {(["clo", "dlo", "hod", "academic supervisor", "industry supervisor", "student"] as const).map((r) => (
-                    <option key={r} value={r}>{r}</option>
+                    <option key={r} value={r} disabled={!isGlobalAdmin && (r === "clo" || r === "dlo")}>{r}</option>
                   ))}
                 </select>
               </div>
@@ -618,7 +688,8 @@ export function UsersPage() {
                   <select
                     value={editForm.department_id}
                     onChange={(e) => setEditForm({ ...editForm, department_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                    disabled={isDeptAdmin}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background disabled:opacity-50"
                     style={{ fontSize: "0.85rem" }}
                   >
                     {!DEPT_REQUIRED_ROLES.has(editForm.role) && <option value="">— No change —</option>}
@@ -669,11 +740,11 @@ export function UsersPage() {
               <div>
                 <label className="block mb-1" style={{ fontSize: "0.8rem" }}>Role <span className="text-red-500">*</span></label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(["dlo", "academic supervisor", "industry supervisor", "hod"] as const).map((r) => (
+                  {invitableRoles.map((r) => (
                     <button
                       key={r}
                       type="button"
-                      onClick={() => setInviteForm({ ...inviteForm, role: r })}
+                      onClick={() => setInviteForm({ ...inviteForm, role: r as any })}
                       className={`px-3 py-2 rounded-lg border-2 text-left transition-colors capitalize ${inviteForm.role === r ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-muted-foreground/40"}`}
                       style={{ fontSize: "0.82rem" }}
                     >
@@ -741,7 +812,8 @@ export function UsersPage() {
                     <select
                       value={inviteForm.department_id}
                       onChange={(e) => setInviteForm({ ...inviteForm, department_id: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                      disabled={isDeptAdmin}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background disabled:opacity-50"
                       style={{ fontSize: "0.85rem" }}
                     >
                       {depts.length === 0 && <option value="">Loading…</option>}

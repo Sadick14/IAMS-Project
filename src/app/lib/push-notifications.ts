@@ -196,6 +196,48 @@ export async function isSubscribedToPushNotifications(): Promise<boolean> {
   return !!subscription;
 }
 
+export function getNotificationPermission(): NotificationPermission {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "default";
+  }
+  return Notification.permission;
+}
+
+/**
+ * Convert URL safe base64 to Uint8Array for VAPID key
+ */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+/**
+ * Send subscription to backend
+ */
+async function sendSubscriptionToBackend(subscription: PushSubscription): Promise<void> {
+  const token = getApiAuthToken();
+  if (!token) return;
+
+  try {
+    await fetch(getApiUrl("/api/v1/notifications/subscribe"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(subscription),
+    });
+  } catch (error) {
+    console.error("[Push] Failed to send subscription to backend:", error);
+  }
+}
+
 export async function areBrowserNotificationsEnabled(): Promise<boolean> {
   return (
     isBrowserNotificationSupported() &&

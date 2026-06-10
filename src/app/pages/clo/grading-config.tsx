@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -6,10 +6,11 @@ import { Badge } from "../../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { GradingConfigForm } from "../../components/grading/grading-config-form";
 import { useAppContext } from "../../lib/context";
+import { apiClient } from "../../lib/api-client";
 import { departments } from "../../lib/mock-data";
-import { getConfigForEditing, saveDraft, submitForApproval, startNewTerm } from "../../services/grading-service";
+import { DEFAULT_STRUCTURE, DEFAULT_STRUCTURE_WEIGHTS, DEFAULT_SECTION_WEIGHTS } from "../../lib/constants";
 import type { GradingActor } from "../../types/grading";
-import { Send, RefreshCw } from "lucide-react";
+import { Send, RefreshCw, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,11 +24,35 @@ import {
 } from "../../components/ui/alert-dialog";
 
 export function CLOGradingConfigPage() {
-  const { user, store } = useAppContext();
-  const _ = store.gradingConfigs.length;
-
+  const { user } = useAppContext();
   const [department, setDepartment] = useState<string>(departments[0]);
-  const config = useMemo(() => getConfigForEditing(department), [department, store.gradingConfigs]);
+  const [config, setConfig] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchConfig = async (deptName: string) => {
+    setLoading(true);
+    const res = await apiClient.getGradingConfigs({ department: deptName });
+    if (res.success && res.data.length > 0) {
+      setConfig(res.data[0]);
+    } else {
+      // Synthetic default if none exists on backend
+      setConfig({
+        departmentId: deptName,
+        structure: DEFAULT_STRUCTURE,
+        structureWeights: DEFAULT_STRUCTURE_WEIGHTS,
+        sectionWeights: DEFAULT_SECTION_WEIGHTS,
+        status: "draft",
+        updatedBy: "System",
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchConfig(department);
+  }, [department]);
 
   const actor: GradingActor = {
     id: user?.id ?? "u-clo",
@@ -35,12 +60,16 @@ export function CLOGradingConfigPage() {
     role: "clo",
   };
 
-  const [savedDraftId, setSavedDraftId] = useState<string | undefined>(
-    config.status === "draft" ? config.id : undefined
-  );
+  const isLocked = config?.status === "active";
+  const isPending = config?.status === "pending_approval";
 
-  const isLocked = config.status === "active";
-  const isPending = config.status === "pending_approval";
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -72,10 +101,10 @@ export function CLOGradingConfigPage() {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-amber-600 hover:bg-amber-700"
-                onClick={() => {
-                  const res = startNewTerm(actor);
+                onClick={async () => {
+                  const res = await apiClient.startNewTerm();
                   res.success ? toast.success(res.message) : toast.error(res.message);
-                  setSavedDraftId(undefined);
+                  fetchConfig(department);
                 }}
               >
                 Yes, Start New Term
@@ -88,17 +117,17 @@ export function CLOGradingConfigPage() {
       <Card className="p-4">
         <div className="flex items-center gap-4">
           <div className="flex-1 max-w-sm">
-            <Select value={department} onValueChange={(v) => { setDepartment(v); setSavedDraftId(undefined); }}>
+            <Select value={department} onValueChange={(v) => { setDepartment(v); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <StatusBadge status={config.status} />
+          <StatusBadge status={config?.status ?? "draft"} />
         </div>
         <div className="text-xs text-gray-500 mt-2">
-          Last updated by {config.updatedBy} · {new Date(config.updatedAt).toLocaleString()}
+          Last updated by {config?.updatedBy ?? "N/A"} · {config?.updatedAt ? new Date(config.updatedAt).toLocaleString() : "N/A"}
         </div>
       </Card>
 
@@ -111,33 +140,51 @@ export function CLOGradingConfigPage() {
       )}
 
       <Card className="p-6">
-        <GradingConfigForm
-          initial={config}
-          readOnly={isLocked}
-          onSave={(input) => {
-            const res = saveDraft({ departmentId: department, ...input }, actor);
-            if (res.success && res.data) {
-              setSavedDraftId(res.data.id);
-              toast.success(res.message);
-            } else {
-              toast.error(res.message);
-            }
-          }}
-        />
+        {config ? (
+          <GradingConfigForm
+            initial={config}
+            readOnly={isLocked}
+            onSave={async (input) => {
+              setIsSubmitting(true);
+              const res = await apiClient.saveGradingConfig({
+                department_id: department,
+                ...input
+              });
+              if (res.success) {
+                setConfig(res.data);
+                toast.success("Grading configuration draft saved.");
+              } else {
+                toast.error(res.message ?? "Failed to save draft.");
+              }
+              setIsSubmitting(false);
+            }}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-32 text-muted-foreground">
+            No configuration available for this department.
+          </div>
+        )}
       </Card>
 
       {!isLocked && (
         <div className="flex justify-end gap-3">
           <Button
             variant="outline"
-            disabled={!savedDraftId || isPending}
-            onClick={() => {
-              if (!savedDraftId) return;
-              const res = submitForApproval(savedDraftId, actor);
-              res.success ? toast.success(res.message) : toast.error(res.message);
+            disabled={config?.status !== "draft" || isPending || isSubmitting}
+            onClick={async () => {
+              if (!config?.id) return;
+              setIsSubmitting(true);
+              const res = await apiClient.submitGradingConfigForApproval(config.id);
+              if (res.success) {
+                toast.success("Configuration submitted to HOD for approval.");
+                fetchConfig(department);
+              } else {
+                toast.error(res.message ?? "Failed to submit for approval.");
+              }
+              setIsSubmitting(false);
             }}
           >
-            <Send className="size-4 mr-2" />
+            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="size-4 mr-2" />}
             Submit to HOD for Approval
           </Button>
         </div>

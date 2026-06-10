@@ -37,7 +37,7 @@ let authToken: string | null = (() => {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 })();
 
-let currentUser: { id: string; role: string } | null = (() => {
+let currentUser: { id: string; role: string; department_id?: number; student_id?: string } | null = (() => {
   try {
     const user = localStorage.getItem(USER_KEY);
     return user ? JSON.parse(user) : null;
@@ -56,7 +56,7 @@ export function getApiAuthToken(): string | null {
   return authToken;
 }
 
-export function setCurrentUser(user: { id: string; role: string } | null): void {
+export function setCurrentUser(user: { id: string; role: string; department_id?: number; student_id?: string } | null): void {
   currentUser = user;
   try {
     if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -64,7 +64,7 @@ export function setCurrentUser(user: { id: string; role: string } | null): void 
   } catch {}
 }
 
-export function getCurrentUser(): { id: string; role: string } | null {
+export function getCurrentUser(): { id: string; role: string; department_id?: number; student_id?: string } | null {
   return currentUser;
 }
 
@@ -149,70 +149,128 @@ function extractCollection<T>(response: ApiResponse<unknown>, collectionKey: str
 }
 
 /**
- * Add supervisor context to query parameters for server-side filtering
- * Backend should use these parameters to enforce data access control
+ * Apply domain-based scoping to query parameters based on user role.
+ * This ensures that users only see data within their authorized domain.
  */
-function addSupervisorContext(query?: Record<string, unknown>): Record<string, unknown> {
+function applyDomainScoping(query?: Record<string, unknown>): Record<string, unknown> {
   const user = getCurrentUser();
   const result = { ...(query || {}) };
 
-  // If supervisor, automatically add supervisor_id to enable backend filtering
-  if (user?.role === "supervisor" && user?.id) {
+  if (!user) return result;
+
+  // 1. CLO: Global scope (sees everything/everyone)
+  if (user.role === "clo") {
+    // No additional filters needed
+    return result;
+  }
+
+  // 2. DLO / HOD: Department scope (sees everything within their department)
+  if ((user.role === "dlo" || user.role === "hod") && user.department_id) {
+    // Only inject if not already explicitly filtering by a different department
+    if (!result.department_id && !result.department) {
+      result.department_id = user.department_id;
+    }
+  }
+
+  // 3. Academic Supervisor: Department scope + assigned students
+  if (user.role === "academic" && user.id) {
+    result.academic_supervisor_id = user.id;
+    if (user.department_id && !result.department_id) {
+      result.department_id = user.department_id;
+    }
+  }
+
+  // 4. Industrial Supervisor: Assigned students only
+  if (user.role === "supervisor" && user.id) {
     result.supervisor_id = user.id;
     result.scoped_by_supervisor = true;
+  }
+
+  // 5. Student: Own data only (backend usually enforces this via token, but we can be explicit)
+  if (user.role === "student" && user.id) {
+    result.student_id = user.id;
   }
 
   return result;
 }
 
+// Exponential backoff: 1s, 2s, 4s max 8s
+function getRetryDelay(attemptsLeft: number, maxRetries: number = 3): number {
+  const attempt = maxRetries - attemptsLeft;
+  const baseDelay = 1000;
+  const exponentialDelay = baseDelay * Math.pow(2, attempt);
+  return Math.min(exponentialDelay, 8000) + Math.random() * 1000; // Add jitter
+}
+
 async function requestApi<T>(
   path: string,
-  options: RequestInit & { query?: Record<string, unknown> } = {}
+  options: RequestInit & { query?: Record<string, unknown>; retries?: number } = {}
 ): Promise<ApiResponse<T>> {
-  const { query, headers, ...rest } = options;
+  const { query, headers, retries = 3, ...rest } = options;
   const requestHeaders = new Headers(headers ?? {});
+
+  // Standard Headers
   if (!requestHeaders.has("Accept")) requestHeaders.set("Accept", "application/json");
   if (rest.body && typeof rest.body === "string" && !requestHeaders.has("Content-Type")) {
     requestHeaders.set("Content-Type", "application/json");
   }
+
+  // Auth Header
   const currentToken = getApiAuthToken();
   if (currentToken && !requestHeaders.has("Authorization")) {
     requestHeaders.set("Authorization", `Bearer ${currentToken}`);
   }
 
-  const response = await fetch(buildApiUrl(path, query), { ...rest, headers: requestHeaders });
-  const text = await response.text();
-  const body = text
-    ? (() => { try { return JSON.parse(text); } catch { return text; } })()
-    : null;
+  const url = buildApiUrl(path, query);
 
-  if (!response.ok) {
+  try {
+    const response = await fetch(url, { ...rest, headers: requestHeaders });
+    const text = await response.text();
+    const body = text ? (() => { try { return JSON.parse(text); } catch { return text; } })() : null;
+
+    if (!response.ok) {
+      // Retry logic for transient errors (500, 502, 503, 504) and timeout (408)
+      const isRetryableStatus = [408, 500, 502, 503, 504].includes(response.status);
+      const isIdempotent = ['GET', 'HEAD', 'PUT', 'DELETE'].includes((rest.method || 'GET').toUpperCase());
+
+      if (retries > 0 && isRetryableStatus && isIdempotent) {
+        const delay = getRetryDelay(retries);
+        console.warn(`[API] Request failed (${response.status}). Retrying in ${Math.round(delay)}ms... (${retries} left)`);
+        await new Promise(r => setTimeout(r, delay));
+        return requestApi<T>(path, { ...options, retries: retries - 1 });
+      }
+
+      // Handle 401 Unauthorized (Logout)
+      if (response.status === 401) {
+        clearApiAuthToken();
+        if (typeof window !== "undefined") window.location.href = "/login?expired=true";
+      }
+
+      return {
+        success: false,
+        data: (body && typeof body === "object" && "data" in body ? (body as any).data : null),
+        message: (body && typeof body === "object" && "message" in body ? String((body as any).message) : undefined) ?? `Error ${response.status}`,
+      };
+    }
+
+    if (body && typeof body === "object" && "success" in body) return body as ApiResponse<T>;
     return {
-      success: false,
-      data: (body && typeof body === "object" && "data" in body
-        ? (body as { data: T }).data
-        : null as T),
-      message:
-        (body && typeof body === "object" && "message" in body
-          ? String((body as { message?: unknown }).message)
-          : undefined) ?? `Request failed with status ${response.status}`,
+      success: true,
+      data: (body && typeof body === "object" && "data" in body ? (body as any).data : body) as T,
+      message: body && typeof body === "object" && "message" in body ? String((body as any).message) : undefined,
     };
-  }
+  } catch (error) {
+    const isNetworkError = error instanceof TypeError || error instanceof DOMException;
+    const isIdempotent = ['GET', 'HEAD', 'PUT', 'DELETE'].includes((rest.method || 'GET').toUpperCase());
 
-  if (body && typeof body === "object" && "success" in body) {
-    return body as ApiResponse<T>;
+    if (retries > 0 && isNetworkError && isIdempotent) {
+      const delay = getRetryDelay(retries);
+      console.warn(`[API] Network error. Retrying in ${Math.round(delay)}ms... (${retries} left)`, error);
+      await new Promise(r => setTimeout(r, delay));
+      return requestApi<T>(path, { ...options, retries: retries - 1 });
+    }
+    return { success: false, data: null as T, message: "Network connection error" };
   }
-
-  return {
-    success: true,
-    data: (body && typeof body === "object" && "data" in body
-      ? (body as { data: T }).data
-      : body ?? null) as T,
-    message:
-      body && typeof body === "object" && "message" in body
-        ? String((body as { message?: unknown }).message)
-        : undefined,
-  };
 }
 
 export const apiClient = {
@@ -290,7 +348,7 @@ export const apiClient = {
   async getApplications(filters?: ApplicationFilters): Promise<ApiResponse<ApplicationResponse[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.APPLICATIONS, {
       method: "GET",
-      query: filters as Record<string, unknown>,
+      query: applyDomainScoping(filters as Record<string, unknown>),
     });
     return {
       success: response.success,
@@ -433,7 +491,7 @@ export const apiClient = {
   async getCompanies(filters?: CompanyFilters): Promise<ApiResponse<CompanyResponse[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.COMPANIES, {
       method: "GET",
-      query: filters as Record<string, unknown>,
+      query: applyDomainScoping(filters as Record<string, unknown>),
     });
     return {
       success: response.success,
@@ -713,7 +771,7 @@ export const apiClient = {
   async getUsers(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.USERS, {
       method: "GET",
-      query: filters,
+      query: applyDomainScoping(filters),
     });
     return {
       success: response.success,
@@ -810,7 +868,7 @@ export const apiClient = {
     const response = await requestApi<unknown>(API_ENDPOINTS.LOGBOOK_ENTRIES, {
       method: "GET",
       // SECURITY: Add supervisor context for server-side filtering
-      query: addSupervisorContext(filters as Record<string, unknown>),
+      query: applyDomainScoping(filters as Record<string, unknown>),
     });
     return {
       success: response.success,
@@ -855,7 +913,7 @@ export const apiClient = {
     const response = await requestApi<unknown>(API_ENDPOINTS.ATTENDANCE, {
       method: "GET",
       // SECURITY: Add supervisor context for server-side filtering
-      query: addSupervisorContext(filters as Record<string, unknown>),
+      query: applyDomainScoping(filters as Record<string, unknown>),
     });
     return {
       success: response.success,
@@ -872,7 +930,7 @@ export const apiClient = {
     const response = await requestApi<unknown>(
       "/api/v1/attendance",
       // SECURITY: Add supervisor context for server-side filtering
-      { method: "GET", query: addSupervisorContext({ ...filters, internship_id: internshipId }) }
+      { method: "GET", query: applyDomainScoping({ ...filters, internship_id: internshipId }) }
     );
     const attendance = response.success ? extractCollection<any>(response, "attendance") : [];
     console.log(`[API] getInternshipAttendance(${internshipId}):`, {
@@ -889,7 +947,7 @@ export const apiClient = {
     const response = await requestApi<unknown>(
       API_ENDPOINTS.ATTENDANCE_MISSED,
       // SECURITY: Add supervisor context for server-side filtering
-      { method: "GET", query: addSupervisorContext(baseQuery) }
+      { method: "GET", query: applyDomainScoping(baseQuery) }
     );
     return {
       success: response.success,
@@ -989,7 +1047,7 @@ export const apiClient = {
   async getIssues(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.ISSUES, {
       method: "GET",
-      query: filters,
+      query: applyDomainScoping(filters),
     });
     return {
       success: response.success,
@@ -1033,8 +1091,8 @@ export const apiClient = {
   async getThreads(userId?: string): Promise<ApiResponse<any[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.THREADS, {
       method: "GET",
-      // SECURITY: Add supervisor context for server-side filtering
-      query: addSupervisorContext(userId ? { user_id: userId } : {}),
+      // SECURITY: Add domain-based scoping for server-side filtering
+      query: applyDomainScoping(userId ? { user_id: userId } : {}),
     });
     return {
       success: response.success,
@@ -1094,7 +1152,7 @@ export const apiClient = {
   async getNotifications(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.NOTIFICATIONS, {
       method: "GET",
-      query: filters,
+      query: applyDomainScoping(filters),
     });
     return {
       success: response.success,
@@ -1121,7 +1179,7 @@ export const apiClient = {
   async getAnnouncements(filters?: { unread_only?: boolean; per_page?: number }): Promise<ApiResponse<any[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.ANNOUNCEMENTS, {
       method: "GET",
-      query: filters as Record<string, unknown>,
+      query: applyDomainScoping(filters as Record<string, unknown>),
     });
     return {
       success: response.success,
@@ -1264,12 +1322,12 @@ export const apiClient = {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   async getInternships(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
-    const response = await requestApi<unknown>(API_ENDPOINTS.INTERNSHIPS, { method: "GET", query: filters });
+    const response = await requestApi<unknown>(API_ENDPOINTS.INTERNSHIPS, { method: "GET", query: applyDomainScoping(filters) });
     return { success: response.success, data: response.success ? extractCollection<any>(response, "internships") : [], message: response.message };
   },
 
   async getActiveInternships(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
-    const response = await requestApi<unknown>(API_ENDPOINTS.INTERNSHIP_ACTIVE, { method: "GET", query: filters });
+    const response = await requestApi<unknown>(API_ENDPOINTS.INTERNSHIP_ACTIVE, { method: "GET", query: applyDomainScoping(filters) });
     return { success: response.success, data: response.success ? extractCollection<any>(response, "internships") : [], message: response.message };
   },
 
@@ -1308,7 +1366,7 @@ export const apiClient = {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   async getStudents(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
-    const response = await requestApi<unknown>(API_ENDPOINTS.STUDENTS, { method: "GET", query: filters });
+    const response = await requestApi<unknown>(API_ENDPOINTS.STUDENTS, { method: "GET", query: applyDomainScoping(filters) });
     return { success: response.success, data: response.success ? extractCollection<any>(response, "students") : [], message: response.message };
   },
 
@@ -1469,15 +1527,53 @@ export const apiClient = {
   },
 
   async getGradingConfig(id: string): Promise<ApiResponse<any>> {
-    return requestApi<any>(replacePathParams("/api/v1/grading-config/:id", { id }), { method: "GET" });
+    const res = await requestApi<any>(replacePathParams("/api/v1/grading-config/:id", { id }), { method: "GET" });
+    return { ...res, data: res.success ? unwrapEntity<any>(res, "config") : null };
+  },
+
+  async saveGradingConfig(data: any): Promise<ApiResponse<any | null>> {
+    // Map camelCase to snake_case for the backend
+    const payload = {
+      department_id: data.department_id ?? data.departmentId,
+      academic_term_id: data.term_id ?? data.termId,
+      structure: data.structure,
+      structure_weights: data.structureWeights,
+      section_weights: data.sectionWeights,
+      status: data.status,
+    };
+    const res = await requestApi<any | null>(API_ENDPOINTS.GRADING_CONFIG, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return { ...res, data: res.success ? unwrapEntity<any>(res, "config") : null };
   },
 
   async createGradingConfig(data: Record<string, unknown>): Promise<ApiResponse<any>> {
-    return requestApi<any>(API_ENDPOINTS.GRADING_CONFIG, { method: "POST", body: JSON.stringify(data) });
+    const res = await requestApi<any>(API_ENDPOINTS.GRADING_CONFIG, { method: "POST", body: JSON.stringify(data) });
+    return { ...res, data: res.success ? unwrapEntity<any>(res, "config") : null };
   },
 
   async updateGradingConfig(id: string, data: Record<string, unknown>): Promise<ApiResponse<any>> {
-    return requestApi<any>(replacePathParams("/api/v1/grading-config/:id", { id }), { method: "PUT", body: JSON.stringify(data) });
+    const res = await requestApi<any>(replacePathParams("/api/v1/grading-config/:id", { id }), { method: "PUT", body: JSON.stringify(data) });
+    return { ...res, data: res.success ? unwrapEntity<any>(res, "config") : null };
+  },
+
+  async approveGradingConfig(id: string): Promise<ApiResponse<null>> {
+    return requestApi<null>(replacePathParams("/api/v1/grading-config/:id/approve", { id }), {
+      method: "PATCH",
+    });
+  },
+
+  async submitGradingConfigForApproval(id: string): Promise<ApiResponse<null>> {
+    return requestApi<null>(replacePathParams("/api/v1/grading-config/:id/submit", { id }), {
+      method: "PATCH",
+    });
+  },
+
+  async startNewTerm(): Promise<ApiResponse<null>> {
+    return requestApi<null>("/api/v1/terms/advance", {
+      method: "POST",
+    });
   },
 
   async setDefaultGradingConfig(id: string): Promise<ApiResponse<null>> {
@@ -1495,6 +1591,15 @@ export const apiClient = {
 
   async getGrade(internshipId: string): Promise<ApiResponse<any>> {
     return requestApi<any>(replacePathParams("/api/v1/grades/:internshipId", { internshipId }), { method: "GET" });
+  },
+
+  async submitFinalReport(applicationId: string, data: { report_url: string; report_name?: string }): Promise<ApiResponse<null>> {
+    // The real backend might expect this via the internship or assessment report endpoint
+    // For now, we'll try to update the application record or a dedicated assessment report record
+    return requestApi<null>(
+      replacePathParams("/api/v1/applications/:id/final-report", { id: applicationId }),
+      { method: "POST", body: JSON.stringify(data) }
+    );
   },
 
   async compileGrade(internshipId: string): Promise<ApiResponse<any>> {

@@ -48,7 +48,7 @@ export function DocumentUploadModal({
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedFile) {
       toast.error("Please select a file to upload.");
       return;
@@ -57,23 +57,24 @@ export function DocumentUploadModal({
     setIsUploading(true);
     setUploadProgress(0);
 
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setIsUploading(false);
-            toast.success(`${selectedFile.name} uploaded successfully!`);
-            onSuccess(selectedFile.name);
-            setSelectedFile(null);
-            onClose();
-          }, 400);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 100);
+    try {
+      // Use the real apiClient for uploading
+      const res = await apiClient.uploadFile(selectedFile, "iams/student-documents");
+      
+      if (res.success && res.data?.url) {
+        toast.success(`${selectedFile.name} uploaded successfully!`);
+        onSuccess(res.data.url); // Return the URL instead of just the name
+        setSelectedFile(null);
+        onClose();
+      } else {
+        toast.error(res.message ?? "Upload failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("An unexpected error occurred during upload.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (

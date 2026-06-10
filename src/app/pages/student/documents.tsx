@@ -27,10 +27,17 @@ export function DocumentsPage() {
   // Loading state for download button feedback
   const [isDownloadingForm, setIsDownloadingForm] = useState(false);
 
-  // Simulated local state for uploaded final report name (survives reload)
+  // Simulated local state for uploaded final report (survives reload)
   const [finalReportName, setFinalReportName] = useState<string | null>(() => {
     try {
       return localStorage.getItem("iams_final_report_name");
+    } catch {
+      return null;
+    }
+  });
+  const [finalReportUrl, setFinalReportUrl] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("iams_final_report_url");
     } catch {
       return null;
     }
@@ -41,6 +48,12 @@ export function DocumentsPage() {
       if (res.success && res.data.length > 0) {
         const sorted = [...res.data].sort((a, b) => (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1);
         setMyApp(sorted[0]);
+        
+        // If the API returns a report URL, use it
+        if ((sorted[0] as any).final_report_url) {
+          setFinalReportUrl((sorted[0] as any).final_report_url);
+          setFinalReportName("Final Internship Report");
+        }
       }
     });
 
@@ -149,12 +162,32 @@ export function DocumentsPage() {
     }
   };
 
-  const handleFinalReportSuccess = (fileName: string) => {
-    setFinalReportName(fileName);
+  const handleFinalReportSuccess = async (fileUrl: string) => {
+    if (!myApp?.id) {
+      toast.error("No active application found to attach the report to.");
+      return;
+    }
+
+    const toastId = toast.loading("Submitting final report...");
     try {
-      localStorage.setItem("iams_final_report_name", fileName);
-    } catch (e) {
-      console.error(e);
+      const res = await apiClient.submitFinalReport(myApp.id, {
+        report_url: fileUrl,
+        report_name: "Final Internship Report",
+      });
+
+      if (res.success) {
+        setFinalReportName("Final Internship Report");
+        setFinalReportUrl(fileUrl);
+        localStorage.setItem("iams_final_report_name", "Final Internship Report");
+        localStorage.setItem("iams_final_report_url", fileUrl);
+        toast.success("Final report submitted successfully!", { id: toastId });
+        fetchApplicationData();
+      } else {
+        toast.error(res.message ?? "Failed to submit final report record.", { id: toastId });
+      }
+    } catch (error) {
+      console.error("Report submission error:", error);
+      toast.error("An error occurred during report submission.", { id: toastId });
     }
   };
 
@@ -353,14 +386,14 @@ export function DocumentsPage() {
               ) : doc.canDownload ? (
                 <button
                   onClick={() => {
-                    if (doc.id === "placement-letter") {
-                      handleDownloadPlacementLetter();
-                    } else if (doc.id === "logbook-export") {
-                      handleDownloadLogbookPDF();
-                    } else if (doc.id === "final-report") {
-                      toast.success(`Downloaded simulated copy of ${finalReportName}`);
-                    }
-                  }}
+                      if (doc.id === "placement-letter") {
+                        handleDownloadPlacementLetter();
+                      } else if (doc.id === "logbook-export") {
+                        handleDownloadLogbookPDF();
+                      } else if (doc.id === "final-report" && finalReportUrl) {
+                        window.open(finalReportUrl, "_blank");
+                      }
+                    }}
                   className="px-2.5 py-1.5 border border-primary text-primary hover:bg-primary/5 rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                 >
                   <Download className="w-3 h-3" /> Download

@@ -54,32 +54,44 @@ export function TermWindowsList({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {availableTerms.map((term) => {
             const today = new Date().toISOString().split("T")[0];
-            const appDeadline = term.applicationEnd ?? ""; // This is the actual deadline
+            const appStart = term.applicationStart ?? "";
+            const appDeadline = term.applicationEnd ?? "";
             const internshipEnd = term.internshipEnd ?? "";
-            const isOpen = appDeadline && today <= appDeadline;
-            const internshipEnded = internshipEnd && today > internshipEnd;
+
+            const isUpcoming = appStart && today < appStart;
+            const isOpen = appDeadline && today >= appStart && today <= appDeadline;
+            const isClosed = appDeadline && today > appDeadline;
+            const isInternshipEnded = internshipEnd && today > internshipEnd;
+
+            const daysUntilOpen = isUpcoming && appStart
+              ? Math.max(0, Math.ceil((new Date(appStart).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+              : null;
             const daysLeft = isOpen && appDeadline
               ? Math.max(0, Math.ceil((new Date(appDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
               : null;
 
             const termName = String(term.name ?? "Term");
-            // If internship period has ended, show as "Completed"
-            const termStatus = internshipEnded ? "Completed" : String(term.status ?? "Upcoming");
-            const termType = String(term.type ?? "Unknown");
+
+            let displayStatus = "Upcoming";
+            if (isInternshipEnded) displayStatus = "Completed";
+            else if (isOpen) displayStatus = "Open";
+            else if (isClosed) displayStatus = "Closed";
+            else if (isUpcoming) displayStatus = "Upcoming";
 
             const statusColorMap: Record<string, { border: string; bgLight: string; text: string; icon: string }> = {
-              active: { border: "border-l-emerald-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/20", text: "text-emerald-700 dark:text-emerald-400", icon: "✓" },
+              open: { border: "border-l-emerald-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/20", text: "text-emerald-700 dark:text-emerald-400", icon: "✓" },
               upcoming: { border: "border-l-blue-500", bgLight: "bg-blue-50 dark:bg-blue-950/20", text: "text-blue-700 dark:text-blue-400", icon: "⏱" },
+              closed: { border: "border-l-amber-500", bgLight: "bg-amber-50 dark:bg-amber-950/20", text: "text-amber-700 dark:text-amber-400", icon: "✕" },
               completed: { border: "border-l-gray-500", bgLight: "bg-gray-50 dark:bg-gray-950/20", text: "text-gray-700 dark:text-gray-400", icon: "✔" },
-              archived: { border: "border-l-gray-500", bgLight: "bg-gray-50 dark:bg-gray-950/20", text: "text-gray-700 dark:text-gray-400", icon: "📦" },
             };
-            const statusLower = termStatus.toLowerCase();
-            const statusStyle = statusColorMap[statusLower] || statusColorMap.upcoming;
+            const statusStyle = statusColorMap[displayStatus.toLowerCase()] || statusColorMap.upcoming;
 
+            const termType = String(term.type ?? "Unknown");
             const levelNames = (term.eligibleLevels ?? []).map((l: any) =>
               typeof l === "string" ? l : (l.name ?? l.code ?? String(l))
             );
             const isEligible = levelNames.length === 0 || levelNames.includes(userLevel);
+            const isDeptEligible = term.departments.length === 0 || term.departments.includes("All") || (term.departments as any[]).some(d => (d.name ?? d) === "All");
 
             return (
               <div
@@ -98,31 +110,39 @@ export function TermWindowsList({
                       </p>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${statusStyle.text} bg-white dark:bg-background`}>
-                      {statusStyle.icon} {termStatus}
+                      {statusStyle.icon} {displayStatus}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
                     <Clock className="w-3 h-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
-                      Deadline: {formatDate(appDeadline)}
+                      {isUpcoming ? `Opens: ${formatDate(appStart)}` : `Deadline: ${formatDate(appDeadline)}`}
                     </span>
                   </div>
 
-                  {isOpen && daysLeft !== null && daysLeft <= 7 && (
-                    <div className="mt-2 px-2 py-1.5 bg-red-100/60 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded text-xs text-red-700 dark:text-red-300 font-medium">
-                      ⏰ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                  {isUpcoming && daysUntilOpen !== null && daysUntilOpen <= 7 && (
+                    <div className="mt-2 px-2 py-1.5 bg-blue-100/60 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-800 rounded text-xs text-blue-700 dark:text-blue-300 font-medium">
+                      ⏱ Opens in {daysUntilOpen} day{daysUntilOpen !== 1 ? "s" : ""}
                     </div>
                   )}
 
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="flex gap-1">
-                      <Shield className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-xs font-medium text-foreground">
-                        {isEligible ? "✓ Eligible" : "✗ Ineligible"}
-                      </span>
+                  {isOpen && daysLeft !== null && daysLeft <= 7 && (
+                    <div className="mt-2 px-2 py-1.5 bg-red-100/60 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded text-xs text-red-700 dark:text-red-300 font-medium">
+                      ⏰ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left to apply
                     </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
+
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-1">
+                        <Shield className={`w-3.5 h-3.5 ${isEligible ? "text-emerald-500" : "text-red-500"}`} />
+                        <span className="text-xs font-medium text-foreground">
+                          {isEligible ? "Eligible Level" : `Ineligible (Requires ${levelNames.join("/")})`}
+                        </span>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -137,11 +157,14 @@ export function TermWindowsList({
         if (!term) return null;
 
         const today = new Date().toISOString().split("T")[0];
-        const appDeadline = term.applicationEnd ?? ""; // Single deadline date
+        const appStart = term.applicationStart ?? "";
+        const appDeadline = term.applicationEnd ?? "";
         const internshipEnd = term.internshipEnd ?? "";
-        const isOpen = appDeadline && today <= appDeadline;
+
+        const isUpcoming = appStart && today < appStart;
+        const isOpen = appDeadline && today >= appStart && today <= appDeadline;
         const isClosed = appDeadline && today > appDeadline;
-        const internshipEnded = internshipEnd && today > internshipEnd;
+        const isInternshipEnded = internshipEnd && today > internshipEnd;
 
         const levelNames = (term.eligibleLevels ?? []).map((l: any) =>
           typeof l === "string" ? l : (l.name ?? l.code ?? String(l))
@@ -152,15 +175,19 @@ export function TermWindowsList({
         const isEligible = levelNames.length === 0 || levelNames.includes(userLevel);
 
         const statusColorMap: Record<string, { text: string; icon: string }> = {
-          active: { text: "text-emerald-700 dark:text-emerald-400", icon: "✓" },
+          open: { text: "text-emerald-700 dark:text-emerald-400", icon: "✓" },
           upcoming: { text: "text-blue-700 dark:text-blue-400", icon: "⏱" },
+          closed: { text: "text-amber-700 dark:text-amber-400", icon: "✕" },
           completed: { text: "text-gray-700 dark:text-gray-400", icon: "✔" },
-          archived: { text: "text-gray-700 dark:text-gray-400", icon: "📦" },
         };
-        // If internship has ended, show as "completed"
-        const displayStatus = internshipEnded ? "completed" : (term.status ?? "upcoming").toLowerCase();
-        const statusLower = displayStatus.toLowerCase();
-        const statusStyle = statusColorMap[statusLower] || statusColorMap.upcoming;
+        
+        let displayStatus = "upcoming";
+        if (isInternshipEnded) displayStatus = "completed";
+        else if (isOpen) displayStatus = "open";
+        else if (isClosed) displayStatus = "closed";
+        else if (isUpcoming) displayStatus = "upcoming";
+
+        const statusStyle = statusColorMap[displayStatus] || statusColorMap.upcoming;
 
         return (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -183,15 +210,15 @@ export function TermWindowsList({
               <div className="p-6 space-y-6">
                 {/* Status */}
                 <div className={`p-4 rounded-lg ${statusStyle.text} bg-white dark:bg-background/40 border border-current/20`}>
-                  <p className="text-sm font-semibold">{statusStyle.icon} Status: {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1).toUpperCase()}</p>
+                  <p className="text-sm font-semibold">{statusStyle.icon} Status: {displayStatus.toUpperCase()}</p>
                 </div>
 
                 {/* Key Dates */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-secondary/30 rounded-lg">
-                    <p className="text-xs font-semibold text-muted-foreground mb-1">Application Deadline</p>
-                    <p className="text-sm font-medium text-foreground">{formatDate(appDeadline)}</p>
-                    <p className="text-xs text-muted-foreground">Last day to apply</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">Application Period</p>
+                    <p className="text-sm font-medium text-foreground">{formatDate(appStart)}</p>
+                    <p className="text-xs text-muted-foreground">to {formatDate(appDeadline)}</p>
                   </div>
                   <div className="p-4 bg-secondary/30 rounded-lg">
                     <p className="text-xs font-semibold text-muted-foreground mb-1">Internship Period</p>
@@ -239,6 +266,8 @@ export function TermWindowsList({
                   >
                     {isBlocked
                       ? "Complete Your Pending Application First"
+                      : isUpcoming
+                      ? `Opens on ${formatDate(appStart)}`
                       : isClosed
                       ? "Application Window Closed"
                       : !isEligible

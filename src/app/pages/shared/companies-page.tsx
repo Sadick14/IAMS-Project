@@ -11,6 +11,7 @@ import {
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "../../components/status-badge";
+import { Pagination } from "../../components/ui/pagination";
 import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -23,6 +24,9 @@ export function CompaniesPage({ viewRole }: Props) {
   const { user } = useAppContext();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(9);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [industryFilter, setIndustryFilter] = useState("All");
@@ -47,10 +51,22 @@ export function CompaniesPage({ viewRole }: Props) {
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
-    const res = await apiClient.getCompanies();
-    if (res.success) setCompanies(res.data);
+    const res = await apiClient.getCompanies({
+      page: currentPage,
+      per_page: itemsPerPage
+    });
+    if (res.success) {
+      setCompanies(res.data);
+      if (res.meta?.total_pages) {
+        setTotalPages(res.meta.total_pages);
+      } else if (res.meta?.total_count) {
+        setTotalPages(Math.ceil(res.meta.total_count / itemsPerPage));
+      } else {
+        setTotalPages(res.data.length < itemsPerPage ? currentPage : currentPage + 1);
+      }
+    }
     setLoading(false);
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 
@@ -402,6 +418,13 @@ export function CompaniesPage({ viewRole }: Props) {
           )}
         </div>
       )}
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        isLoading={loading}
+      />
 
       {/* ── Detail Modal with Tabs ──────────────────────────────────────────────────── */}
       {selected && (
