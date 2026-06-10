@@ -302,7 +302,7 @@ export function MessagesPanel({ preselectedRecipientId }: { preselectedRecipient
       </div>
 
       {/* Message Window Area */}
-      <div className={`flex-1 flex flex-col relative bg-gradient-to-b from-emerald-50/30 to-transparent dark:from-emerald-950/10 dark:to-transparent ${!selectedThread ? "hidden md:flex" : "flex"}`}>
+      <div className={`flex-1 min-w-0 flex flex-col relative bg-gradient-to-b from-emerald-50/30 to-transparent dark:from-emerald-950/10 dark:to-transparent ${!selectedThread ? "hidden md:flex" : "flex"}`}>
         {!selectedThread ? (
           <div className="flex-1 flex items-center justify-center p-10 text-center bg-white dark:bg-gray-900">
             <div className="max-w-xs space-y-4">

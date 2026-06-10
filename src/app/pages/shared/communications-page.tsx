@@ -95,7 +95,7 @@ export function CommunicationsPage({ viewRole }: Props) {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-background">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-background">
           {activeTab === "messages" && (
             <div className="h-full">
               <MessagesPanel preselectedRecipientId={searchParams.get("recipient") ?? undefined} />
