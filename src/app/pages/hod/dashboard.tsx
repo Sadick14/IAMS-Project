@@ -18,7 +18,7 @@ export function HODDashboard() {
   const { user } = useAppContext();
   const navigate = useNavigate();
   const dept = user?.department || "";
-  // Department ID will be fetched from department list
+  const deptId = user?.department_id;
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -31,8 +31,8 @@ export function HODDashboard() {
       apiClient.getDashboard("hod"),
       apiClient.getGrades({ status: "calculated" }),
     ];
-    if (dept) {
-      requests.push(apiClient.getDepartmentAnalytics(String(dept)));
+    if (deptId) {
+      requests.push(apiClient.getDepartmentAnalytics(String(deptId)));
     }
     Promise.all(requests).then(([dashRes, gradesRes, analyticsRes]) => {
       if (cancelled) return;
@@ -42,7 +42,7 @@ export function HODDashboard() {
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [dept]);
+  }, [deptId]);
 
   const internshipCounts = dashboard?.internship_counts ?? { active: 0, completed: 0, pending: 0 };
   const gradeCounts = dashboard?.grade_counts ?? { calculated: 0, approved: 0, published: 0 };
