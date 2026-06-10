@@ -25,6 +25,7 @@ const CLODashboard = lazy(() => import("./pages/clo/dashboard").then(m => ({ def
 const TermsPage = lazy(() => import("./pages/clo/terms").then(m => ({ default: m.TermsPage })));
 const AuditLogsPage = lazy(() => import("./pages/clo/audit").then(m => ({ default: m.AuditLogsPage })));
 const DepartmentsPage = lazy(() => import("./pages/clo/departments").then(m => ({ default: m.DepartmentsPage })));
+const CLOUsersPage = lazy(() => import("./pages/clo/users").then(m => ({ default: m.CLOUsersPage })));
 const Templates = lazy(() => import("./pages/templates").then(m => ({ default: m.Templates })));
 const SettingsPage = lazy(() => import("./pages/settings").then(m => ({ default: m.SettingsPage })));
 
@@ -161,6 +162,7 @@ export const router = createBrowserRouter([
           { path: "attendance", element: <SuspensePage><AttendancePage viewRole="clo" /></SuspensePage> },
           { path: "audit", element: <SuspensePage><AuditLogsPage /></SuspensePage> },
           { path: "departments", element: <SuspensePage><DepartmentsPage /></SuspensePage> },
+          { path: "users", element: <SuspensePage><CLOUsersPage /></SuspensePage> },
           { path: "templates", Component: CLOTemplates },
           { path: "settings", Component: CLOSettings },
           { path: "issues", Component: CLOIssues },

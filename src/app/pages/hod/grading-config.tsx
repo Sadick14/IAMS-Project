@@ -17,10 +17,17 @@ export function HODGradingConfigPage() {
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
+  const [activeTermId, setActiveTermId] = useState<string | number | undefined>(undefined);
+
+  useEffect(() => {
+    apiClient.getActiveTerm().then((res) => {
+      if (res.success) setActiveTermId(res.data?.term?.id);
+    });
+  }, []);
 
   const fetchConfig = async () => {
     setLoading(true);
-    const res = await apiClient.getGradingConfigs({ department });
+    const res = await apiClient.getGradingConfigs({ department, ...(activeTermId ? { term_id: activeTermId } : {}) });
     if (res.success && res.data.length > 0) {
       setConfig(res.data[0]);
     } else {
@@ -39,7 +46,7 @@ export function HODGradingConfigPage() {
 
   useEffect(() => {
     fetchConfig();
-  }, [department]);
+  }, [department, activeTermId]);
 
   const actor: GradingActor = {
     id: user?.id ?? "u-hod",

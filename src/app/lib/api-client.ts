@@ -24,10 +24,10 @@ import type {
   SettingsRequest,
   NotificationResponse,
   SupervisorAssessmentSummary,
-  AssessmentChecklistItem,
+  WeeklyRubricResponse,
 } from "../types/api";
 
-import { API_ENDPOINTS } from "./constants";
+import { API_ENDPOINTS, DEFAULT_STRUCTURE, DEFAULT_STRUCTURE_WEIGHTS, DEFAULT_SECTION_WEIGHTS } from "./constants";
 
 // ── Auth token — persisted in localStorage, restored on load ──
 const TOKEN_KEY = "iams_token";
@@ -132,6 +132,29 @@ function unwrapEntity<T>(response: ApiResponse<unknown>, key: string): T | null 
 
 function unwrapTerm(response: ApiResponse<unknown>): TermResponse | null {
   return response.success ? unwrapEntity<TermResponse>(response, "term") : null;
+}
+
+// Map the backend's snake_case grading-configuration shape to the camelCase
+// shape the CLO/HOD grading-config pages and GradingConfigForm expect.
+function normalizeGradingConfig(raw: any): any {
+  if (!raw || typeof raw !== "object") return raw;
+  return {
+    ...raw,
+    id: raw.id != null ? String(raw.id) : raw.id,
+    departmentId: raw.department?.name ?? raw.department_id ?? raw.departmentId,
+    termId: raw.academic_term_id ?? raw.termId,
+    structure: raw.structure ?? DEFAULT_STRUCTURE,
+    structureWeights: raw.structure_weights ?? raw.structureWeights ?? DEFAULT_STRUCTURE_WEIGHTS,
+    sectionWeights: raw.section_weights ?? raw.sectionWeights ?? DEFAULT_SECTION_WEIGHTS,
+    status: raw.status ?? "draft",
+    createdBy: raw.submitter?.name ?? raw.createdBy ?? "N/A",
+    updatedBy: raw.approver?.name ?? raw.submitter?.name ?? raw.updatedBy ?? "N/A",
+    updatedAt: raw.updated_at ?? raw.updatedAt,
+    submittedForApprovalBy: raw.submitter?.name ?? raw.submittedForApprovalBy,
+    submittedForApprovalAt: raw.submitted_at ?? raw.submittedForApprovalAt,
+    approvedBy: raw.approver?.name ?? raw.approvedBy,
+    approvedAt: raw.approved_at ?? raw.approvedAt,
+  };
 }
 
 function extractCollection<T>(response: ApiResponse<unknown>, collectionKey: string): T[] {
@@ -868,7 +891,7 @@ export const apiClient = {
     const response = await requestApi<unknown>(API_ENDPOINTS.LOGBOOK_ENTRIES, {
       method: "GET",
       // SECURITY: Add supervisor context for server-side filtering
-      query: addSupervisorContext(filters as Record<string, unknown>),
+      query: applyDomainScoping(filters as Record<string, unknown>),
     });
     return {
       success: response.success,
@@ -913,7 +936,7 @@ export const apiClient = {
     const response = await requestApi<unknown>(API_ENDPOINTS.ATTENDANCE, {
       method: "GET",
       // SECURITY: Add supervisor context for server-side filtering
-      query: addSupervisorContext(filters as Record<string, unknown>),
+      query: applyDomainScoping(filters as Record<string, unknown>),
     });
     return {
       success: response.success,
@@ -930,7 +953,7 @@ export const apiClient = {
     const response = await requestApi<unknown>(
       "/api/v1/attendance",
       // SECURITY: Add supervisor context for server-side filtering
-      { method: "GET", query: addSupervisorContext({ ...filters, internship_id: internshipId }) }
+      { method: "GET", query: applyDomainScoping({ ...filters, internship_id: internshipId }) }
     );
     const attendance = response.success ? extractCollection<any>(response, "attendance") : [];
     console.log(`[API] getInternshipAttendance(${internshipId}):`, {
@@ -947,7 +970,7 @@ export const apiClient = {
     const response = await requestApi<unknown>(
       API_ENDPOINTS.ATTENDANCE_MISSED,
       // SECURITY: Add supervisor context for server-side filtering
-      { method: "GET", query: addSupervisorContext(baseQuery) }
+      { method: "GET", query: applyDomainScoping(baseQuery) }
     );
     return {
       success: response.success,
@@ -998,18 +1021,29 @@ export const apiClient = {
     );
   },
 
-  // Weekly rubric has no backend equivalent yet — calls will fail gracefully
   async submitWeeklyRubric(
-    applicationId: string,
+    internshipId: string,
     weekNumber: number,
-    ratings: Record<string, number>,
+    ratings: Record<string, string>,
     notes: string,
     _actor?: unknown
   ): Promise<ApiResponse<null>> {
     return requestApi<null>(
-      replacePathParams("/api/v1/grades/:id/weekly-rubric", { id: applicationId }),
+      replacePathParams("/api/v1/internships/:id/weekly-rubrics", { id: internshipId }),
       { method: "POST", body: JSON.stringify({ week_number: weekNumber, ratings, notes }) }
     );
+  },
+
+  async getWeeklyRubrics(internshipId: string): Promise<ApiResponse<WeeklyRubricResponse[]>> {
+    const response = await requestApi<unknown>(
+      replacePathParams("/api/v1/internships/:id/weekly-rubrics", { id: internshipId }),
+      { method: "GET" }
+    );
+    return {
+      success: response.success,
+      data: response.success ? extractCollection<WeeklyRubricResponse>(response, "weekly_rubrics") : [],
+      message: response.message,
+    };
   },
 
   // Creates a draft assessment then immediately submits it.
@@ -1523,12 +1557,16 @@ export const apiClient = {
 
   async getGradingConfigs(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.GRADING_CONFIG, { method: "GET", query: filters });
-    return { success: response.success, data: response.success ? extractCollection<any>(response, "configs") : [], message: response.message };
+    return {
+      success: response.success,
+      data: response.success ? extractCollection<any>(response, "configurations").map(normalizeGradingConfig) : [],
+      message: response.message,
+    };
   },
 
   async getGradingConfig(id: string): Promise<ApiResponse<any>> {
     const res = await requestApi<any>(replacePathParams("/api/v1/grading-config/:id", { id }), { method: "GET" });
-    return { ...res, data: res.success ? unwrapEntity<any>(res, "config") : null };
+    return { ...res, data: res.success ? normalizeGradingConfig(unwrapEntity<any>(res, "configuration")) : null };
   },
 
   async saveGradingConfig(data: any): Promise<ApiResponse<any | null>> {
@@ -1545,17 +1583,17 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    return { ...res, data: res.success ? unwrapEntity<any>(res, "config") : null };
+    return { ...res, data: res.success ? normalizeGradingConfig(unwrapEntity<any>(res, "configuration")) : null };
   },
 
   async createGradingConfig(data: Record<string, unknown>): Promise<ApiResponse<any>> {
     const res = await requestApi<any>(API_ENDPOINTS.GRADING_CONFIG, { method: "POST", body: JSON.stringify(data) });
-    return { ...res, data: res.success ? unwrapEntity<any>(res, "config") : null };
+    return { ...res, data: res.success ? normalizeGradingConfig(unwrapEntity<any>(res, "configuration")) : null };
   },
 
   async updateGradingConfig(id: string, data: Record<string, unknown>): Promise<ApiResponse<any>> {
     const res = await requestApi<any>(replacePathParams("/api/v1/grading-config/:id", { id }), { method: "PUT", body: JSON.stringify(data) });
-    return { ...res, data: res.success ? unwrapEntity<any>(res, "config") : null };
+    return { ...res, data: res.success ? normalizeGradingConfig(unwrapEntity<any>(res, "configuration")) : null };
   },
 
   async approveGradingConfig(id: string): Promise<ApiResponse<null>> {
@@ -1593,11 +1631,9 @@ export const apiClient = {
     return requestApi<any>(replacePathParams("/api/v1/grades/:internshipId", { internshipId }), { method: "GET" });
   },
 
-  async submitFinalReport(applicationId: string, data: { report_url: string; report_name?: string }): Promise<ApiResponse<null>> {
-    // The real backend might expect this via the internship or assessment report endpoint
-    // For now, we'll try to update the application record or a dedicated assessment report record
+  async submitFinalReport(internshipId: string, data: { report_url: string; report_name?: string }): Promise<ApiResponse<null>> {
     return requestApi<null>(
-      replacePathParams("/api/v1/applications/:id/final-report", { id: applicationId }),
+      replacePathParams("/api/v1/internships/:id/final-report", { id: internshipId }),
       { method: "POST", body: JSON.stringify(data) }
     );
   },
@@ -1709,7 +1745,7 @@ export const apiClient = {
   async getSupervisorNotifications(filters?: {
     unread_only?: boolean;
     type?: string;
-    limit?: number;
+    per_page?: number;
   }): Promise<ApiResponse<NotificationResponse[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.NOTIFICATIONS, {
       method: "GET",
@@ -1745,21 +1781,6 @@ export const apiClient = {
     return {
       success: response.success,
       data: response.data || null,
-      message: response.message,
-    };
-  },
-
-  async getSupervisorAssessmentChecklist(filters?: {
-    type?: "logbook" | "assessment" | "attendance";
-    status?: "pending" | "completed";
-  }): Promise<ApiResponse<AssessmentChecklistItem[]>> {
-    const response = await requestApi<unknown>(
-      "/api/v1/supervisor/assessment-checklist",
-      { method: "GET", query: filters }
-    );
-    return {
-      success: response.success,
-      data: response.success ? extractCollection<AssessmentChecklistItem>(response, "items") : [],
       message: response.message,
     };
   },

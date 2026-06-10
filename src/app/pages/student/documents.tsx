@@ -48,20 +48,20 @@ export function DocumentsPage() {
       if (res.success && res.data.length > 0) {
         const sorted = [...res.data].sort((a, b) => (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1);
         setMyApp(sorted[0]);
-        
-        // If the API returns a report URL, use it
-        if ((sorted[0] as any).final_report_url) {
-          setFinalReportUrl((sorted[0] as any).final_report_url);
-          setFinalReportName("Final Internship Report");
-        }
       }
     });
 
     apiClient.getInternships().then((res) => {
       if (res.success && res.data.length > 0) {
         const sorted = [...res.data].sort((a, b) => (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1);
-        setInternshipId(String(sorted[0].id));
-        setCurrentCompanyName(sorted[0].company?.name || sorted[0].companyName || "Company");
+        const internship = sorted[0];
+        setInternshipId(String(internship.id));
+        setCurrentCompanyName(internship.company?.name || internship.companyName || "Company");
+
+        if (internship.final_report_url) {
+          setFinalReportUrl(internship.final_report_url);
+          setFinalReportName(internship.final_report_name || "Final Internship Report");
+        }
       }
     });
   };
@@ -163,14 +163,14 @@ export function DocumentsPage() {
   };
 
   const handleFinalReportSuccess = async (fileUrl: string) => {
-    if (!myApp?.id) {
-      toast.error("No active application found to attach the report to.");
+    if (!internshipId) {
+      toast.error("No active internship found to attach the report to.");
       return;
     }
 
     const toastId = toast.loading("Submitting final report...");
     try {
-      const res = await apiClient.submitFinalReport(myApp.id, {
+      const res = await apiClient.submitFinalReport(internshipId, {
         report_url: fileUrl,
         report_name: "Final Internship Report",
       });

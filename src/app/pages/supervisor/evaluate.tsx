@@ -14,9 +14,8 @@ import { useToastAction } from "../../lib/hooks";
 import {
   getActiveConfig,
   getIndustrialAssessment,
-  getWeeklyRubric,
 } from "../../services/grading-service";
-import type { GradingActor } from "../../types/grading";
+import type { GradingActor, WeeklyRubricRatings } from "../../types/grading";
 
 type TabKey = "weekly" | "final";
 
@@ -97,6 +96,7 @@ export function EvaluatePage() {
   const { user, store } = useAppContext();
   const _ = store.industrialAssessments.length + store.weeklyRubrics.length;
   const [assignedInternships, setAssignedInternships] = useState<any[]>([]);
+  const [rubricsByWeek, setRubricsByWeek] = useState<Record<number, { ratings: Record<string, string>; notes: string }>>({});
 
   const { execute: runEvaluationAction, loading: isSubmitting } = useToastAction();
 
@@ -125,6 +125,23 @@ export function EvaluatePage() {
     if (!appId && activeApps.length > 0) setAppId(getInternshipId(activeApps[0]));
   }, [activeApps, appId]);
 
+  useEffect(() => {
+    if (!appId) {
+      setRubricsByWeek({});
+      return;
+    }
+    let cancelled = false;
+    apiClient.getWeeklyRubrics(appId).then((res) => {
+      if (cancelled || !res.success) return;
+      const map: Record<number, { ratings: Record<string, string>; notes: string }> = {};
+      for (const rubric of res.data) {
+        map[rubric.week_number] = { ratings: rubric.ratings ?? {}, notes: rubric.notes ?? "" };
+      }
+      setRubricsByWeek(map);
+    });
+    return () => { cancelled = true; };
+  }, [appId]);
+
   // Default tab: deep-link wins → otherwise Weekly (the most-frequent action).
   const initialTab: TabKey = (params.get("tab") as TabKey) || "weekly";
   const [tab, setTab] = useState<TabKey>(initialTab);
@@ -141,9 +158,9 @@ export function EvaluatePage() {
     const fromUrl = parseInt(params.get("week") || "0", 10);
     if (fromUrl > 0 && weeks.some((w) => w.weekNumber === fromUrl)) return fromUrl;
     const today = new Date().toISOString().slice(0, 10);
-    const overdue = weeks.find((w) => w.weekEnd < today && !getWeeklyRubric(appId, w.weekNumber));
+    const overdue = weeks.find((w) => w.weekEnd < today && !rubricsByWeek[w.weekNumber]);
     return overdue?.weekNumber || currentWeekNumber || weeks[0]?.weekNumber || 1;
-  }, [appId, weeks, currentWeekNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [appId, weeks, currentWeekNumber, rubricsByWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [weekNumber, setWeekNumber] = useState<number>(defaultWeek);
   const [collapsedWeeks, setCollapsedWeeks] = useState<Record<number, boolean>>({});
@@ -160,12 +177,12 @@ export function EvaluatePage() {
   }, [appId, tab, weekNumber]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const week = weeks.find((w) => w.weekNumber === weekNumber);
-  const existingWeekly = appId && week ? getWeeklyRubric(appId, weekNumber) : undefined;
+  const existingWeekly = appId && week ? rubricsByWeek[weekNumber] : undefined;
 
   const config = useMemo(() => (app ? getActiveConfig(getDepartmentName(app)) : null), [app]);
   const existingFinal = appId ? getIndustrialAssessment(appId) : undefined;
 
-  const filledWeeks = appId ? weeks.filter((w) => !!getWeeklyRubric(appId, w.weekNumber)).length : 0;
+  const filledWeeks = appId ? weeks.filter((w) => !!rubricsByWeek[w.weekNumber]).length : 0;
 
   const actor: GradingActor = {
     id: user?.id ?? "u-sup",
@@ -245,7 +262,7 @@ export function EvaluatePage() {
             {weeks.length > 0 ? (
               <div className="space-y-3">
                 {weeks.map((w) => {
-                  const filled = !!getWeeklyRubric(appId, w.weekNumber);
+                  const filled = !!rubricsByWeek[w.weekNumber];
                   const isCurrent = w.weekNumber === currentWeekNumber;
                   const isExpanded = weekNumber === w.weekNumber && !collapsedWeeks[w.weekNumber];
                   const weekRange = `${new Date(w.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(w.weekEnd).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
@@ -288,15 +305,21 @@ export function EvaluatePage() {
                             weekNumber={w.weekNumber}
                             weekStart={w.weekStart}
                             weekEnd={w.weekEnd}
-                            initialRatings={getWeeklyRubric(appId, w.weekNumber)?.ratings}
-                            initialNotes={getWeeklyRubric(appId, w.weekNumber)?.notes}
+                            initialRatings={rubricsByWeek[w.weekNumber]?.ratings as WeeklyRubricRatings | undefined}
+                            initialNotes={rubricsByWeek[w.weekNumber]?.notes}
                             onSubmit={async (ratings, notes) => {
-                              await runEvaluationAction(async () => {
+                              const result = await runEvaluationAction(async () => {
                                 return apiClient.submitWeeklyRubric(getInternshipId(app), w.weekNumber, ratings, notes, actor);
                               }, {
                                 successMessage: "Weekly rubric submitted successfully!",
                                 errorMessage: "Failed to submit weekly rubric."
                               });
+                              if (result?.success) {
+                                setRubricsByWeek((prev) => ({
+                                  ...prev,
+                                  [w.weekNumber]: { ratings, notes },
+                                }));
+                              }
                             }}
                           />
                         </div>

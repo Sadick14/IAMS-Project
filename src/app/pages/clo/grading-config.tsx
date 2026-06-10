@@ -29,10 +29,17 @@ export function CLOGradingConfigPage() {
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTermId, setActiveTermId] = useState<string | number | undefined>(undefined);
+
+  useEffect(() => {
+    apiClient.getActiveTerm().then((res) => {
+      if (res.success) setActiveTermId(res.data?.term?.id);
+    });
+  }, []);
 
   const fetchConfig = async (deptName: string) => {
     setLoading(true);
-    const res = await apiClient.getGradingConfigs({ department: deptName });
+    const res = await apiClient.getGradingConfigs({ department: deptName, ...(activeTermId ? { term_id: activeTermId } : {}) });
     if (res.success && res.data.length > 0) {
       setConfig(res.data[0]);
     } else {
@@ -52,7 +59,7 @@ export function CLOGradingConfigPage() {
 
   useEffect(() => {
     fetchConfig(department);
-  }, [department]);
+  }, [department, activeTermId]);
 
   const actor: GradingActor = {
     id: user?.id ?? "u-clo",

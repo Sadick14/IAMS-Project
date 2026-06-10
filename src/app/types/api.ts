@@ -572,11 +572,26 @@ export interface NotificationResponse {
   related_id?: string;
   related_type?: string;
   action_url?: string;
-  read: boolean;
+  is_read: boolean;
   read_at?: string;
   created_at: string;
   priority?: "low" | "normal" | "high" | "urgent";
   data?: Record<string, unknown>;
+}
+
+// ── Weekly Rubrics ──
+
+export interface WeeklyRubricResponse {
+  id: string | number;
+  internship_id: string | number;
+  industry_supervisor_id?: string | number | null;
+  week_number: number;
+  ratings: Record<string, string>;
+  notes?: string | null;
+  week_start?: string | null;
+  week_end?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // ── Assessment Completion Checklist ──
@@ -605,13 +620,3 @@ export interface SupervisorAssessmentSummary {
   overall_progress: number;
 }
 
-export interface AssessmentChecklistItem {
-  id: string;
-  student_id: string;
-  student_name: string;
-  type: "logbook" | "assessment" | "attendance" | "comment";
-  status: "pending" | "in_progress" | "completed";
-  due_date?: string;
-  action_url?: string;
-  priority?: "low" | "normal" | "high";
-}
