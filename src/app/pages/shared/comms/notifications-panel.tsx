@@ -132,21 +132,29 @@ export function NotificationsPanel() {
   });
 
   return (
-    <div className="space-y-5">
-      {/* Actions bar */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <p className="text-muted-foreground" style={{ fontSize: "0.85rem" }}>
-          {unread > 0 ? `${unread} unread` : "All caught up"} · {notifications.length} total
-        </p>
+    <div className="space-y-6 bg-gradient-to-b from-blue-50/50 to-transparent dark:from-blue-950/20 dark:to-transparent -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-6">
+      {/* Header Section */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+            <Bell className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Notifications</h2>
+            <p className="text-sm text-muted-foreground">
+              {unread > 0 ? `You have ${unread} unread notification${unread !== 1 ? 's' : ''}` : "All caught up!"}
+            </p>
+          </div>
+        </div>
         <div className="flex gap-2">
           {notifications.some((n) => n.read) && (
-            <button onClick={handleArchiveAll} className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-lg hover:bg-accent transition-colors" style={{ fontSize: "0.8rem" }}>
-              <Archive className="w-3.5 h-3.5" /> Archive Read
+            <button onClick={handleArchiveAll} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm">
+              <Archive className="w-4 h-4" /> Archive Read
             </button>
           )}
           {unread > 0 && (
-            <button onClick={handleMarkAllRead} className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90" style={{ fontSize: "0.8rem" }}>
-              <CheckCheck className="w-3.5 h-3.5" /> Mark All Read
+            <button onClick={handleMarkAllRead} className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow-sm transition-all text-sm">
+              <CheckCheck className="w-4 h-4" /> Mark All Read
             </button>
           )}
         </div>
@@ -165,16 +173,16 @@ export function NotificationsPanel() {
           <button
             key={s.key}
             onClick={() => setFilter(filter === s.key ? "All" : s.key)}
-            className={`bg-card border rounded-xl p-3 flex items-center gap-3 transition-all ${
-              filter === s.key ? "border-primary ring-1 ring-primary" : "border-border hover:shadow-sm"
+            className={`bg-white dark:bg-gray-900 border rounded-xl p-3 flex items-center gap-3 transition-all ${
+              filter === s.key ? "border-blue-500 ring-2 ring-blue-500/30 shadow-md" : "border-border hover:shadow-sm"
             }`}
           >
             <div className={`w-8 h-8 rounded-lg ${s.color} flex items-center justify-center`}>
               <s.icon className="w-4 h-4" />
             </div>
             <div className="text-left">
-              <p className="text-muted-foreground" style={{ fontSize: "0.65rem" }}>{s.label}</p>
-              <p style={{ fontSize: "1.1rem" }}>{s.count}</p>
+              <p className="text-muted-foreground text-xs">{s.label}</p>
+              <p className="text-lg font-bold">{s.count}</p>
             </div>
           </button>
         ))}
@@ -188,18 +196,17 @@ export function NotificationsPanel() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search notifications..."
-          className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-card"
-          style={{ fontSize: "0.85rem" }}
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-white dark:bg-gray-900 text-sm"
         />
       </div>
 
       {/* Notification List */}
-      <div className="max-h-[600px] overflow-y-auto">
+      <div className="max-h-[550px] overflow-y-auto pr-2">
         {filtered.length === 0 ? (
-          <div className="bg-card border border-border rounded-xl p-12 text-center">
-            <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3>No notifications</h3>
-            <p className="text-muted-foreground mt-1" style={{ fontSize: "0.85rem" }}>
+          <div className="bg-white dark:bg-gray-900 border border-border rounded-xl p-10 text-center">
+            <Bell className="w-14 h-14 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground">No notifications</h3>
+            <p className="text-muted-foreground mt-1 text-sm">
               {search ? "No notifications match your search." : "You're all caught up!"}
             </p>
           </div>
@@ -207,10 +214,10 @@ export function NotificationsPanel() {
           <div className="space-y-6">
           {Object.entries(grouped).map(([dateLabel, items]) => (
             <div key={dateLabel}>
-              <p className="text-muted-foreground mb-2 px-1" style={{ fontSize: "0.75rem" }}>
+              <p className="text-muted-foreground mb-3 px-1 text-xs uppercase tracking-wide font-semibold">
                 {dateLabel} · {items.length} notification{items.length !== 1 ? "s" : ""}
               </p>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {items.map((n) => {
                   const TypeIcon = typeIcons[n.type] || Bell;
                   return (
@@ -220,34 +227,34 @@ export function NotificationsPanel() {
                         if (!n.read) handleMarkRead(n.id);
                         if (n.actionUrl) navigate(n.actionUrl);
                       }}
-                      className={`bg-card border rounded-xl p-4 flex items-start gap-4 transition-all group ${
-                        !n.read ? "border-primary/30 bg-primary/5 hover:bg-primary/10" : "border-border hover:bg-muted/20"
+                      className={`bg-white dark:bg-gray-900 border rounded-xl p-4 flex items-start gap-4 transition-all group shadow-sm ${
+                        !n.read ? "border-blue-300 bg-blue-50/80 hover:bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30" : "border-border hover:bg-gray-50 dark:hover:bg-gray-800"
                       } ${n.actionUrl ? "cursor-pointer" : ""}`}
                     >
-                      <div className={`w-9 h-9 rounded-lg ${typeBgColors[n.type] || "bg-gray-50"} flex items-center justify-center shrink-0 mt-0.5`}>
-                        <TypeIcon className={`w-4 h-4 ${!n.read ? "text-primary" : "text-muted-foreground"}`} />
+                      <div className={`w-10 h-10 rounded-xl ${typeBgColors[n.type] || "bg-gray-50"} flex items-center justify-center shrink-0`}>
+                        <TypeIcon className={`w-5 h-5 ${!n.read ? "text-blue-600" : "text-muted-foreground"}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-0.5 rounded-full capitalize ${typeColors[n.type] || "bg-gray-100 text-gray-600"}`} style={{ fontSize: "0.65rem" }}>
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span className={`px-2.5 py-0.5 rounded-full capitalize ${typeColors[n.type] || "bg-gray-100 text-gray-600"} font-semibold`} style={{ fontSize: "0.7rem" }}>
                             {n.type}
                           </span>
-                          {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
-                          <span className="text-muted-foreground ml-auto" style={{ fontSize: "0.7rem" }}>
+                          {!n.read && <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 animate-pulse" />}
+                          <span className="text-muted-foreground ml-auto text-xs">
                             {new Date(n.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
-                        <p style={{ fontSize: "0.9rem" }} className="text-foreground">{n.title}</p>
-                        <p style={{ fontSize: "0.8rem" }} className="text-muted-foreground mt-0.5">{n.message}</p>
+                        <p className="text-base font-medium text-foreground">{n.title}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         {!n.read && (
-                          <button onClick={() => handleMarkRead(n.id)} className="p-1.5 rounded-md hover:bg-accent text-primary" title="Mark as read">
-                            <CheckCheck className="w-4 h-4" />
+                          <button onClick={() => handleMarkRead(n.id)} className="p-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-600" title="Mark as read">
+                            <CheckCheck className="w-4.5 h-4.5" />
                           </button>
                         )}
-                        <button onClick={() => handleArchive(n.id)} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground" title="Archive">
-                          <Archive className="w-4 h-4" />
+                        <button onClick={() => handleArchive(n.id)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground" title="Archive">
+                          <Archive className="w-4.5 h-4.5" />
                         </button>
                       </div>
                     </div>
