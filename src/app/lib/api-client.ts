@@ -1421,6 +1421,11 @@ export const apiClient = {
     return { success: response.success, data: response.success ? extractCollection<any>(response, "internships") : [], message: response.message };
   },
 
+  async getSupervisorAssignmentsAssigned(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
+    const response = await requestApi<unknown>(API_ENDPOINTS.SUPERVISOR_ASSIGNMENTS_ASSIGNED, { method: "GET", query: filters });
+    return { success: response.success, data: response.success ? extractCollection<any>(response, "internships") : [], message: response.message };
+  },
+
   async getAvailableSupervisors(filters?: Record<string, unknown>): Promise<ApiResponse<any[]>> {
     const response = await requestApi<unknown>(API_ENDPOINTS.SUPERVISOR_ASSIGNMENTS_AVAILABLE, {
       method: "GET",

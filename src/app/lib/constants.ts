@@ -283,6 +283,7 @@ export const API_ENDPOINTS = {
 
   // Supervisor assignments
   SUPERVISOR_ASSIGNMENTS_PENDING: "/api/v1/supervisor-assignments/pending",
+  SUPERVISOR_ASSIGNMENTS_ASSIGNED: "/api/v1/supervisor-assignments/assigned",
   SUPERVISOR_ASSIGNMENTS_AVAILABLE: "/api/v1/supervisor-assignments/available-supervisors",
   SUPERVISOR_ASSIGNMENTS_AUTO: "/api/v1/supervisor-assignments/auto-assign",
   SUPERVISOR_STUDENTS: "/api/v1/supervisor-assignments/supervisors/:supervisorId/students",
