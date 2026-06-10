@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { apiClient } from "../../../lib/api-client";
 import {
   Bell, CheckCheck, Mail, Search, Archive, FileText,
-  Building2, GraduationCap, AlertTriangle, Settings2, MessageSquare
+  Building2, GraduationCap, AlertTriangle, Settings2, MessageSquare, Megaphone
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,7 +42,9 @@ export function NotificationsPanel() {
     ? searched
     : filter === "Unread"
       ? searched.filter((n) => !n.read)
-      : searched.filter((n) => n.type === filter);
+      : filter === "announcement"
+        ? searched.filter((n) => n.type === "announcement" || n.type === "system_announcement")
+        : searched.filter((n) => n.type === filter);
 
   const handleMarkRead = async (id: string) => {
     setAllNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
@@ -75,6 +77,8 @@ export function NotificationsPanel() {
     escalation:          AlertTriangle,
     system:              Settings2,
     message:             MessageSquare,
+    announcement:        Megaphone,
+    system_announcement: Megaphone,
     internship_approved: GraduationCap,
     attendance_alert:    AlertTriangle,
     info:                Bell,
@@ -87,6 +91,8 @@ export function NotificationsPanel() {
     escalation:          "bg-red-100 text-red-700",
     system:              "bg-gray-100 text-gray-700",
     message:             "bg-sky-100 text-sky-700",
+    announcement:        "bg-amber-100 text-amber-700",
+    system_announcement: "bg-amber-100 text-amber-700",
     internship_approved: "bg-teal-100 text-teal-700",
     attendance_alert:    "bg-orange-100 text-orange-700",
     info:                "bg-indigo-100 text-indigo-700",
@@ -99,6 +105,8 @@ export function NotificationsPanel() {
     escalation:          "bg-red-50",
     system:              "bg-gray-50",
     message:             "bg-sky-50",
+    announcement:        "bg-amber-50",
+    system_announcement: "bg-amber-50",
     internship_approved: "bg-teal-50",
     attendance_alert:    "bg-orange-50",
     info:                "bg-indigo-50",
@@ -161,14 +169,15 @@ export function NotificationsPanel() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {[
-          { key: "All",         label: "All",          count: notifications.length,               color: "text-blue-600 bg-blue-50",    icon: Bell },
-          { key: "Unread",      label: "Unread",       count: unread,                              color: "text-red-600 bg-red-50",      icon: Mail },
-          { key: "message",     label: "Messages",     count: typeCounts["message"] || 0,          color: "text-sky-600 bg-sky-50",      icon: MessageSquare },
-          { key: "application", label: "Applications", count: typeCounts["application"] || 0,      color: "text-blue-600 bg-blue-50",    icon: FileText },
-          { key: "company",     label: "Companies",    count: typeCounts["company"] || 0,          color: "text-emerald-600 bg-emerald-50", icon: Building2 },
-          { key: "escalation",  label: "Escalations",  count: typeCounts["escalation"] || 0,       color: "text-red-600 bg-red-50",      icon: AlertTriangle },
+          { key: "All",          label: "All",           count: notifications.length,               color: "text-blue-600 bg-blue-50",    icon: Bell },
+          { key: "Unread",       label: "Unread",        count: unread,                              color: "text-red-600 bg-red-50",      icon: Mail },
+          { key: "message",      label: "Messages",      count: typeCounts["message"] || 0,          color: "text-sky-600 bg-sky-50",      icon: MessageSquare },
+          { key: "announcement", label: "Announcements", count: (typeCounts["announcement"] || 0) + (typeCounts["system_announcement"] || 0), color: "text-amber-600 bg-amber-50", icon: Megaphone },
+          { key: "application",  label: "Applications",  count: typeCounts["application"] || 0,      color: "text-blue-600 bg-blue-50",    icon: FileText },
+          { key: "company",      label: "Companies",     count: typeCounts["company"] || 0,          color: "text-emerald-600 bg-emerald-50", icon: Building2 },
+          { key: "escalation",   label: "Escalations",   count: typeCounts["escalation"] || 0,       color: "text-red-600 bg-red-50",      icon: AlertTriangle },
         ].map((s) => (
           <button
             key={s.key}

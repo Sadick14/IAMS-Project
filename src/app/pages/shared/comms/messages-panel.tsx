@@ -429,7 +429,7 @@ export function MessagesPanel({ preselectedRecipientId }: { preselectedRecipient
                   }}
                   placeholder="Message..."
                   rows={1}
-                  className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 px-1 text-sm resize-none min-h-[40px] max-h-[120px]"
+                  className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 py-2.5 px-1 text-sm resize-none min-h-[40px] max-h-[120px]"
                 />
                 <button
                   onClick={handleSend}
