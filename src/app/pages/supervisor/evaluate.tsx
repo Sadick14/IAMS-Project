@@ -11,11 +11,8 @@ import { WeeklyRubricForm } from "../../components/grading/weekly-rubric-form";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
-import {
-  getActiveConfig,
-  getIndustrialAssessment,
-} from "../../services/grading-service";
-import type { GradingActor, WeeklyRubricRatings } from "../../types/grading";
+import { INDUSTRIAL_CRITERIA } from "../../lib/constants";
+import type { CriterionRating, GradingActor, SectionWeights, WeeklyRubricRatings } from "../../types/grading";
 
 type TabKey = "weekly" | "final";
 
@@ -93,10 +90,11 @@ function getCurrentWeekNumberFromWeeks(weeks: Array<{ weekNumber: number; weekSt
 }
 
 export function EvaluatePage() {
-  const { user, store } = useAppContext();
-  const _ = store.industrialAssessments.length + store.weeklyRubrics.length;
+  const { user } = useAppContext();
   const [assignedInternships, setAssignedInternships] = useState<any[]>([]);
   const [rubricsByWeek, setRubricsByWeek] = useState<Record<number, { ratings: Record<string, string>; notes: string }>>({});
+  const [assessmentsByInternship, setAssessmentsByInternship] = useState<Record<string, any>>({});
+  const [sectionWeights, setSectionWeights] = useState<SectionWeights | null>(null);
 
   const { execute: runEvaluationAction, loading: isSubmitting } = useToastAction();
 
@@ -142,6 +140,36 @@ export function EvaluatePage() {
     return () => { cancelled = true; };
   }, [appId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.getIndustrialAssessments({ per_page: 100 }).then((res) => {
+      if (cancelled || !res.success) return;
+      const map: Record<string, any> = {};
+      for (const a of res.data) {
+        map[String(a.internship_id)] = a;
+      }
+      setAssessmentsByInternship(map);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!appId || !app) {
+      setSectionWeights(null);
+      return;
+    }
+    let cancelled = false;
+    apiClient.getActiveTerm().then((termRes) => {
+      const termId = termRes.success ? termRes.data?.term?.id : undefined;
+      apiClient.getGradingConfigs({ department: getDepartmentName(app), ...(termId ? { term_id: termId } : {}) }).then((res) => {
+        if (cancelled) return;
+        const active = res.success ? res.data.find((c: any) => c.status === "active") : undefined;
+        setSectionWeights(active?.sectionWeights ?? null);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [appId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Default tab: deep-link wins → otherwise Weekly (the most-frequent action).
   const initialTab: TabKey = (params.get("tab") as TabKey) || "weekly";
   const [tab, setTab] = useState<TabKey>(initialTab);
@@ -179,8 +207,17 @@ export function EvaluatePage() {
   const week = weeks.find((w) => w.weekNumber === weekNumber);
   const existingWeekly = appId && week ? rubricsByWeek[weekNumber] : undefined;
 
-  const config = useMemo(() => (app ? getActiveConfig(getDepartmentName(app)) : null), [app]);
-  const existingFinal = appId ? getIndustrialAssessment(appId) : undefined;
+  const config = sectionWeights ? { sectionWeights } : null;
+  const existingAssessment = appId ? assessmentsByInternship[appId] : undefined;
+  const existingFinal = useMemo(() => {
+    if (!existingAssessment) return undefined;
+    const ratings: Record<string, CriterionRating> = {};
+    for (const c of INDUSTRIAL_CRITERIA) {
+      const value = existingAssessment[c.key];
+      if (value != null) ratings[c.key] = value as CriterionRating;
+    }
+    return { ratings, comments: existingAssessment.general_comments ?? "" };
+  }, [existingAssessment]);
 
   const filledWeeks = appId ? weeks.filter((w) => !!rubricsByWeek[w.weekNumber]).length : 0;
 
@@ -351,12 +388,20 @@ export function EvaluatePage() {
                   initialRatings={existingFinal?.ratings}
                   initialComments={existingFinal?.comments}
                   onSubmit={async (ratings, comments) => {
-                    await runEvaluationAction(async () => {
+                    const result = await runEvaluationAction(async () => {
                       return apiClient.submitIndustrialAssessment(getInternshipId(app), ratings, comments, actor);
                     }, {
                       successMessage: "Final assessment submitted successfully!",
                       errorMessage: "Failed to submit final assessment."
                     });
+                    if (result?.success) {
+                      apiClient.getIndustrialAssessments({ per_page: 100 }).then((res) => {
+                        if (!res.success) return;
+                        const map: Record<string, any> = {};
+                        for (const a of res.data) map[String(a.internship_id)] = a;
+                        setAssessmentsByInternship(map);
+                      });
+                    }
                   }}
                 />
               </Card>

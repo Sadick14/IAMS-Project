@@ -2,8 +2,8 @@ import { useState, useSyncExternalStore } from "react";
 import { useAppContext } from "../lib/context";
 import { apiClient } from "../lib/api-client";
 import {
-  Save, Upload, Shield, Bell, Settings2, User, Globe, Lock, Database,
-  Monitor, Mail, Clock, Building2, GraduationCap, AlertTriangle, CheckCircle2, Moon, Sun, SlidersHorizontal
+  Save, Upload, Shield, Bell, Settings2, User, Globe, Database,
+  Monitor, Mail, Clock, Building2, GraduationCap, AlertTriangle, Moon, Sun, SlidersHorizontal
 } from "lucide-react";
 import { CLOGradingConfigPage } from "./clo/grading-config";
 import { DLOGradingConfigPage } from "./dlo/grading-config";
@@ -13,9 +13,8 @@ import { toast } from "sonner";
 import type { ExtendedRole } from "../services/auth-service";
 import { getSettings, updateSettings, subscribeSettings } from "../lib/settings-store";
 import { exportToCSV } from "../lib/csv-export";
-import { getState } from "../lib/store";
 
-type SettingsTab = "general" | "notifications" | "security" | "system" | "profile" | "grading";
+type SettingsTab = "general" | "notifications" | "system" | "profile" | "grading";
 
 export function SettingsPage() {
   const { user } = useAppContext();
@@ -32,28 +31,28 @@ export function SettingsPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // General (CLO only)
-  const [uniName, setUniName] = useState("Ho Technical University");
-  const [contactEmail, setContactEmail] = useState("liaison@htu.edu.gh");
-  const [contactPhone, setContactPhone] = useState("+233 362 194 410");
+  const [uniName, setUniName] = useState(settings.uniName);
+  const [contactEmail, setContactEmail] = useState(settings.contactEmail);
+  const [contactPhone, setContactPhone] = useState(settings.contactPhone);
   const [maxSupervisorLoad, setMaxSupervisorLoad] = useState(String(settings.maxSupervisorLoad));
   const [inactivityThreshold, setInactivityThreshold] = useState(String(settings.inactivityThresholdDays));
   const [autoFlagEnabled, setAutoFlagEnabled] = useState(settings.autoFlagEnabled);
   const [allowSelfPlacement, setAllowSelfPlacement] = useState(settings.allowSelfPlacement);
 
   // Notifications
-  const [emailNotifs, setEmailNotifs] = useState(true);
-  const [inAppNotifs, setInAppNotifs] = useState(true);
-  const [notifNewApp, setNotifNewApp] = useState(true);
-  const [notifCompanyApproval, setNotifCompanyApproval] = useState(true);
-  const [notifGradeSubmission, setNotifGradeSubmission] = useState(true);
-  const [notifIssueEscalation, setNotifIssueEscalation] = useState(true);
-  const [notifLogbookFlag, setNotifLogbookFlag] = useState(true);
-  const [notifAnnouncements, setNotifAnnouncements] = useState(true);
-  const [digestFrequency, setDigestFrequency] = useState("daily");
+  const [emailNotifs, setEmailNotifs] = useState(settings.emailNotifs);
+  const [inAppNotifs, setInAppNotifs] = useState(settings.inAppNotifs);
+  const [notifNewApp, setNotifNewApp] = useState(settings.notifNewApp);
+  const [notifCompanyApproval, setNotifCompanyApproval] = useState(settings.notifCompanyApproval);
+  const [notifGradeSubmission, setNotifGradeSubmission] = useState(settings.notifGradeSubmission);
+  const [notifIssueEscalation, setNotifIssueEscalation] = useState(settings.notifIssueEscalation);
+  const [notifLogbookFlag, setNotifLogbookFlag] = useState(settings.notifLogbookFlag);
+  const [notifAnnouncements, setNotifAnnouncements] = useState(settings.notifAnnouncements);
+  const [digestFrequency, setDigestFrequency] = useState(settings.digestFrequency);
 
   // DLO-specific
-  const [deptMaxLoad, setDeptMaxLoad] = useState("8");
-  const [deptDeadline, setDeptDeadline] = useState("");
+  const [deptMaxLoad, setDeptMaxLoad] = useState(String(settings.deptMaxLoad));
+  const [deptDeadline, setDeptDeadline] = useState(settings.deptDeadline);
 
   const handleSaveProfile = async () => {
     if (!user?.id) return;
@@ -72,17 +71,24 @@ export function SettingsPage() {
     }
   };
 
-  const handleSaveNotifications = async () => {
-    try {
-      const res = await apiClient.updateSettings({ emailNotifications: emailNotifs });
-      if (res.success) {
-        toast.success("Notification preferences saved.");
-      } else {
-        toast.error("Failed to save notification preferences.");
-      }
-    } catch (error) {
-      toast.error("Error saving notification preferences.");
-    }
+  const handleSaveGeneral = () => {
+    updateSettings({ uniName, contactEmail, contactPhone });
+    toast.success("University settings saved.");
+  };
+
+  const handleSaveNotifications = () => {
+    updateSettings({
+      emailNotifs,
+      inAppNotifs,
+      notifNewApp,
+      notifCompanyApproval,
+      notifGradeSubmission,
+      notifIssueEscalation,
+      notifLogbookFlag,
+      notifAnnouncements,
+      digestFrequency,
+    });
+    toast.success("Notification preferences saved.");
   };
 
   const handleSaveRules = () => {
@@ -91,26 +97,82 @@ export function SettingsPage() {
       autoFlagEnabled,
       allowSelfPlacement,
       maxSupervisorLoad: parseInt(maxSupervisorLoad) || 8,
+      deptMaxLoad: parseInt(deptMaxLoad) || 8,
+      deptDeadline,
     });
-    toast.success("Attachment rules saved and applied system-wide.");
+    toast.success("Attachment rules saved.");
   };
 
-  const handleExport = (type: string) => {
-    const state = getState();
+  const handleExport = async (type: string) => {
+    let rows: Record<string, unknown>[] = [];
+    let filename = "";
+
     switch (type) {
-      case "Export All Applications":
-        exportToCSV(state.applications.map(a => ({ Student: a.studentName, ID: a.studentId, Department: a.department, Company: a.companyName, Status: a.status, Grade: a.grade || "N/A" })), "applications");
+      case "Export All Applications": {
+        const res = await apiClient.getApplications({ per_page: 1000 });
+        if (!res.success) return toast.error("Failed to load applications.");
+        rows = res.data.map((a: any) => ({
+          Student: a.student?.user?.name ?? a.student?.name ?? a.studentName ?? "",
+          ID: a.student?.student_id ?? a.studentId ?? "",
+          Department: a.student?.department?.name ?? a.student?.department ?? a.department ?? "",
+          Company: a.company?.name ?? a.companyName ?? "",
+          Status: a.status ?? "",
+          "Date Applied": a.created_at ?? a.dateApplied ?? "",
+        }));
+        filename = "applications";
         break;
-      case "Export Grade Reports":
-        exportToCSV(state.applications.filter(a => a.grade).map(a => ({ Student: a.studentName, ID: a.studentId, Department: a.department, Grade: a.grade!, GradeStatus: a.gradeStatus || "N/A" })), "grade_reports");
+      }
+      case "Export Grade Reports": {
+        const res = await apiClient.getGrades({ per_page: 1000 });
+        if (!res.success) return toast.error("Failed to load grade reports.");
+        rows = res.data.map((g: any) => ({
+          Student: g.internship?.student?.user?.name ?? "",
+          ID: g.internship?.student?.student_id ?? "",
+          Department: g.internship?.student?.department?.name ?? "",
+          Company: g.internship?.company?.name ?? "",
+          Score: g.total_score ?? "",
+          Grade: g.letter_grade ?? "",
+          Status: g.status ?? "",
+        }));
+        filename = "grade_reports";
         break;
-      case "Export Company Registry":
-        exportToCSV(state.companies.map(c => ({ Name: c.name, Industry: c.industry, Status: c.status, Contact: c.contactPerson, Email: c.contactEmail, Department: c.department })), "companies");
+      }
+      case "Export Company Registry": {
+        const res = await apiClient.getCompanies({ per_page: 1000 });
+        if (!res.success) return toast.error("Failed to load companies.");
+        rows = res.data.map((c: any) => ({
+          Name: c.name,
+          Industry: c.industry ?? "",
+          Status: c.status ?? "",
+          "Approval Status": c.approval_status ?? "",
+          "Contact Person": c.contact_person_name ?? "",
+          Email: c.contact_person_email ?? c.email ?? "",
+          Region: c.region ?? "",
+        }));
+        filename = "companies";
         break;
-      case "Export Audit Logs":
-        exportToCSV(state.auditLogs.map(l => ({ User: l.user, Action: l.action, Target: l.target, Timestamp: l.timestamp, Details: l.details || "" })), "audit_logs");
+      }
+      case "Export Audit Logs": {
+        const res = await apiClient.getAuditLogs({ per_page: 1000 });
+        if (!res.success) return toast.error("Failed to load audit logs.");
+        rows = res.data.map((l: any) => ({
+          User: l.user?.name ?? "System",
+          Action: l.action ?? "",
+          Target: l.auditable_type ? `${String(l.auditable_type).split("\\").pop()} #${l.auditable_id ?? ""}` : "",
+          Timestamp: l.created_at ?? "",
+          Details: l.description ?? "",
+        }));
+        filename = "audit_logs";
         break;
+      }
     }
+
+    if (rows.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+
+    exportToCSV(rows, filename);
     toast.success(`${type} downloaded.`);
   };
 
@@ -119,7 +181,6 @@ export function SettingsPage() {
     { key: "general", label: "General", icon: Settings2, roles: ["clo", "dlo"] },
     { key: "grading", label: "Grading Configuration", icon: SlidersHorizontal, roles: ["clo", "dlo", "hod"] },
     { key: "notifications", label: "Notifications", icon: Bell, roles: ["clo", "dlo", "student", "supervisor", "academic", "hod"] },
-    { key: "security", label: "Security", icon: Shield, roles: ["clo", "dlo"] },
     { key: "system", label: "System", icon: Database, roles: ["clo"] },
   ];
 
@@ -264,7 +325,7 @@ export function SettingsPage() {
                   <input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background" style={{ fontSize: "0.85rem" }} />
                 </div>
               </div>
-              <button onClick={() => toast.success("University settings saved.")} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2" style={{ fontSize: "0.85rem" }}>
+              <button onClick={handleSaveGeneral} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2" style={{ fontSize: "0.85rem" }}>
                 <Save className="w-4 h-4" /> Save Changes
               </button>
             </div>
@@ -432,91 +493,6 @@ export function SettingsPage() {
           <button onClick={handleSaveNotifications} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2" style={{ fontSize: "0.85rem" }}>
             <Save className="w-4 h-4" /> Save Preferences
           </button>
-        </div>
-      )}
-
-      {/* Security Tab */}
-      {activeTab === "security" && (
-        <div className="space-y-4">
-          <div className="bg-card rounded-2xl p-6 space-y-4">
-            <h3 className="flex items-center gap-2"><Lock className="w-5 h-5 text-primary" /> Authentication</h3>
-            <div className="space-y-3">
-              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" />
-                <div>
-                  <p style={{ fontSize: "0.85rem" }}>Google SSO Enabled</p>
-                  <p className="text-emerald-700 dark:text-emerald-400" style={{ fontSize: "0.8rem" }}>All @htu.edu.gh accounts authenticate via Google Single Sign-On.</p>
-                </div>
-              </div>
-              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-start gap-3">
-                <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
-                <div>
-                  <p style={{ fontSize: "0.85rem" }}>Magic Links for External Supervisors</p>
-                  <p className="text-blue-700 dark:text-blue-400" style={{ fontSize: "0.8rem" }}>Industry supervisors access the system via secure, time-limited magic links.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-2xl p-6 space-y-4">
-            <h3 className="flex items-center gap-2"><Shield className="w-5 h-5 text-primary" /> Session & Access</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                <div>
-                  <p style={{ fontSize: "0.85rem" }}>Session Timeout</p>
-                  <p className="text-muted-foreground" style={{ fontSize: "0.75rem" }}>Automatically log out after inactivity</p>
-                </div>
-                <select className="px-3 py-2 border border-border rounded-lg bg-background" style={{ fontSize: "0.85rem" }}>
-                  <option>30 minutes</option>
-                  <option>1 hour</option>
-                  <option>2 hours</option>
-                  <option>4 hours</option>
-                </select>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                <div>
-                  <p style={{ fontSize: "0.85rem" }}>Magic Link Expiry</p>
-                  <p className="text-muted-foreground" style={{ fontSize: "0.75rem" }}>How long supervisor magic links remain valid</p>
-                </div>
-                <select className="px-3 py-2 border border-border rounded-lg bg-background" style={{ fontSize: "0.85rem" }}>
-                  <option>24 hours</option>
-                  <option>48 hours</option>
-                  <option>7 days</option>
-                  <option>30 days</option>
-                </select>
-              </div>
-            </div>
-            <button onClick={() => toast.success("Security settings saved.")} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2" style={{ fontSize: "0.85rem" }}>
-              <Save className="w-4 h-4" /> Save Security Settings
-            </button>
-          </div>
-
-          <div className="bg-card rounded-2xl p-6 space-y-4">
-            <h3>Active Sessions</h3>
-            <div className="space-y-2">
-              {[
-                { device: "Chrome on Windows", ip: "41.215.xx.xx", location: "Ho, Ghana", time: "Current session", current: true },
-                { device: "Safari on iPhone", ip: "41.215.xx.xx", location: "Ho, Ghana", time: "2 hours ago", current: false },
-              ].map((s, i) => (
-                <div key={i} className={`p-3 rounded-lg border ${s.current ? "border-primary/30 bg-primary/5" : "border-border"} flex items-center justify-between`}>
-                  <div className="flex items-center gap-3">
-                    <Monitor className="w-5 h-5 text-muted-foreground" />
-                    <div>
-                      <p style={{ fontSize: "0.85rem" }}>{s.device}</p>
-                      <p className="text-muted-foreground" style={{ fontSize: "0.75rem" }}>{s.ip} · {s.location} · {s.time}</p>
-                    </div>
-                  </div>
-                  {s.current ? (
-                    <span className="px-2.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-full" style={{ fontSize: "0.7rem" }}>Current</span>
-                  ) : (
-                    <button onClick={() => toast.success("Session revoked.")} className="px-3 py-1 text-destructive border border-destructive/30 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30" style={{ fontSize: "0.75rem" }}>
-                      Revoke
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 

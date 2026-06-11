@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
-import { getCompiledGrade, getActiveConfig } from "../../services/grading-service";
 import { GradeBreakdownCard } from "../../components/grading/grade-breakdown-card";
+import { DEFAULT_STRUCTURE, DEFAULT_STRUCTURE_WEIGHTS, DEFAULT_SECTION_WEIGHTS } from "../../lib/constants";
+import type { CompiledGrade, CompiledGradeStatus } from "../../types/grading";
 import { ChevronLeft, Building2, ClipboardCheck, BookMarked, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { SkeletonDashboard } from "../../components/skeleton";
@@ -49,6 +50,8 @@ export function AcademicEvaluatePage() {
   // ── Per-student data loaded when a student is selected ──
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [siteVisitNotes, setSiteVisitNotes] = useState<any[]>([]);
+  const [gradeData, setGradeData] = useState<any>(null);
+  const [activeStructure, setActiveStructure] = useState<string | null>(null);
 
   // ── Navigation ──
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
@@ -108,12 +111,36 @@ export function AcademicEvaluatePage() {
     if (selectedStudent) {
       setAttendanceRecords([]);
       setSiteVisitNotes([]);
+      setGradeData(null);
       loadSelectedStudentData(selectedStudent);
+      apiClient.getGrade(selectedStudent).then((res) => {
+        setGradeData(res.success ? res.data?.grade ?? null : null);
+      });
     }
   }, [selectedStudent, loadSelectedStudentData]);
 
   const student = assignedStudents.find((s) => s.id === selectedStudent);
   const logbookEntries = student ? (logbookEntriesByStudent[student.id] ?? []) : [];
+
+  // Department's active grading structure — fall back to fetching it directly
+  // when the final grade hasn't been compiled yet (gradeData is null).
+  useEffect(() => {
+    if (!student) { setActiveStructure(null); return; }
+    if (gradeData?.grading_configuration?.structure) {
+      setActiveStructure(gradeData.grading_configuration.structure);
+      return;
+    }
+    let cancelled = false;
+    apiClient.getActiveTerm().then((termRes) => {
+      const termId = termRes.success ? termRes.data?.term?.id : undefined;
+      apiClient.getGradingConfigs({ department: student.department, ...(termId ? { term_id: termId } : {}) }).then((res) => {
+        if (cancelled) return;
+        const active = res.success ? res.data.find((c: any) => c.status === "active") : undefined;
+        setActiveStructure(active?.structure ?? null);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [student?.department, gradeData]);
 
   // Logbook stats
   const approvedCount  = logbookEntries.filter((l: any) => l.status === "approved").length;
@@ -297,8 +324,34 @@ export function AcademicEvaluatePage() {
 
       {/* ── TAB: EVALUATION ── */}
       {activeTab === "evaluation" && student && (() => {
-        const config = getActiveConfig(student.department);
-        const compiled = getCompiledGrade(student.id);
+        const cfg = gradeData?.grading_configuration;
+        const backendStatus = gradeData?.status ?? "draft";
+        const status: CompiledGradeStatus =
+          backendStatus === "calculated" ? "Submitted" :
+          (backendStatus === "approved" || backendStatus === "published") ? "Approved" : "Pending";
+
+        const compiled: CompiledGrade | null = gradeData && cfg ? {
+          applicationId: student.id,
+          components: {
+            industrial: cfg.industrial_assessment_max ? (gradeData.industrial_assessment_score / cfg.industrial_assessment_max) * 100 : undefined,
+            departmental: cfg.site_visitation_max ? (gradeData.site_visitation_score / cfg.site_visitation_max) * 100 : undefined,
+            report: cfg.report_max ? (gradeData.report_score / cfg.report_max) * 100 : undefined,
+            presentation: cfg.presentation_max ? (gradeData.presentation_score / cfg.presentation_max) * 100 : undefined,
+          },
+          configSnapshot: {
+            id: String(cfg.id ?? ""),
+            departmentId: student.department,
+            termId: String(cfg.academic_term_id ?? ""),
+            structure: cfg.structure ?? DEFAULT_STRUCTURE,
+            structureWeights: cfg.structure_weights ?? DEFAULT_STRUCTURE_WEIGHTS,
+            sectionWeights: cfg.section_weights ?? DEFAULT_SECTION_WEIGHTS,
+            status: "active",
+            createdBy: "", createdAt: "", updatedBy: "", updatedAt: "",
+          },
+          finalPercent: gradeData.total_score ?? null,
+          status,
+          updatedAt: gradeData.calculated_at ?? gradeData.updated_at ?? "",
+        } : null;
 
         return (
           <div className="space-y-6">
@@ -315,7 +368,9 @@ export function AcademicEvaluatePage() {
                 Once all your scores are submitted, the DLO will compile them with the Industrial Assessment (40% from company supervisor) and publish the final grade.
               </p>
               <p className="text-blue-700 dark:text-blue-400 mt-2" style={{ fontSize: "0.75rem" }}>
-                Department uses Structure {config.structure}. The breakdown below shows all components once available.
+                {activeStructure
+                  ? <>Department uses Structure {activeStructure}. The breakdown below shows all components once available.</>
+                  : "Grading structure not yet configured for this department."}
               </p>
             </div>
 

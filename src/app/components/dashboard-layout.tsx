@@ -12,7 +12,6 @@ import { useState, useEffect, useSyncExternalStore, useRef } from "react";
 import type { ExtendedRole } from "../services/auth-service";
 import { getSettings, updateSettings, subscribeSettings } from "../lib/settings-store";
 import { setNotifications } from "../lib/store";
-import { getOverdueWeeklyRubrics } from "../services/grading-service";
 import { CheckInModal } from "./check-in-modal";
 import { NotificationBell } from "./notification-bell";
 import { useStudentCheckIn } from "../hooks/use-student-check-in";
@@ -120,6 +119,33 @@ function getNavForRole(role: ExtendedRole): NavItem[] {
   }
 }
 
+function toIsoDate(value: unknown): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number): Date {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
+function buildWeekRanges(startIso: string, endIso: string): Array<{ weekNumber: number; weekEnd: string }> {
+  const weeks: Array<{ weekNumber: number; weekEnd: string }> = [];
+  let cursor = new Date(startIso);
+  const end = new Date(endIso);
+  let weekNumber = 1;
+  while (cursor <= end) {
+    const weekEnd = addDays(cursor, 6);
+    weeks.push({ weekNumber, weekEnd: (weekEnd > end ? end : weekEnd).toISOString().slice(0, 10) });
+    cursor = addDays(cursor, 7);
+    weekNumber += 1;
+  }
+  return weeks;
+}
+
 function getRoleLabel(role: ExtendedRole): string {
   switch (role) {
     case "clo": return "Central Liaison";
@@ -138,8 +164,33 @@ export function DashboardLayout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [checkInModalOpen, setCheckInModalOpen] = useState(false);
+  const [overdueRubricsCount, setOverdueRubricsCount] = useState(0);
   const navigate = useNavigate();
   const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user?.role !== "supervisor") return;
+    let cancelled = false;
+    apiClient.getDashboard("industry-supervisor").then(async (res) => {
+      if (cancelled || !res.success) return;
+      const internships = res.data?.assigned_internships ?? [];
+      const today = new Date().toISOString().slice(0, 10);
+      let overdue = 0;
+      for (const item of internships) {
+        const internshipId = String(item?.id ?? item?.internship_id ?? "");
+        const startIso = toIsoDate(item?.confirmed_start_date ?? item?.start_date);
+        const endIso = toIsoDate(item?.confirmed_end_date ?? item?.end_date);
+        if (!internshipId || !startIso || !endIso) continue;
+        const weeks = buildWeekRanges(startIso, endIso);
+        const rubricsRes = await apiClient.getWeeklyRubrics(internshipId);
+        if (cancelled) return;
+        const filledWeeks = new Set((rubricsRes.success ? rubricsRes.data : []).map((r) => r.week_number));
+        overdue += weeks.filter((w) => w.weekEnd < today && !filledWeeks.has(w.weekNumber)).length;
+      }
+      if (!cancelled) setOverdueRubricsCount(overdue);
+    });
+    return () => { cancelled = true; };
+  }, [user?.role, user?.id]);
 
   const {
     activeInternship,
@@ -174,14 +225,9 @@ export function DashboardLayout() {
   const nav = getNavForRole(user.role);
   const unread = store.notifications.filter((n) => !n.read).length + (store.announcementUnread ?? 0);
 
-  // Per-role nav badges. Recomputed on every store change because `store` is reactive.
+  // Per-role nav badges.
   const navBadges: Record<NonNullable<NavItem["badgeKey"]>, number> = {
-    supervisorOverdueRubrics:
-      user.role === "supervisor"
-        // Touch the slices we care about so the count refreshes when entries are added/applications change.
-        ? (store.weeklyRubrics.length, store.applications.length,
-          getOverdueWeeklyRubrics({ companyName: "Ghana Telecom Ltd" }).length)
-        : 0,
+    supervisorOverdueRubrics: user.role === "supervisor" ? overdueRubricsCount : 0,
   };
 
   const handleLogout = () => {

@@ -5,8 +5,6 @@ import { exportToCSV } from "../../lib/csv-export";
 import { useState, useEffect, useCallback } from "react";
 import { StatusBadge } from "../../components/status-badge";
 import { useAppContext } from "../../lib/context";
-import { departments } from "../../lib/mock-data";
-import { hasActiveConfig } from "../../services/grading-service";
 import { AlertTriangle } from "lucide-react";
 import { CheckCircle2, RotateCcw, Search, Download, FileText, Clock, BarChart3, Eye, X } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -50,6 +48,8 @@ export function GradesPage({ viewRole }: Props) {
   const [deptFilter, setDeptFilter] = useState("All");
   const [activeTab, setActiveTab] = useState<GradeTab>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [hasActiveConfig, setHasActiveConfig] = useState(true);
   const department = viewRole === "dlo" ? user?.department : undefined;
 
   const fetchGrades = useCallback(async () => {
@@ -60,6 +60,28 @@ export function GradesPage({ viewRole }: Props) {
   }, []);
 
   useEffect(() => { fetchGrades(); }, [fetchGrades]);
+
+  useEffect(() => {
+    if (viewRole === "clo") {
+      apiClient.getDepartments().then((res) => {
+        if (res.success) setDepartments(res.data.map((d: any) => d.name).filter(Boolean));
+      });
+    }
+  }, [viewRole]);
+
+  useEffect(() => {
+    if (viewRole !== "dlo" || !department) return;
+    let cancelled = false;
+    apiClient.getActiveTerm().then((termRes) => {
+      const termId = termRes.success ? termRes.data?.term?.id : undefined;
+      apiClient.getGradingConfigs({ department, ...(termId ? { term_id: termId } : {}) }).then((res) => {
+        if (cancelled) return;
+        const active = res.success && res.data.some((c: any) => c.status === "active");
+        setHasActiveConfig(active);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [viewRole, department]);
 
   const gradeApps = rawGrades
     .map(normalizeGrade)
@@ -165,7 +187,7 @@ export function GradesPage({ viewRole }: Props) {
       </div>
 
       {loading && <SkeletonList rows={5} />}
-      {viewRole === "dlo" && department && !hasActiveConfig(department) && (
+      {viewRole === "dlo" && department && !hasActiveConfig && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <p className="text-amber-800" style={{ fontSize: "0.85rem" }}>

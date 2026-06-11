@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { GradingConfigForm } from "../../components/grading/grading-config-form";
 import { useAppContext } from "../../lib/context";
 import { apiClient } from "../../lib/api-client";
-import { departments } from "../../lib/mock-data";
 import { DEFAULT_STRUCTURE, DEFAULT_STRUCTURE_WEIGHTS, DEFAULT_SECTION_WEIGHTS } from "../../lib/constants";
 import type { GradingActor } from "../../types/grading";
 import { Send, RefreshCw, Loader2 } from "lucide-react";
@@ -25,7 +24,8 @@ import {
 
 export function CLOGradingConfigPage() {
   const { user } = useAppContext();
-  const [department, setDepartment] = useState<string>(departments[0]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [department, setDepartment] = useState<string>("");
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,6 +34,15 @@ export function CLOGradingConfigPage() {
   useEffect(() => {
     apiClient.getActiveTerm().then((res) => {
       if (res.success) setActiveTermId(res.data?.term?.id);
+    });
+    apiClient.getDepartments().then((res) => {
+      if (res.success) {
+        const names = res.data.map((d: any) => d.name).filter(Boolean);
+        setDepartments(names);
+        setDepartment((current) => current || names[0] || "");
+      } else {
+        setLoading(false);
+      }
     });
   }, []);
 
@@ -58,6 +67,7 @@ export function CLOGradingConfigPage() {
   };
 
   useEffect(() => {
+    if (!department) return;
     fetchConfig(department);
   }, [department, activeTermId]);
 
@@ -177,9 +187,12 @@ export function CLOGradingConfigPage() {
         <div className="flex justify-end gap-3">
           <Button
             variant="outline"
-            disabled={config?.status !== "draft" || isPending || isSubmitting}
+            disabled={!config?.id || config?.status !== "draft" || isPending || isSubmitting}
             onClick={async () => {
-              if (!config?.id) return;
+              if (!config?.id) {
+                toast.error("Save a draft before submitting for approval.");
+                return;
+              }
               setIsSubmitting(true);
               const res = await apiClient.submitGradingConfigForApproval(config.id);
               if (res.success) {
