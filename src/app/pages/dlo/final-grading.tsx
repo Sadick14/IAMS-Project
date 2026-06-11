@@ -8,6 +8,7 @@ import { apiClient } from "../../lib/api-client";
 
 interface Row {
   internshipId: string;
+  gradeId: string | null;
   studentName: string;
   studentId: string;
   companyName: string;
@@ -49,6 +50,7 @@ export function DLOFinalGradingPage() {
         const g = gradeByInternship.get(String(i.id));
         return {
           internshipId: String(i.id),
+          gradeId: g?.id != null ? String(g.id) : null,
           studentName: i.student?.user?.name ?? "—",
           studentId: i.student?.student_id ?? "—",
           companyName: i.company?.name ?? "—",
@@ -192,16 +194,16 @@ export function DLOFinalGradingPage() {
                             : <><GraduationCap className="w-3.5 h-3.5" /> Compile</>}
                         </button>
                       ) : r.gradeStatus === "calculated" ? (
-                        <button onClick={() => handleApprove(r.internshipId)} disabled={approving === r.internshipId}
+                        <button onClick={() => handleApprove(r.gradeId!)} disabled={approving === r.gradeId}
                           className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5" style={{ fontSize: "0.8rem" }}>
-                          {approving === r.internshipId
+                          {approving === r.gradeId
                             ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Approving…</>
                             : <><CheckCircle2 className="w-3.5 h-3.5" /> Approve</>}
                         </button>
                       ) : r.gradeStatus === "approved" ? (
-                        <button onClick={() => handlePublish(r.internshipId)} disabled={publishing === r.internshipId}
+                        <button onClick={() => handlePublish(r.gradeId!)} disabled={publishing === r.gradeId}
                           className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5" style={{ fontSize: "0.8rem" }}>
-                          {publishing === r.internshipId
+                          {publishing === r.gradeId
                             ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Publishing…</>
                             : <><Send className="w-3.5 h-3.5" /> Publish</>}
                         </button>
