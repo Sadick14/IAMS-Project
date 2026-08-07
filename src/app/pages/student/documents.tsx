@@ -19,6 +19,8 @@ export function DocumentsPage() {
   const { user } = useAppContext();
   const [myApp, setMyApp] = useState<any | null>(null);
   const [internshipId, setInternshipId] = useState<string | null>(null);
+  const [internshipStatus, setInternshipStatus] = useState<string | null>(null);
+  const [isInternshipEnded, setIsInternshipEnded] = useState<boolean>(false);
   const [currentCompanyName, setCurrentCompanyName] = useState<string>("Company");
   const [terms, setTerms] = useState<any[]>([]);
   const [customTemplates, setCustomTemplates] = useState<any[]>([]);
@@ -82,7 +84,14 @@ export function DocumentsPage() {
         const sorted = [...res.data].sort((a, b) => (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1);
         const internship = sorted[0];
         setInternshipId(String(internship.id));
+        setInternshipStatus(internship.status || null);
         setCurrentCompanyName(internship.company?.name || internship.companyName || "Company");
+
+        const ended = Boolean(
+          internship.status === "completed" ||
+          (internship.end_date && new Date(internship.end_date).toISOString().split("T")[0] < new Date().toISOString().split("T")[0])
+        );
+        setIsInternshipEnded(ended);
 
         if (internship.final_report_url) {
           setFinalReportUrl(internship.final_report_url);
@@ -104,9 +113,12 @@ export function DocumentsPage() {
   const [supervisorInviteSent, setSupervisorInviteSent] = useState(false);
 
 
+  const hasActiveInternship = !!internshipId && internshipStatus?.toLowerCase() === "active" && !isInternshipEnded;
+  const hasCompletedInternship = !!internshipId && (internshipStatus?.toLowerCase() === "completed" || isInternshipEnded);
+
   const isApproved = !!(myApp?.status && ["approved", "active", "completed", "company accepted", "company_accepted"].includes(myApp.status.toLowerCase()));
-  const isActive = myApp?.status?.toLowerCase() === "active";
-  const isCompleted = myApp?.status?.toLowerCase() === "completed";
+  const isActive = myApp?.status?.toLowerCase() === "active" || hasActiveInternship;
+  const isCompleted = myApp?.status?.toLowerCase() === "completed" || hasCompletedInternship;
   const needsAcceptance = myApp?.status?.toLowerCase() === "approved";
 
   const handleDownloadPlacementLetter = () => {
