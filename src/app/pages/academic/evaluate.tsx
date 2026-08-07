@@ -39,7 +39,7 @@ function normalizeVisitToNote(v: any) {
 }
 
 export function AcademicEvaluatePage() {
-  const { user } = useAppContext();
+  const { user, selectedTermId } = useAppContext();
 
   // ── Dashboard data ──
   const [dashboard, setDashboard] = useState<any>(null);
@@ -61,7 +61,8 @@ export function AcademicEvaluatePage() {
 
   // Load dashboard
   useEffect(() => {
-    apiClient.getDashboard("academic-supervisor").then((res) => {
+    const termFilter = selectedTermId ? { academic_term_id: Number(selectedTermId), term_id: Number(selectedTermId) } : {};
+    apiClient.getDashboard("academic-supervisor", termFilter).then((res) => {
       if (res.success) setDashboard(res.data);
       setLoading(false);
     });
@@ -70,19 +71,33 @@ export function AcademicEvaluatePage() {
         localStorage.setItem(`evals_dismissed_${user.id}`, "true");
       } catch {}
     }
-  }, [user?.id]);
+  }, [user?.id, selectedTermId]);
 
   // Derive assigned students from dashboard internships
-  const assignedStudents: NormalizedStudent[] = (dashboard?.assigned_internships ?? []).map(
-    (i: any): NormalizedStudent => ({
-      id: String(i.id),
-      studentName: i.student?.user?.name ?? "—",
-      studentId: i.student?.student_id ?? "—",
-      department: i.student?.department?.name ?? "—",
-      companyName: i.company?.name ?? "—",
-      status: i.status === "active" ? "Active" : "Pending",
-    })
-  );
+  const assignedStudents: NormalizedStudent[] = (dashboard?.assigned_internships ?? [])
+    .filter((i: any) => !selectedTermId || String(i.academic_term_id ?? i.term_id ?? i.term?.id) === String(selectedTermId))
+    .map(
+      (i: any): NormalizedStudent => ({
+        id: String(i.id),
+        studentName: i.student?.user?.name ?? "—",
+        studentId: i.student?.student_id ?? "—",
+        department: i.student?.department?.name ?? "—",
+        companyName: i.company?.name ?? "—",
+        status: i.status === "active" ? "Active" : "Pending",
+      })
+    );
+
+  // Reset selected student if they are no longer in the filtered workspace student list
+  useEffect(() => {
+    if (selectedStudent && assignedStudents.length > 0) {
+      const exists = assignedStudents.some((s) => s.id === selectedStudent);
+      if (!exists) {
+        setSelectedStudent(null);
+      }
+    } else if (assignedStudents.length === 0) {
+      setSelectedStudent(null);
+    }
+  }, [assignedStudents, selectedStudent]);
 
   // Fetch logbook entries for all assigned students, keyed by internship id
   useEffect(() => {

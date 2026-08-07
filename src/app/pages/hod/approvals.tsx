@@ -4,6 +4,7 @@ import { StatusBadge } from "../../components/status-badge";
 import { GraduationCap, ChevronDown, ChevronUp } from "lucide-react";
 import { apiClient } from "../../lib/api-client";
 import { getNameInitials } from "../../lib/validation";
+import { useAppContext } from "../../lib/context";
 
 type FilterTab = "pending" | "approved" | "all";
 
@@ -28,6 +29,7 @@ function normalizeGrade(g: any) {
 }
 
 export function HODApprovalsPage() {
+  const { selectedTermId } = useAppContext();
   const [grades, setGrades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>("pending");
@@ -35,12 +37,25 @@ export function HODApprovalsPage() {
 
   const fetchGrades = useCallback(async () => {
     setLoading(true);
-    const res = await apiClient.getGrades({ per_page: 100 });
-    if (res.success) setGrades(res.data.map(normalizeGrade));
+    const filters: any = { per_page: 100 };
+    if (selectedTermId) {
+      filters.academic_term_id = Number(selectedTermId);
+    }
+    const res = await apiClient.getGrades(filters);
+    if (res.success) {
+      const data = res.data;
+      const filteredData = selectedTermId
+        ? data.filter((g: any) => {
+            const termId = g.academic_term_id ?? g.term_id ?? g.term?.id ?? g.internship?.academic_term_id ?? g.internship?.term_id ?? g.internship?.term?.id;
+            return String(termId) === String(selectedTermId);
+          })
+        : data;
+      setGrades(filteredData.map(normalizeGrade));
+    }
     setLoading(false);
-  }, []);
+  }, [selectedTermId]);
 
-  useEffect(() => { fetchGrades(); }, [fetchGrades]);
+  useEffect(() => { fetchGrades(); }, [fetchGrades, selectedTermId]);
 
   const pendingApproval = grades.filter((g) => g.gradeStatus === "Submitted");
   const approvedGrades  = grades.filter((g) => g.gradeStatus === "Approved" || g.gradeStatus === "Published");

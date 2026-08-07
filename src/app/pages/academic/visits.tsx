@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { MapPin, Plus } from "lucide-react";
 import { apiClient } from "../../lib/api-client";
 import { useToastAction } from "../../lib/hooks";
+import { useAppContext } from "../../lib/context";
 
 import { ScheduleVisitModal } from "../../components/academic/schedule-visit-modal";
 import { RescheduleVisitModal } from "../../components/academic/reschedule-visit-modal";
@@ -30,6 +31,7 @@ function normalizeVisit(v: any) {
 }
 
 export function AcademicVisitsPage() {
+  const { selectedTermId } = useAppContext();
   const [visits, setVisits] = useState<any[]>([]);
   const [internships, setInternships] = useState<any[]>([]);
   const [filter, setFilter] = useState<FilterStatus>("All");
@@ -39,15 +41,38 @@ export function AcademicVisitsPage() {
   const [rescheduleVisitId, setRescheduleVisitId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    const filters: any = {};
+    if (selectedTermId) {
+      filters.academic_term_id = Number(selectedTermId);
+      filters.term_id = Number(selectedTermId);
+    }
     const [visitsRes, internshipsRes] = await Promise.all([
-      apiClient.getSiteVisitations({ per_page: 100 }),
-      apiClient.getActiveInternships(),
+      apiClient.getSiteVisitations({ per_page: 100, ...filters }),
+      apiClient.getActiveInternships(filters),
     ]);
-    if (visitsRes.success) setVisits(visitsRes.data.map(normalizeVisit));
-    if (internshipsRes.success) setInternships(internshipsRes.data);
-  }, []);
+    if (visitsRes.success) {
+      const data = visitsRes.data;
+      const filteredData = selectedTermId
+        ? data.filter((v: any) => {
+            const termId = v.academic_term_id ?? v.term_id ?? v.term?.id ?? v.internship?.academic_term_id ?? v.internship?.term_id ?? v.internship?.term?.id;
+            return String(termId) === String(selectedTermId);
+          })
+        : data;
+      setVisits(filteredData.map(normalizeVisit));
+    }
+    if (internshipsRes.success) {
+      const data = internshipsRes.data;
+      const filteredData = selectedTermId
+        ? data.filter((i: any) => {
+            const termId = i.academic_term_id ?? i.term_id ?? i.term?.id;
+            return String(termId) === String(selectedTermId);
+          })
+        : data;
+      setInternships(filteredData);
+    }
+  }, [selectedTermId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData, selectedTermId]);
 
   // Build student dropdown — value is the internship id (what the backend needs)
   const assignedStudents = internships.map((i: any) => ({

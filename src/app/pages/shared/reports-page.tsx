@@ -19,6 +19,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function ReportsPage({ viewRole }: Props) {
+  const { selectedTermId } = useAppContext();
   const [activeTab, setActiveTab] = useState<ReportTab>("overview");
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<any>(null);
@@ -31,14 +32,17 @@ export function ReportsPage({ viewRole }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const termIdNum = selectedTermId ? Number(selectedTermId) : undefined;
+      const termFilter = termIdNum ? { term_id: termIdNum, academic_term_id: termIdNum } : {};
+
       const [ovRes, progRes, deptRes, perfRes, coRes, supRes] = await Promise.all([
-        apiClient.getAnalyticsOverview(),
-        apiClient.getInternshipProgress(),
-        apiClient.getDepartmentStatistics(),
-        apiClient.getStudentPerformance(),
+        apiClient.getAnalyticsOverview(termIdNum),
+        apiClient.getInternshipProgress(termFilter),
+        apiClient.getDepartmentStatistics(termFilter),
+        apiClient.getStudentPerformance(termFilter),
         apiClient.getCompanies({ per_page: 200 }),
         // Graceful: CLO/DLO only — HOD will get 403 and supRes.success=false
-        apiClient.getAvailableSupervisors().catch(() => ({ success: false, data: [] })),
+        apiClient.getAvailableSupervisors(termFilter).catch(() => ({ success: false, data: [] })),
       ]);
       if (ovRes.success)   setOverview(ovRes.data);
       if (progRes.success) setProgress(progRes.data);
@@ -51,9 +55,9 @@ export function ReportsPage({ viewRole }: Props) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedTermId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, selectedTermId]);
 
   const sys = overview?.system_overview ?? {};
   const deptBreakdown: any[] = overview?.department_breakdown ?? [];
