@@ -17,7 +17,7 @@ function getCompanyName(i: any) { return i.company?.name ?? "—"; }
 function getDept(i: any)        { return i.student?.department?.name ?? "—"; }
 
 export function AcademicDashboard() {
-  const { user } = useAppContext();
+  const { user, selectedTermId } = useAppContext();
   const navigate = useNavigate();
 
   const [dashboard, setDashboard] = useState<any>(null);
@@ -42,7 +42,13 @@ export function AcademicDashboard() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  const internships: any[]    = dashboard?.assigned_internships ?? [];
+  const allInternships: any[]    = dashboard?.assigned_internships ?? [];
+  const internships = selectedTermId
+    ? allInternships.filter(
+        (i: any) =>
+          String(i.academic_term_id ?? i.term_id ?? i.term?.id) === String(selectedTermId)
+      )
+    : allInternships;
   const pendingLogbooks: any[] = dashboard?.pending_logbooks     ?? [];
   const upcomingVisits: any[]  = dashboard?.upcoming_visitations ?? [];
 

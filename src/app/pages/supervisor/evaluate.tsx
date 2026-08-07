@@ -90,7 +90,7 @@ function getCurrentWeekNumberFromWeeks(weeks: Array<{ weekNumber: number; weekSt
 }
 
 export function EvaluatePage() {
-  const { user } = useAppContext();
+  const { user, selectedTermId } = useAppContext();
   const [assignedInternships, setAssignedInternships] = useState<any[]>([]);
   const [rubricsByWeek, setRubricsByWeek] = useState<Record<number, { ratings: Record<string, string>; notes: string }>>({});
   const [assessmentsByInternship, setAssessmentsByInternship] = useState<Record<string, any>>({});
@@ -102,16 +102,22 @@ export function EvaluatePage() {
 
   useEffect(() => {
     let cancelled = false;
-    apiClient.getDashboard("industry-supervisor").then((res) => {
+    const termFilter = selectedTermId ? { academic_term_id: Number(selectedTermId), term_id: Number(selectedTermId) } : {};
+    apiClient.getDashboard("industry-supervisor", termFilter).then((res) => {
       if (!cancelled && res.success) {
         // Backend already scopes assigned_internships to this supervisor
         setAssignedInternships(res.data?.assigned_internships ?? []);
       }
     });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, selectedTermId]);
 
-  const activeApps = assignedInternships;
+  const activeApps = selectedTermId
+    ? assignedInternships.filter(
+        (i: any) =>
+          String(i.academic_term_id ?? i.term_id ?? i.term?.id) === String(selectedTermId)
+      )
+    : assignedInternships;
 
   const initialAppId = params.get("student") || getInternshipId(activeApps[0]) || "";
   const [appId, setAppId] = useState<string>(initialAppId);
@@ -120,7 +126,14 @@ export function EvaluatePage() {
   // SECURITY: Backend filters by supervisor_id parameter
 
   useEffect(() => {
-    if (!appId && activeApps.length > 0) setAppId(getInternshipId(activeApps[0]));
+    if (activeApps.length > 0) {
+      const exists = activeApps.some((a) => getInternshipId(a) === appId);
+      if (!exists) {
+        setAppId(getInternshipId(activeApps[0]));
+      }
+    } else {
+      setAppId("");
+    }
   }, [activeApps, appId]);
 
   useEffect(() => {

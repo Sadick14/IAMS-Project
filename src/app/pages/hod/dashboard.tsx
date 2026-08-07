@@ -15,7 +15,7 @@ function getStudentName(g: any) { return g.internship?.student?.user?.name ?? g.
 function getStudentNum(g: any)  { return g.internship?.student?.student_id ?? g.student?.student_id ?? "—"; }
 
 export function HODDashboard() {
-  const { user } = useAppContext();
+  const { user, selectedTermId } = useAppContext();
   const navigate = useNavigate();
   const dept = user?.department || "";
   const deptId = user?.department_id;
@@ -23,6 +23,12 @@ export function HODDashboard() {
   const [dashboard, setDashboard] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [pendingGrades, setPendingGrades] = useState<any[]>([]);
+  const filteredGrades = selectedTermId
+    ? pendingGrades.filter(
+        (g: any) =>
+          String(g.academic_term_id ?? g.term_id ?? g.term?.id ?? g.internship?.academic_term_id ?? g.internship?.term_id ?? g.internship?.term?.id) === String(selectedTermId)
+      )
+    : pendingGrades;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -266,7 +272,7 @@ export function HODDashboard() {
       )}
 
       {/* Pending Grades Quick View */}
-      {pendingGrades.length > 0 && (
+      {filteredGrades.length > 0 && (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h3 className="flex items-center gap-2"><Clock className="w-4 h-4 text-amber-600" /> Grades Pending Your Approval</h3>
@@ -275,7 +281,7 @@ export function HODDashboard() {
             </button>
           </div>
           <div className="divide-y divide-border">
-            {pendingGrades.slice(0, 6).map((g: any) => (
+            {filteredGrades.slice(0, 6).map((g: any) => (
               <div key={g.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-700" style={{ fontSize: "0.75rem" }}>

@@ -20,7 +20,7 @@ function getStudentNum(app: any): string  { return app.student?.student_id ?? ap
 function getCompanyName(app: any): string { return app.company?.name ?? app.companyName ?? "—"; }
 
 export function DLODashboard() {
-  const { user } = useAppContext();
+  const { user, selectedTermId } = useAppContext();
   const navigate = useNavigate();
   const dept = user?.department || "";
 
@@ -28,6 +28,20 @@ export function DLODashboard() {
   const [dashboardCounts, setDashboardCounts] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [pendingAssignments, setPendingAssignments] = useState<any[]>([]);
+
+  const filteredApplications = selectedTermId
+    ? applications.filter(
+        (a: any) =>
+          String(a.academic_term_id ?? a.term_id ?? a.term?.id) === String(selectedTermId)
+      )
+    : applications;
+
+  const filteredAssignments = selectedTermId
+    ? pendingAssignments.filter(
+        (i: any) =>
+          String(i.academic_term_id ?? i.term_id ?? i.term?.id) === String(selectedTermId)
+      )
+    : pendingAssignments;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -65,23 +79,35 @@ export function DLODashboard() {
     return () => { cancelled = true; };
   }, [dept]);
 
-  // Counts from backend dashboard endpoint (pre-computed, dept-scoped)
-  const activeStudents    = dashboardCounts?.internship_counts?.active    ?? 0;
-  const completedStudents = dashboardCounts?.internship_counts?.completed ?? 0;
-  const pendingApps       = dashboardCounts?.pending_applications         ?? 0;
-  const needSupervisor    = dashboardCounts?.unassigned_internships       ?? 0;
-  const pendingGrades     = dashboardCounts?.pending_grade_approvals      ?? 0;
-  const pendingCompanies  = applications.filter((c: any) => (c.approval_status ?? c.status) === "pending").length;
+  // Counts from backend dashboard endpoint (pre-computed, dept-scoped, or fallback to filtered term workspace data)
+  const activeStudents = selectedTermId
+    ? filteredApplications.filter((a) => a.status === "active" || a.status?.toLowerCase() === "active").length
+    : (dashboardCounts?.internship_counts?.active ?? 0);
 
-  const totalInternships = activeStudents + completedStudents + (dashboardCounts?.internship_counts?.pending ?? 0);
+  const completedStudents = selectedTermId
+    ? filteredApplications.filter((a) => a.status === "completed" || a.status?.toLowerCase() === "completed").length
+    : (dashboardCounts?.internship_counts?.completed ?? 0);
+
+  const pendingApps = selectedTermId
+    ? filteredApplications.filter((a) => ["submitted", "under_review"].includes(a.status?.toLowerCase())).length
+    : (dashboardCounts?.pending_applications ?? 0);
+
+  const needSupervisor = selectedTermId
+    ? filteredApplications.filter((a) => !a.academic_supervisor_id && a.status === "approved").length
+    : (dashboardCounts?.unassigned_internships ?? 0);
+
+  const pendingGrades     = dashboardCounts?.pending_grade_approvals      ?? 0;
+  const pendingCompanies  = filteredApplications.filter((c: any) => (c.approval_status ?? c.status) === "pending").length;
+
+  const totalInternships = activeStudents + completedStudents + (selectedTermId ? filteredApplications.filter((a) => a.status === "pending").length : (dashboardCounts?.internship_counts?.pending ?? 0));
   const placementRate = totalInternships > 0
     ? Math.round(((activeStudents + completedStudents) / totalInternships) * 100)
     : 0;
 
   // Charts — built from real application statuses (backend values)
   const funnelData = [
-    { stage: "Applied",   count: applications.length },
-    { stage: "Approved",  count: applications.filter((a) => ["approved"].includes(a.status)).length },
+    { stage: "Applied",   count: filteredApplications.length },
+    { stage: "Approved",  count: filteredApplications.filter((a) => ["approved"].includes(a.status)).length },
     { stage: "Active",    count: activeStudents },
     { stage: "Completed", count: completedStudents },
   ];
@@ -90,7 +116,7 @@ export function DLODashboard() {
     { id: "active",    name: "Active",    value: activeStudents,    color: "#3B82F6" },
     { id: "pending",   name: "Pending",   value: pendingApps,       color: "#F59E0B" },
     { id: "completed", name: "Completed", value: completedStudents, color: "#8B5CF6" },
-    { id: "approved",  name: "Approved",  value: applications.filter((a) => a.status === "approved").length, color: "#10B981" },
+    { id: "approved",  name: "Approved",  value: filteredApplications.filter((a) => a.status === "approved").length, color: "#10B981" },
   ].filter((d) => d.value > 0);
 
   if (loading) return <SkeletonDashboard statCount={4} />;
@@ -126,7 +152,7 @@ export function DLODashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard title="Dept Applications" value={applications.length} subtitle="Current term" icon={<FileText className="w-4 h-4" />} highlight />
+        <StatCard title="Dept Applications" value={filteredApplications.length} subtitle="Current term" icon={<FileText className="w-4 h-4" />} highlight />
         <StatCard title="Active Students"   value={activeStudents}      subtitle="At companies" icon={<GraduationCap className="w-4 h-4" />} />
         <StatCard title="Pending Review"    value={pendingApps}         subtitle="Awaiting approval" icon={<Clock className="w-4 h-4" />} />
         <StatCard title="Placement Rate"    value={`${placementRate}%`} subtitle="Active + completed" icon={<TrendingUp className="w-4 h-4" />} />
@@ -229,7 +255,7 @@ export function DLODashboard() {
             </button>
           </div>
           <div className="overflow-x-auto">
-            {applications.length === 0 ? (
+            {filteredApplications.length === 0 ? (
               <p className="px-4 py-6 text-muted-foreground text-center" style={{ fontSize: "0.85rem" }}>No applications yet.</p>
             ) : (
               <table className="w-full">
@@ -241,7 +267,7 @@ export function DLODashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {applications.slice(0, 5).map((app) => (
+                  {filteredApplications.slice(0, 5).map((app) => (
                     <tr key={app.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                       <td className="px-4 py-3" style={{ fontSize: "0.85rem" }}>
                         <div>
@@ -268,13 +294,13 @@ export function DLODashboard() {
             </button>
           </div>
           <div className="p-3 space-y-2">
-            {pendingAssignments.length === 0 ? (
+            {filteredAssignments.length === 0 ? (
               <div className="flex items-center gap-3 p-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                 <p style={{ fontSize: "0.85rem" }} className="text-muted-foreground">All internships have supervisors assigned.</p>
               </div>
             ) : (
-              pendingAssignments.map((i: any, idx: number) => (
+              filteredAssignments.map((i: any, idx: number) => (
                 <div key={i.id ?? idx} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/30">
                   <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
                   <div className="flex-1 min-w-0">

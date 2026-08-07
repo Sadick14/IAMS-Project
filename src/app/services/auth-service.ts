@@ -84,11 +84,11 @@ export function hasPermission(role: ExtendedRole, permission: string): boolean {
 export function getRoutePrefix(role: ExtendedRole): string {
   switch (role) {
     case "clo": return "/clo";
-    case "dlo": return "/dlo";
+    case "dlo": return "/workspace";
     case "student": return "/student";
-    case "supervisor": return "/supervisor";
-    case "academic": return "/academic";
-    case "hod": return "/hod";
+    case "supervisor": return "/workspace";
+    case "academic": return "/workspace";
+    case "hod": return "/workspace";
     default: return "/";
   }
 }
@@ -114,6 +114,7 @@ export function getAllowedRoutes(role: ExtendedRole): string[] {
       ];
     case "dlo":
       return [
+        "/workspace",
         "/dlo",
         "/dlo/applications",
         "/dlo/companies",
@@ -142,6 +143,7 @@ export function getAllowedRoutes(role: ExtendedRole): string[] {
       ];
     case "supervisor":
       return [
+        "/workspace",
         "/supervisor",
         "/supervisor/evaluate",
         "/supervisor/logbooks",
@@ -150,6 +152,7 @@ export function getAllowedRoutes(role: ExtendedRole): string[] {
       ];
     case "academic":
       return [
+        "/workspace",
         "/academic",
         "/academic/students",
         "/academic/evaluate",
@@ -160,6 +163,7 @@ export function getAllowedRoutes(role: ExtendedRole): string[] {
       ];
     case "hod":
       return [
+        "/workspace",
         "/hod",
         "/hod/reports",
         "/hod/students",

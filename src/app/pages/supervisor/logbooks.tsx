@@ -10,7 +10,7 @@ import {
 import { toast } from "sonner";
 
 export function SupervisorLogbooksPage() {
-  const { user } = useAppContext();
+  const { user, selectedTermId } = useAppContext();
   // Note: Backend now handles filtering via supervisor_id parameter
   // Client-side filtering temporarily disabled to debug routing error
   const [entries, setEntries] = useState<any[]>([]);
@@ -26,10 +26,18 @@ export function SupervisorLogbooksPage() {
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.getLogbookEntries({ per_page: 100 });
+      const termFilter = selectedTermId ? { academic_term_id: Number(selectedTermId), term_id: Number(selectedTermId) } : {};
+      const res = await apiClient.getLogbookEntries({ per_page: 100, ...termFilter });
       // Backend scopes logbook entries to the authenticated supervisor
       if (res.success && Array.isArray(res.data)) {
-        setEntries(res.data);
+        const data = res.data;
+        const filteredData = selectedTermId
+          ? data.filter((e: any) => {
+              const termId = e.academic_term_id ?? e.term_id ?? e.term?.id ?? e.internship?.academic_term_id ?? e.internship?.term_id ?? e.internship?.term?.id;
+              return String(termId) === String(selectedTermId);
+            })
+          : data;
+        setEntries(filteredData);
       } else {
         setEntries([]);
       }
@@ -39,9 +47,9 @@ export function SupervisorLogbooksPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, selectedTermId]);
 
-  useEffect(() => { fetchEntries(); }, [fetchEntries]);
+  useEffect(() => { fetchEntries(); }, [fetchEntries, selectedTermId]);
 
   const studentName = (e: any) => e.internship?.student?.user?.name ?? "—";
   const studentNum  = (e: any) => e.internship?.student?.student_id ?? "—";

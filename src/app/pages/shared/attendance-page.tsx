@@ -27,6 +27,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function AttendancePage({ viewRole }: Props) {
+  const { selectedTermId } = useAppContext();
   // SECURITY: Backend filters by supervisor_id parameter (sent automatically)
   // Client-side filtering disabled to debug routing error
   const [records, setRecords] = useState<any[]>([]);
@@ -43,17 +44,19 @@ export function AttendancePage({ viewRole }: Props) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const termFilter = selectedTermId ? { academic_term_id: Number(selectedTermId), term_id: Number(selectedTermId) } : {};
       const promises: Promise<any>[] = [
         apiClient.getAttendance({
           from_date: dateFrom || undefined,
           to_date: dateTo || undefined,
           per_page: 100,
+          ...termFilter,
         }),
         apiClient.getMissedAttendance(),
       ];
       if (viewRole === "supervisor") {
         promises.push(
-          apiClient.getAttendance({ check_in_type: "manual", unverified: "1", per_page: 100 } as any)
+          apiClient.getAttendance({ check_in_type: "manual", unverified: "1", per_page: 100, ...termFilter } as any)
         );
       }
 
@@ -70,24 +73,46 @@ export function AttendancePage({ viewRole }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, selectedTermId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData, selectedTermId]);
 
-  const filtered = studentFilter
-    ? records.filter((r) =>
+  const filtered = records.filter((r) => {
+    if (selectedTermId) {
+      const termId = r.academic_term_id ?? r.term_id ?? r.term?.id ?? r.internship?.academic_term_id ?? r.internship?.term_id ?? r.internship?.term?.id;
+      if (String(termId) !== String(selectedTermId)) return false;
+    }
+    if (studentFilter) {
+      return (
         studentName(r).toLowerCase().includes(studentFilter.toLowerCase()) ||
-        studentNum(r).toLowerCase().includes(studentFilter.toLowerCase()))
-    : records;
+        studentNum(r).toLowerCase().includes(studentFilter.toLowerCase())
+      );
+    }
+    return true;
+  });
 
-  const pendingVerification = records.filter((r) =>
+  const filteredMissed = selectedTermId
+    ? missed.filter((m) => {
+        const termId = m.academic_term_id ?? m.term_id ?? m.term?.id ?? m.internship?.academic_term_id ?? m.internship?.term_id ?? m.internship?.term?.id;
+        return String(termId) === String(selectedTermId);
+      })
+    : missed;
+
+  const filteredPendingManual = selectedTermId
+    ? pendingManual.filter((p) => {
+        const termId = p.academic_term_id ?? p.term_id ?? p.term?.id ?? p.internship?.academic_term_id ?? p.internship?.term_id ?? p.internship?.term?.id;
+        return String(termId) === String(selectedTermId);
+      })
+    : pendingManual;
+
+  const pendingVerification = filtered.filter((r) =>
     !r.verified_by && r.check_in_type === "manual"
   );
-  const presentCount = records.filter((r) => r.status === "present").length;
-  const lateCount = records.filter((r) => r.status === "late").length;
-  const absentCount = records.filter((r) => r.status === "absent").length;
-  const verificationRate = records.length > 0
-    ? Math.round((records.filter((r) => r.verified_by).length / records.length) * 100)
+  const presentCount = filtered.filter((r) => r.status === "present").length;
+  const lateCount = filtered.filter((r) => r.status === "late").length;
+  const absentCount = filtered.filter((r) => r.status === "absent").length;
+  const verificationRate = filtered.length > 0
+    ? Math.round((filtered.filter((r) => r.verified_by).length / filtered.length) * 100)
     : 0;
 
   const handleVerify = async (recordId: string, status: string) => {
@@ -128,7 +153,7 @@ export function AttendancePage({ viewRole }: Props) {
         </div>
       </div>
 
-      {missed.length > 0 && (viewRole === "clo" || viewRole === "dlo" || viewRole === "academic") && (
+      {filteredMissed.length > 0 && (viewRole === "clo" || viewRole === "dlo" || viewRole === "academic") && (
         <Card className="overflow-hidden border-amber-200">
           <div className="flex items-center justify-between px-5 py-4 border-b border-amber-100 bg-amber-50/60">
             <div className="flex items-center gap-3">
@@ -139,11 +164,11 @@ export function AttendancePage({ viewRole }: Props) {
               </div>
             </div>
             <span className="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200" style={{ fontSize: "0.75rem" }}>
-              {missed.length} flagged
+              {filteredMissed.length} flagged
             </span>
           </div>
           <div className="divide-y divide-border">
-            {missed.slice(0, 5).map((m: any, i: number) => (
+            {filteredMissed.slice(0, 5).map((m: any, i: number) => (
               <div key={m.id ?? i} className="flex items-center justify-between gap-4 p-4 hover:bg-muted/30">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
@@ -164,7 +189,7 @@ export function AttendancePage({ viewRole }: Props) {
       )}
 
       {/* Pending Manual Check-ins — supervisor only */}
-      {viewRole === "supervisor" && pendingManual.length > 0 && (
+      {viewRole === "supervisor" && filteredPendingManual.length > 0 && (
         <Card className="border-amber-300 overflow-hidden">
           <CardContent className="p-0">
             <div className="flex items-center justify-between px-5 py-4 border-b border-amber-200 bg-amber-50/60 dark:bg-amber-950/30">
@@ -175,11 +200,11 @@ export function AttendancePage({ viewRole }: Props) {
                 </p>
               </div>
               <span className="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/40 dark:text-amber-300">
-                {pendingManual.length} waiting
+                {filteredPendingManual.length} waiting
               </span>
             </div>
             <div className="p-4 space-y-3">
-              {pendingManual.map((r: any) => (
+              {filteredPendingManual.map((r: any) => (
                 <div key={r.id} className="rounded-xl border border-amber-200 bg-card p-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0" style={{ fontSize: "0.75rem", fontWeight: 600 }}>

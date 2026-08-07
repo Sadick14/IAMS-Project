@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../../lib/api-client";
 import { toast } from "sonner";
+import { useAppContext } from "../../lib/context";
 import {
   CheckCircle2, Clock, Mail, RefreshCw, AlertCircle
 } from "lucide-react";
 
 export function SupervisorApprovalsPage() {
+  const { selectedTermId } = useAppContext();
   const [invitations, setInvitations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,7 +32,14 @@ export function SupervisorApprovalsPage() {
     // Auto-refresh every 30 seconds
     const interval = setInterval(load, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedTermId]);
+
+  const filteredInvitations = selectedTermId
+    ? invitations.filter((inv) => {
+        const termId = inv.student?.academic_term_id ?? inv.student?.term_id ?? inv.student?.term?.id ?? inv.academic_term_id;
+        return String(termId) === String(selectedTermId);
+      })
+    : invitations;
 
   const handleApprove = async (invitationId: string, studentName: string) => {
     const res = await apiClient.approveSupervisorInvitation(invitationId);
@@ -76,7 +85,7 @@ export function SupervisorApprovalsPage() {
         </button>
       </div>
 
-      {invitations.length === 0 ? (
+      {filteredInvitations.length === 0 ? (
         <div className="bg-card border border-border rounded-xl p-8 text-center">
           <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
           <h3 className="font-semibold mb-2">No Pending Invitations</h3>
@@ -86,7 +95,7 @@ export function SupervisorApprovalsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {invitations.map((invitation) => (
+          {filteredInvitations.map((invitation) => (
             <div
               key={invitation.id}
               className="bg-card border border-border rounded-xl p-4 hover:shadow-md transition-shadow"
