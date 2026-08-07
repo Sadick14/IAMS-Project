@@ -17,7 +17,7 @@ function getCompanyName(i: any) { return i.company?.name ?? "—"; }
 function getDept(i: any)        { return i.student?.department?.name ?? "—"; }
 
 export function SupervisorDashboard() {
-  const { user } = useAppContext();
+  const { user, selectedTermId } = useAppContext();
   const navigate = useNavigate();
 
   const [dashboard, setDashboard] = useState<any>(null);
@@ -57,7 +57,13 @@ export function SupervisorDashboard() {
   }, [user?.id]);
 
   // Backend already scopes assigned_internships to this supervisor via industry_supervisor_id
-  const internships: any[] = dashboard?.assigned_internships ?? [];
+  const allInternships: any[] = dashboard?.assigned_internships ?? [];
+  const internships = selectedTermId
+    ? allInternships.filter(
+        (i: any) =>
+          String(i.academic_term_id ?? i.term_id ?? i.term?.id) === String(selectedTermId)
+      )
+    : allInternships;
   // Filter attendance and assessments to only include assigned students
   const allTodayAttendance: any[] = dashboard?.today_attendance ?? [];
   const todayAttendance = allTodayAttendance.filter((r: any) =>

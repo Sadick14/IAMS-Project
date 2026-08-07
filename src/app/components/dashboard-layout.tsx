@@ -44,6 +44,7 @@ const cloNav: NavItem[] = [
 ];
 
 const dloNav: NavItem[] = [
+  { to: "/workspace", icon: Layers, label: "Term Workspace" },
   { to: "/dlo", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/dlo/applications", icon: FileText, label: "Applications" },
   { to: "/dlo/companies", icon: Building2, label: "Companies" },
@@ -76,6 +77,7 @@ const studentNav: NavItem[] = [
 ];
 
 const supervisorNav: NavItem[] = [
+  { to: "/workspace", icon: Layers, label: "Term Workspace" },
   { to: "/supervisor", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/supervisor/approvals", icon: ClipboardCheck, label: "Student Approvals" },
   { to: "/supervisor/logbooks", icon: BookMarked, label: "Student Logbooks" },
@@ -87,6 +89,7 @@ const supervisorNav: NavItem[] = [
 ];
 
 const academicNav: NavItem[] = [
+  { to: "/workspace", icon: Layers, label: "Term Workspace" },
   { to: "/academic", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/academic/students", icon: GraduationCap, label: "My Students" },
   { to: "/academic/evaluate", icon: ClipboardCheck, label: "Evaluations" },
@@ -98,6 +101,7 @@ const academicNav: NavItem[] = [
 ];
 
 const hodNav: NavItem[] = [
+  { to: "/workspace", icon: Layers, label: "Term Workspace" },
   { to: "/hod", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/hod/students", icon: GraduationCap, label: "Department Students" },
   { to: "/hod/approvals", icon: ClipboardCheck, label: "Grades" },
@@ -159,14 +163,28 @@ function getRoleLabel(role: ExtendedRole): string {
 }
 
 export function DashboardLayout() {
-  const { user, setUser, sidebarOpen, setSidebarOpen, store } = useAppContext();
+  const { user, setUser, sidebarOpen, setSidebarOpen, store, selectedTermId } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [checkInModalOpen, setCheckInModalOpen] = useState(false);
   const [overdueRubricsCount, setOverdueRubricsCount] = useState(0);
+  const [workspaceTerm, setWorkspaceTerm] = useState<any | null>(null);
   const navigate = useNavigate();
   const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!selectedTermId) {
+      setWorkspaceTerm(null);
+      return;
+    }
+    apiClient.getTerms().then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        const found = res.data.find((t: any) => String(t.id) === String(selectedTermId));
+        setWorkspaceTerm(found ?? null);
+      }
+    }).catch(() => {});
+  }, [selectedTermId]);
 
   useEffect(() => {
     if (user?.role !== "supervisor") return;
@@ -376,6 +394,19 @@ export function DashboardLayout() {
           </div>
 
           <div className="flex-1" />
+
+          {/* Workspace Indicator */}
+          {workspaceTerm && (
+            <div
+              onClick={() => navigate("/workspace")}
+              title="Click to change term workspace"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/15 text-primary border border-primary/20 rounded-xl cursor-pointer transition-all shrink-0"
+              style={{ fontSize: "0.85rem", fontWeight: 500 }}
+            >
+              <Layers className="w-4 h-4 text-primary" />
+              <span>Workspace: {workspaceTerm.name}</span>
+            </div>
+          )}
 
           {/* Student Check-in Button */}
           {user.role === "student" && (

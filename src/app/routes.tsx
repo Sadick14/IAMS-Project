@@ -36,6 +36,7 @@ const DLOAssignmentsPage = lazy(() => import("./pages/dlo/assignments").then(m =
 const DLOFinalGradingPage = lazy(() => import("./pages/dlo/final-grading").then(m => ({ default: m.DLOFinalGradingPage })));
 
 // Shared Pages
+const WorkspacePage = lazy(() => import("./pages/shared/workspace").then(m => ({ default: m.WorkspacePage })));
 const ApplicationsPage = lazy(() => import("./pages/shared/applications-page").then(m => ({ default: m.ApplicationsPage })));
 const CompaniesPage = lazy(() => import("./pages/shared/companies-page").then(m => ({ default: m.CompaniesPage })));
 const StudentsPage = lazy(() => import("./pages/shared/students-page").then(m => ({ default: m.StudentsPage })));
@@ -143,6 +144,19 @@ export const router = createBrowserRouter([
 
       // Root redirect
       { path: "/", element: <Navigate to="/login" replace /> },
+
+      // Workspace Portal
+      {
+        path: "/workspace",
+        element: (
+          <AuthGuard allowedRoles={["dlo", "supervisor", "academic", "hod"]}>
+            <DashboardLayout />
+          </AuthGuard>
+        ),
+        children: [
+          { index: true, element: <SuspensePage><WorkspacePage /></SuspensePage> },
+        ],
+      },
 
       // CLO Portal
       {
